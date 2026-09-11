@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0b0705">
+    <meta name="description" content="FUMIGA — Roguelite / Colony-Sim. Escave, colete, mute e sobreviva.">
+    <title>FUMIGA — Beta</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Ponto de entrada: Canvas do Phaser (100% da tela, sem bordas) + UI DOM sobreposta -->
+    <div id="game-container"></div>
+
+    <!-- Vinheta da Pausa Tática + flash de dano da Rainha (acionados via classes no body) -->
+    <div id="tactical-vignette"></div>
+    <div id="damage-flash"></div>
+
+    <noscript>
+        <div id="no-js">FUMIGA precisa de JavaScript habilitado.</div>
+    </noscript>
+
+    <!-- Engine: Phaser 3 (UMD, define o global `Phaser`). Vendored para rodar 100% offline e no APK. -->
+    <script src="vendor/phaser.min.js"></script>
+    <!-- Módulos ES6 do jogo (TDD §2) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

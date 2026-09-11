@@ -1,0 +1,834 @@
+{
+  "ant_worker": {
+    "file": "assets/sprites/ant_worker.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_collector": {
+    "file": "assets/sprites/ant_collector.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_scout": {
+    "file": "assets/sprites/ant_scout.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_soldier": {
+    "file": "assets/sprites/ant_soldier.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_guardian": {
+    "file": "assets/sprites/ant_guardian.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_sniper": {
+    "file": "assets/sprites/ant_sniper.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_spy": {
+    "file": "assets/sprites/ant_spy.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_healer": {
+    "file": "assets/sprites/ant_healer.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_digger": {
+    "file": "assets/sprites/ant_digger.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_giant": {
+    "file": "assets/sprites/ant_giant.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_enemy": {
+    "file": "assets/sprites/ant_enemy.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "queen": {
+    "file": "assets/sprites/queen.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 6,
+    "anims": {
+      "idle": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "hurt": [
+        4
+      ],
+      "death": [
+        5
+      ]
+    }
+  },
+  "enemy_centipede": {
+    "file": "assets/sprites/enemy_centipede.png",
+    "frameWidth": 24,
+    "frameHeight": 24,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        1,
+        3
+      ]
+    }
+  },
+  "enemy_beetle": {
+    "file": "assets/sprites/enemy_beetle.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        1,
+        3
+      ]
+    }
+  },
+  "enemy_scorpion": {
+    "file": "assets/sprites/enemy_scorpion.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        1,
+        3
+      ]
+    }
+  },
+  "enemy_fly": {
+    "file": "assets/sprites/enemy_fly.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 2,
+    "anims": {
+      "walk": [
+        0,
+        1
+      ],
+      "attack": [
+        0,
+        1
+      ]
+    }
+  },
+  "enemy_spiderling": {
+    "file": "assets/sprites/enemy_spiderling.png",
+    "frameWidth": 12,
+    "frameHeight": 12,
+    "frames": 2,
+    "anims": {
+      "walk": [
+        0,
+        1
+      ],
+      "attack": [
+        0,
+        1
+      ]
+    }
+  },
+  "enemy_moth": {
+    "file": "assets/sprites/enemy_moth.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 2,
+    "anims": {
+      "walk": [
+        0,
+        1
+      ],
+      "attack": [
+        0,
+        1
+      ]
+    }
+  },
+  "enemy_termite": {
+    "file": "assets/sprites/enemy_termite.png",
+    "frameWidth": 18,
+    "frameHeight": 18,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        1,
+        3
+      ]
+    }
+  },
+  "enemy_plant": {
+    "file": "assets/sprites/enemy_plant.png",
+    "frameWidth": 20,
+    "frameHeight": 20,
+    "frames": 2,
+    "anims": {
+      "walk": [
+        0,
+        1
+      ],
+      "attack": [
+        1,
+        0
+      ]
+    }
+  },
+  "boss_wolf_spider": {
+    "file": "assets/sprites/boss_wolf_spider.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        2,
+        3
+      ]
+    }
+  },
+  "boss_bombardier": {
+    "file": "assets/sprites/boss_bombardier.png",
+    "frameWidth": 48,
+    "frameHeight": 48,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        2,
+        3
+      ]
+    }
+  },
+  "boss_putrid_centipede": {
+    "file": "assets/sprites/boss_putrid_centipede.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        1,
+        3
+      ]
+    }
+  },
+  "boss_first_queen": {
+    "file": "assets/sprites/boss_first_queen.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "frames": 6,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attack": [
+        4,
+        5
+      ],
+      "idle": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "tiles_bosque_umido": {
+    "file": "assets/tilesets/tiles_bosque_umido.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_prado_fogo": {
+    "file": "assets/tilesets/tiles_prado_fogo.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_deserto_escaldante": {
+    "file": "assets/tilesets/tiles_deserto_escaldante.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_pantano_toxico": {
+    "file": "assets/tilesets/tiles_pantano_toxico.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_cemiterio_troncos": {
+    "file": "assets/tilesets/tiles_cemiterio_troncos.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_floresta_fungos": {
+    "file": "assets/tilesets/tiles_floresta_fungos.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_cavernas_cristal": {
+    "file": "assets/tilesets/tiles_cavernas_cristal.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_tundra_congelada": {
+    "file": "assets/tilesets/tiles_tundra_congelada.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_oasis_carnivoro": {
+    "file": "assets/tilesets/tiles_oasis_carnivoro.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_jardim_flutuante": {
+    "file": "assets/tilesets/tiles_jardim_flutuante.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_abismo_bioluminescente": {
+    "file": "assets/tilesets/tiles_abismo_bioluminescente.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_vale_ossos": {
+    "file": "assets/tilesets/tiles_vale_ossos.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_fosso_teias": {
+    "file": "assets/tilesets/tiles_fosso_teias.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_canyon_geleia": {
+    "file": "assets/tilesets/tiles_canyon_geleia.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "tiles_prisao_ambar": {
+    "file": "assets/tilesets/tiles_prisao_ambar.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
+  "props": {
+    "file": "assets/sprites/props.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 16,
+    "tiles": {
+      "nursery": 0,
+      "pantry": 1,
+      "defense": 2,
+      "fungus": 3,
+      "trap": 4,
+      "dais": 5,
+      "anthill": 6,
+      "leaf_node": 7,
+      "jelly_node": 8,
+      "egg": 9,
+      "cocoon": 10,
+      "stump": 11,
+      "rock_deco": 12,
+      "mushroom_deco": 13,
+      "web": 14,
+      "crystal": 15
+    }
+  },
+  "ui_icons": {
+    "file": "assets/ui/icons.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 27,
+    "tiles": {
+      "leaf": 0,
+      "jelly": 1,
+      "heart": 2,
+      "dig": 3,
+      "build": 4,
+      "cancel": 5,
+      "pheromone_collect": 6,
+      "pheromone_attack": 7,
+      "pheromone_move": 8,
+      "pheromone_retreat": 9,
+      "gear": 10,
+      "pause": 11,
+      "back": 12,
+      "skull": 13,
+      "gene": 14,
+      "route": 15,
+      "ant": 16,
+      "egg_icon": 17,
+      "shield": 18,
+      "fungus_icon": 19,
+      "acid": 20,
+      "poison": 21,
+      "eye": 22,
+      "crown": 23,
+      "wave": 24,
+      "speed": 25,
+      "hp": 26
+    }
+  },
+  "ui_panel": {
+    "file": "assets/ui/panel.png",
+    "frameWidth": 48,
+    "frameHeight": 48,
+    "frames": 1,
+    "nineSlice": {
+      "left": 12,
+      "right": 12,
+      "top": 12,
+      "bottom": 12
+    }
+  },
+  "mutation_cards": {
+    "file": "assets/ui/mutation_cards.png",
+    "frameWidth": 96,
+    "frameHeight": 128,
+    "frames": 8,
+    "tiles": {
+      "comum": 0,
+      "incomum": 1,
+      "rara": 2,
+      "epica": 3,
+      "lendario": 4,
+      "mitica": 5,
+      "cosmica": 6,
+      "deus": 7
+    },
+    "rarities": [
+      "comum",
+      "incomum",
+      "rara",
+      "epica",
+      "lendario",
+      "mitica",
+      "cosmica",
+      "deus"
+    ]
+  },
+  "font_fumiga": {
+    "file": "assets/fonts/fumiga.xml",
+    "type": "bitmapFont",
+    "texture": "assets/fonts/fumiga.png"
+  },
+  "projectile_acid": {
+    "file": "assets/sprites/projectile_acid.png",
+    "frameWidth": 8,
+    "frameHeight": 8,
+    "frames": 4,
+    "anims": {
+      "fly": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  }
+}
