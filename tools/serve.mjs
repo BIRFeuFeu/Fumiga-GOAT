@@ -15,8 +15,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.PORT || process.argv[2] || 8080);
 const HOST = '0.0.0.0';
+// Ouve na porta pedida E nas portas padrão de preview (3000/8080), para que o
+// domínio de preview da plataforma (que costuma mapear 3000) sempre alcance o jogo.
+const PORTS = [...new Set([Number(process.env.PORT || process.argv[2] || 8080), 8080, 3000])];
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -35,7 +37,7 @@ const MIME = {
     '.woff2': 'font/woff2'
 };
 
-const server = http.createServer(async (req, res) => {
+async function handle(req, res) {
     try {
         const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         let rel = decodeURIComponent(url.pathname);
@@ -63,9 +65,13 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain' }).end('500 ' + err.message);
     }
-});
+}
 
-server.listen(PORT, HOST, () => {
-    console.log(`[FUMIGA] Servindo ${ROOT}`);
-    console.log(`[FUMIGA] http://localhost:${PORT}  (bind ${HOST})`);
-});
+for (const port of PORTS) {
+    const server = http.createServer(handle);
+    server.on('error', (e) => console.log(`[FUMIGA] porta ${port} indisponível: ${e.message}`));
+    server.listen(port, HOST, () => {
+        console.log(`[FUMIGA] Servindo ${ROOT}`);
+        console.log(`[FUMIGA] http://localhost:${port}  (bind ${HOST})`);
+    });
+}
