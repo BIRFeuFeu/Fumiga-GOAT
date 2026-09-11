@@ -1,0 +1,40 @@
+{
+  "name": "fumiga",
+  "version": "0.1.0-beta",
+  "description": "FUMIGA - Roguelite / Colony-Sim de formigas. Beta jogável (Phaser 3 + Vanilla ES6 Modules).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "dev": "node tools/serve.mjs",
+    "gen:art": "node tools/generate-sprites.mjs",
+    "gen:audio": "node tools/generate-audio.mjs",
+    "gen:assets": "npm run gen:art && npm run gen:audio",
+    "test": "node --test \"tests/unit/*.test.mjs\" \"tests/integration/*.spec.mjs\"",
+    "test:unit": "node --test \"tests/unit/*.test.mjs\"",
+    "test:integration": "node --test \"tests/integration/*.spec.mjs\"",
+    "cap:sync": "npx cap sync android",
+    "cap:build": "npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "keywords": [
+    "phaser3",
+    "roguelite",
+    "colony-sim",
+    "pixel-art",
+    "mobile",
+    "capacitor"
+  ],
+  "author": "Fumiga Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.100",
+    "jsdom": "^27.0.0",
+    "phaser": "3.90.0"
+  },
+  "optionalDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/preferences": "^6.0.2"
+  }
+}

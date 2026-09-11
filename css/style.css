@@ -1,0 +1,150 @@
+/* ==========================================================================
+   FUMIGA — css/style.css
+   Regras vindas de:
+   - "A Estética Geral (2D Crisp Pixel Art)": sem blur, sem antialiasing, crisp.
+   - "COPIE E COLE PARA O MANUS": Canvas 100% da tela, ZERO bordas/margens,
+     ZERO botões de ação fixos, ZERO caixas de texto flutuantes.
+   - GDD §10: HUD minimalista (Biomassa + Geleia Real no canto sup. esquerdo,
+     engrenagem no canto sup. direito, HP da Rainha oculto por padrão).
+   ========================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0b0705;
+    color: #e8d9b5;
+    font-family: "Courier New", monospace; /* fallback: a tipografia real é o BitmapFont gerado */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    overscroll-behavior: none;
+}
+
+/* --- Canvas: ocupa 100% da tela. Sem margem, sem padding, sem borda. --- */
+#game-container {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#game-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    image-rendering: pixelated;          /* preserva o 16-bit */
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+    touch-action: none;
+}
+
+/* --- Vinheta da Pausa Tática (GDD §3.1 / Estética §4) ------------------- */
+/* Ativada pela UIScene via body.tactical-pause enquanto o timeScale = 0.1  */
+#tactical-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 90ms linear;
+    background:
+        radial-gradient(ellipse at center,
+            rgba(0, 0, 0, 0) 38%,
+            rgba(6, 3, 2, 0.55) 78%,
+            rgba(3, 1, 1, 0.92) 100%);
+    z-index: 5;
+}
+
+body.tactical-pause #tactical-vignette {
+    opacity: 1;
+}
+
+/* --- Flash de dano da Rainha (feedback agressivo, Estética §4) ----------- */
+#damage-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255, 40, 30, 0) 45%, rgba(180, 12, 10, 0.45) 100%);
+    z-index: 4;
+}
+
+body.queen-hit #damage-flash {
+    animation: queenHitFlash 260ms steps(3, end) 1;
+}
+
+@keyframes queenHitFlash {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* --- Tela de carregamento (antes do Phaser assumir) ---------------------- */
+#boot-splash {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: #0b0705;
+    z-index: 20;
+    transition: opacity 320ms linear;
+}
+
+#boot-splash.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#boot-splash .title {
+    font-size: 26px;
+    letter-spacing: 8px;
+    color: #c8ff5a;
+    text-shadow: 0 3px 0 #2c3a10;
+}
+
+#boot-splash .bar {
+    width: min(60vw, 320px);
+    height: 10px;
+    border: 2px solid #4a3520;
+    background: #170f09;
+}
+
+#boot-splash .bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: #c8ff5a;
+}
+
+#boot-splash .hint {
+    font-size: 11px;
+    color: #6d5a41;
+    letter-spacing: 2px;
+}
+
+#no-js {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #0b0705;
+    color: #c8ff5a;
+    z-index: 99;
+}
+
+/* Acessibilidade: respeita usuários que pedem menos movimento */
+@media (prefers-reduced-motion: reduce) {
+    body.tactical-pause #tactical-vignette { transition: none; }
+    body.queen-hit #damage-flash { animation: none; opacity: 0.4; }
+}
