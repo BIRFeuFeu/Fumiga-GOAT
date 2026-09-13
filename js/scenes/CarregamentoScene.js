@@ -102,25 +102,31 @@ export class CarregamentoScene extends Phaser.Scene {
             } catch {}
         }
 
-        // Janela central com luz volumétrica amarela (como Dead Cells)
+        // Janela central com luz volumétrica — sprite real se disponível
         const winX = W * 0.52, winY = topH * 0.42;
         const winW = 78, winH = 92;
-        // brilho atrás da janela
-        const glow = this.add.graphics();
-        glow.fillStyle(0xffd54a, 0.18).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
-        glow.fillStyle(0xffe066, 0.12).fillRect(winX - winW * 0.6, winY - winH * 0.5, winW * 1.2, winH * 1.2);
-        // janela em arco
-        const win = this.add.graphics();
-        win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 - 6, winY - winH/2, winW + 12, winH);
-        win.fillStyle(0x4a5a6a, 1).fillCircle(winX, winY - winH/2, winW/2 + 6);
-        // grades + luz
-        win.fillStyle(0xffd54a, 1).fillRect(winX - winW/2, winY - winH/2 + 6, winW, winH - 12);
-        for (let i = 1; i < 4; i++) {
-            win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 + i * (winW/4) -1, winY - winH/2 + 6, 2, winH - 12);
+        if (this.textures.exists('bg_window')) {
+            const im = this.add.image(winX, winY, 'bg_window');
+            im.setDisplaySize(winW + 12, winH).setAlpha(0.95);
+            const glow2 = this.add.graphics();
+            glow2.fillStyle(0xffd54a, 0.18).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
+            glow2.fillStyle(0xffe066, 0.12).fillRect(winX - winW * 0.6, winY - winH * 0.5, winW * 1.2, winH * 1.2);
+            glow2.fillStyle(0xffe066, 0.22).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
+            glow2.fillStyle(0xffffff, 0.08).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX - winW*0.3, topH - 14);
+        } else {
+            const glow = this.add.graphics();
+            glow.fillStyle(0xffd54a, 0.18).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
+            glow.fillStyle(0xffe066, 0.12).fillRect(winX - winW * 0.6, winY - winH * 0.5, winW * 1.2, winH * 1.2);
+            const win = this.add.graphics();
+            win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 - 6, winY - winH/2, winW + 12, winH);
+            win.fillStyle(0x4a5a6a, 1).fillCircle(winX, winY - winH/2, winW/2 + 6);
+            win.fillStyle(0xffd54a, 1).fillRect(winX - winW/2, winY - winH/2 + 6, winW, winH - 12);
+            for (let i = 1; i < 4; i++) {
+                win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 + i * (winW/4) -1, winY - winH/2 + 6, 2, winH - 12);
+            }
+            win.fillStyle(0xffe066, 0.22).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
+            win.fillStyle(0xffffff, 0.08).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX - winW*0.3, topH - 14);
         }
-        // feixe de luz no chão
-        win.fillStyle(0xffe066, 0.22).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
-        win.fillStyle(0xffffff, 0.08).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX - winW*0.3, topH - 14);
 
         // Gaiola pendurada à direita da janela
         const cage = this.add.graphics();

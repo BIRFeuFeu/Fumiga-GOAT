@@ -578,7 +578,8 @@ export const BIOME_ART = {
     vale_ossos: { dirt: '#4a4238', rock: '#8a8478', surface: '#6b6455', hazard: '#d8d2b8', hazardName: 'osso' },
     fosso_teias: { dirt: '#3a3630', rock: '#44403a', surface: '#5a554c', hazard: '#e8e8f0', hazardName: 'teia' },
     canyon_geleia: { dirt: '#5a3a1e', rock: '#6a4a22', surface: '#8a6a2a', hazard: '#ffc832', hazardName: 'geleia' },
-    prisao_ambar: { dirt: '#6a4a1e', rock: '#8a6a2a', surface: '#a8832a', hazard: '#ffae1e', hazardName: 'seiva' }
+    prisao_ambar: { dirt: '#6a4a1e', rock: '#8a6a2a', surface: '#a8832a', hazard: '#ffae1e', hazardName: 'seiva' },
+    nucleo_primordial: { dirt: '#2a1a2a', rock: '#4a3a4a', surface: '#5a3a3a', hazard: '#fff3b0', hazardName: 'arena' }
 };
 
 function drawTile(w, h, base, kind, seed, hazard) {
@@ -1291,6 +1292,114 @@ console.log('[gen:art] fonte bitmap...');
     });
     writePNG(path.join(ROOT, 'assets/sprites/projectile_acid.png'), sheet);
     register('projectile_acid', 'assets/sprites/projectile_acid.png', 8, 8, 4, { anims: { fly: [0, 1, 2, 3] } });
+}
+
+/* ========================================================================== *
+ * 10b. SPRITES DE FUNDO (castelo, água, barco, nuvens, lua) — substitui placeholders Graphics
+ * ========================================================================== */
+console.log('[gen:art] backgrounds...');
+{
+    // Castelo/Formigueiro silhueta — 128x96 (transparente = céu)
+    const s = new Surface(128, 96);
+    // montanha base
+    s.poly([[0,96],[64,16],[128,96]], '#1a0a2a');
+    // torres
+    s.rect(48, 24, 14, 72, '#1a0a2a');
+    s.rect(72, 16, 18, 80, '#1a0a2a');
+    s.rect(56, 36, 12, 60, '#1a0a2a');
+    // ponte
+    s.poly([[56,60],[72,56],[72,64]], '#1a0a2a');
+    // janelas luz
+    s.rect(52, 40, 4, 6, '#ffd54a');
+    s.rect(76, 32, 4, 8, '#ffd54a');
+    writePNG(path.join(ROOT, 'assets/sprites/bg_castle.png'), s);
+    register('bg_castle', 'assets/sprites/bg_castle.png', 128, 96, 1);
+}
+{
+    // Água com reflexo — 128x32
+    const s = new Surface(128, 32);
+    s.rect(0, 0, 128, 32, '#ffb82a');
+    s.rect(0, 0, 128, 2, [255,255,255,30]);
+    for(let x=0;x<128;x+=8) s.px(x, Math.round(8+Math.sin(x*0.2)*2), [255,255,255,60]);
+    writePNG(path.join(ROOT, 'assets/sprites/bg_water.png'), s);
+    register('bg_water', 'assets/sprites/bg_water.png', 128, 32, 1);
+}
+{
+    // Barco à vela — 24x16
+    const s = new Surface(24, 16);
+    s.poly([[8,8],[12,2],[16,8]], '#1a0a1a'); // vela
+    s.rect(6, 8, 12, 6, '#1a0a1a'); // casco
+    s.line(6,8,18,8,'#3a2a1a');
+    writePNG(path.join(ROOT, 'assets/sprites/bg_boat.png'), s);
+    register('bg_boat', 'assets/sprites/bg_boat.png', 24, 16, 1);
+}
+{
+    // Nuvens — 64x32
+    const s = new Surface(64, 32);
+    s.ellipse(16, 16, 18, 12, '#ffd07a', { outline: false, rim: false });
+    s.ellipse(32, 12, 22, 14, '#ffd07a', { outline: false, rim: false });
+    s.ellipse(48, 18, 14, 10, '#ffd07a', { outline: false, rim: false });
+    writePNG(path.join(ROOT, 'assets/sprites/bg_clouds.png'), s);
+    register('bg_clouds', 'assets/sprites/bg_clouds.png', 64, 32, 1);
+}
+{
+    // Lua — 64x64
+    const s = new Surface(64, 64);
+    s.ellipse(32,32, 24,24, '#fff6b0', { outline: false, rim: false });
+    s.ellipse(32,32, 28,28, [255,255,255,20], { outline: false, rim: false });
+    // crateras
+    s.ellipse(28,28,3,3,'#e8d9a0', { outline: false, rim: false });
+    s.ellipse(36,36,2,2,'#e8d9a0', { outline: false, rim: false });
+    writePNG(path.join(ROOT, 'assets/sprites/bg_moon.png'), s);
+    register('bg_moon', 'assets/sprites/bg_moon.png', 64, 64, 1);
+}
+{
+    // Pássaros — 32x12 (6 em V)
+    const s = new Surface(32, 12);
+    for(let i=0;i<6;i++){
+        const x=i*5+2, y=6 + (i%2?2:-2);
+        s.line(x,y, x+2, y-2, '#1a0a1a');
+        s.line(x+2, y-2, x+4, y, '#1a0a1a');
+    }
+    writePNG(path.join(ROOT, 'assets/sprites/bg_birds.png'), s);
+    register('bg_birds', 'assets/sprites/bg_birds.png', 32, 12, 1);
+}
+{
+    // Partícula — 3x3
+    const s = new Surface(3, 3);
+    s.rect(0,0,3,3,'#ffffff');
+    writePNG(path.join(ROOT, 'assets/sprites/particle.png'), s);
+    register('particle', 'assets/sprites/particle.png', 3, 3, 1);
+}
+{
+    // Glow — 8x8 círculo
+    const s = new Surface(8, 8);
+    s.ellipse(4,4,4,4,'#b6ff3c', { outline: false, rim: false });
+    s.ellipse(4,4,2,2,'#ffffff', { outline: false, rim: false });
+    writePNG(path.join(ROOT, 'assets/sprites/glow.png'), s);
+    register('glow', 'assets/sprites/glow.png', 8, 8, 1);
+}
+{
+    // Fog brush — 32x32 círculo branco para erase
+    const s = new Surface(32, 32);
+    s.ellipse(16,16,16,16,'#ffffff', { outline: false, rim: false });
+    writePNG(path.join(ROOT, 'assets/sprites/fogbrush.png'), s);
+    register('fogbrush', 'assets/sprites/fogbrush.png', 32, 32, 1);
+}
+{
+    // Janela com luz volumétrica — 64x64 (para Loading)
+    const s = new Surface(64, 64);
+    s.rect(0,0,64,64,'#2a3a4a');
+    s.rect(8,8,48,48,'#1a0f1e');
+    // luz
+    s.rect(16,16,32,32,[255,213,74,40]);
+    // traves
+    s.rect(30,8,4,48,'#3a2a1a');
+    s.rect(8,30,48,4,'#3a2a1a');
+    // brilho
+    s.ellipse(32,16,8,8,'#ffd54a', { outline: false, rim: false });
+    writePNG(path.join(ROOT, 'assets/sprites/bg_window.png'), s);
+    register('bg_window', 'assets/sprites/bg_window.png', 64, 64, 1);
 }
 
 /* ========================================================================== *

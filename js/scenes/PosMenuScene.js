@@ -80,30 +80,44 @@ export class PosMenuScene extends Phaser.Scene {
         const H = this.scale.height;
         this.sel = 0;
 
-        // ---------- fundo idêntico ao Menu (castelo/formigueiro + água) ----------
+        // ---------- fundo idêntico ao Menu — sprites reais ----------
         this.cameras.main.setBackgroundColor('#0b0705');
         const bg = this.add.graphics();
         bg.fillStyle(0x1a0a2a, 1).fillRect(0, 0, W, H);
-        // degradê laranja -> amarelo
         bg.fillStyle(0xff7a2a, 0.85).fillRect(0, H * 0.52, W, H * 0.18);
         bg.fillStyle(0xffc83a, 0.9).fillRect(0, H * 0.70, W, H * 0.12);
-        // silhueta castelo/formigueiro em roxo escuro
-        const castle = this.add.graphics();
-        castle.fillStyle(0x1a0a2a, 1);
-        castle.fillTriangle(W * 0.42, H * 0.82, W * 0.78, H * 0.18, W * 1.05, H * 0.82);
-        castle.fillRect(W * 0.58, H * 0.28, 18, 90);
-        castle.fillRect(W * 0.72, H * 0.20, 22, 110);
-        // água
-        bg.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
-        const boat = this.add.graphics();
-        boat.fillStyle(0x1a0a1a, 1).fillTriangle(W * 0.78, H * 0.79, W * 0.80, H * 0.75, W * 0.82, H * 0.79);
-        boat.fillRect(W * 0.79, H * 0.79, 12, 6);
-        // pássaros
-        for (let i = 0; i < 6; i++) {
-            const bx = W * 0.42 + i * 10;
-            const by = H * 0.22 + (i % 2 ? 5 : -3);
-            const bird = this.add.graphics();
-            bird.fillStyle(0x1a0a1a, 1).fillTriangle(bx, by, bx + 4, by - 3, bx + 8, by);
+        if (this.textures.exists('bg_castle')) {
+            const sc = (W * 0.64) / 128;
+            this.add.image(W * 0.72, H * 0.52, 'bg_castle').setScale(sc, sc).setAlpha(0.95);
+        } else {
+            const castle = this.add.graphics();
+            castle.fillStyle(0x1a0a2a, 1);
+            castle.fillTriangle(W * 0.42, H * 0.82, W * 0.78, H * 0.18, W * 1.05, H * 0.82);
+            castle.fillRect(W * 0.58, H * 0.28, 18, 90);
+            castle.fillRect(W * 0.72, H * 0.20, 22, 110);
+            bg.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+        }
+        if (this.textures.exists('bg_water')) {
+            this.add.image(W * 0.5, H * 0.91, 'bg_water').setDisplaySize(W, H * 0.18);
+        } else {
+            bg.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+        }
+        if (this.textures.exists('bg_boat')) {
+            this.add.image(W * 0.80, H * 0.80, 'bg_boat').setScale(1.2);
+        } else {
+            const boat = this.add.graphics();
+            boat.fillStyle(0x1a0a1a, 1).fillTriangle(W * 0.78, H * 0.79, W * 0.80, H * 0.75, W * 0.82, H * 0.79);
+            boat.fillRect(W * 0.79, H * 0.79, 12, 6);
+        }
+        if (this.textures.exists('bg_birds')) {
+            this.add.image(W * 0.52, H * 0.22, 'bg_birds').setScale(1.6).setAlpha(0.9);
+        } else {
+            for (let i = 0; i < 6; i++) {
+                const bx = W * 0.42 + i * 10;
+                const by = H * 0.22 + (i % 2 ? 5 : -3);
+                const bird = this.add.graphics();
+                bird.fillStyle(0x1a0a1a, 1).fillTriangle(bx, by, bx + 4, by - 3, bx + 8, by);
+            }
         }
 
         // ---------- topo: logo pequeno + DLC à esquerda ----------

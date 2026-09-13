@@ -715,6 +715,22 @@
       "hazard_alt": 7
     }
   },
+  "tiles_nucleo_primordial": {
+    "file": "assets/tilesets/tiles_nucleo_primordial.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "frames": 8,
+    "tiles": {
+      "dirt": 0,
+      "dirt_alt": 1,
+      "tunnel": 2,
+      "rock": 3,
+      "surface": 4,
+      "surface_alt": 5,
+      "hazard": 6,
+      "hazard_alt": 7
+    }
+  },
   "props": {
     "file": "assets/sprites/props.png",
     "frameWidth": 16,
@@ -830,5 +846,65 @@
         3
       ]
     }
+  },
+  "bg_castle": {
+    "file": "assets/sprites/bg_castle.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_water": {
+    "file": "assets/sprites/bg_water.png",
+    "frameWidth": 128,
+    "frameHeight": 32,
+    "frames": 1
+  },
+  "bg_boat": {
+    "file": "assets/sprites/bg_boat.png",
+    "frameWidth": 24,
+    "frameHeight": 16,
+    "frames": 1
+  },
+  "bg_clouds": {
+    "file": "assets/sprites/bg_clouds.png",
+    "frameWidth": 64,
+    "frameHeight": 32,
+    "frames": 1
+  },
+  "bg_moon": {
+    "file": "assets/sprites/bg_moon.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "frames": 1
+  },
+  "bg_birds": {
+    "file": "assets/sprites/bg_birds.png",
+    "frameWidth": 32,
+    "frameHeight": 12,
+    "frames": 1
+  },
+  "particle": {
+    "file": "assets/sprites/particle.png",
+    "frameWidth": 3,
+    "frameHeight": 3,
+    "frames": 1
+  },
+  "glow": {
+    "file": "assets/sprites/glow.png",
+    "frameWidth": 8,
+    "frameHeight": 8,
+    "frames": 1
+  },
+  "fogbrush": {
+    "file": "assets/sprites/fogbrush.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 1
+  },
+  "bg_window": {
+    "file": "assets/sprites/bg_window.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "frames": 1
   }
 }

@@ -69,47 +69,69 @@ export class ApresentacaoScene extends Phaser.Scene {
         sky.fillStyle(0xffc83a, 1).fillRect(0, H * 0.68, W, H * 0.12);
         sky.fillStyle(0xfff2a0, 1).fillRect(0, H * 0.80, W, H * 0.08);
 
-        // Lua gigante à direita (20% do fundo) + brilho
-        const moon = this.add.graphics();
-        moon.fillStyle(0xfff6b0, 1).fillCircle(W * 0.78, H * 0.28, 52);
-        moon.fillStyle(0xffffff, 0.12).fillCircle(W * 0.78, H * 0.28, 68);
-
-        // Castelo / Formigueiro gigante em silhueta roxa escura (direita, 60% largura)
-        const castle = this.add.graphics();
-        castle.fillStyle(0x1a0a2a, 1);
-        // base montanha
-        castle.fillTriangle(W * 0.42, H * 0.82, W * 0.78, H * 0.18, W * 1.05, H * 0.82);
-        // torres
-        castle.fillRect(W * 0.58, H * 0.28, 18, 90);
-        castle.fillRect(W * 0.72, H * 0.20, 22, 110);
-        castle.fillRect(W * 0.62, H * 0.38, 12, 60);
-        // ponte / detalhe
-        castle.fillTriangle(W * 0.62, H * 0.62, W * 0.74, H * 0.58, W * 0.74, H * 0.66);
-
-        // Água + reflexo dourado (faixa inferior 22%)
-        const water = this.add.graphics();
-        water.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
-        water.fillStyle(0xffffff, 0.08).fillRect(0, H * 0.82, W, 2);
-        // barco à vela 8px (silhueta)
-        const boat = this.add.graphics();
-        boat.fillStyle(0x1a0a1a, 1);
-        boat.fillTriangle(W * 0.78, H * 0.79, W * 0.80, H * 0.75, W * 0.82, H * 0.79);
-        boat.fillRect(W * 0.79, H * 0.79, 12, 6);
-
-        // Bandada de pássaros (7 em V)
-        for (let i = 0; i < 7; i++) {
-            const bx = W * 0.42 + i * 10;
-            const by = H * 0.22 + (i % 2 ? 6 : -4);
-            const bird = this.add.graphics();
-            bird.fillStyle(0x1a0a1a, 1);
-            bird.fillTriangle(bx, by, bx + 4, by - 3, bx + 8, by);
+        // Lua gigante à direita — sprite real
+        if (this.textures.exists('bg_moon')) {
+            this.add.image(W * 0.78, H * 0.28, 'bg_moon').setScale(1.6).setAlpha(0.95);
+        } else {
+            const moon = this.add.graphics();
+            moon.fillStyle(0xfff6b0, 1).fillCircle(W * 0.78, H * 0.28, 52);
+            moon.fillStyle(0xffffff, 0.12).fillCircle(W * 0.78, H * 0.28, 68);
         }
 
-        // Nuvens amarelas densas (2 blobs)
-        const clouds = this.add.graphics();
-        clouds.fillStyle(0xffd07a, 0.9).fillCircle(W * 0.48, H * 0.42, 38);
-        clouds.fillCircle(W * 0.56, H * 0.40, 44);
-        clouds.fillCircle(W * 0.62, H * 0.44, 30);
+        // Castelo / Formigueiro gigante — sprite real 128x96 escalado para 55% largura
+        if (this.textures.exists('bg_castle')) {
+            const sc = (W * 0.62) / 128; // ocupa 62% da largura
+            this.add.image(W * 0.72, H * 0.52, 'bg_castle').setScale(sc, sc).setOrigin(0.5, 0.5);
+        } else {
+            const castle = this.add.graphics();
+            castle.fillStyle(0x1a0a2a, 1);
+            castle.fillTriangle(W * 0.42, H * 0.82, W * 0.78, H * 0.18, W * 1.05, H * 0.82);
+            castle.fillRect(W * 0.58, H * 0.28, 18, 90);
+            castle.fillRect(W * 0.72, H * 0.20, 22, 110);
+            castle.fillRect(W * 0.62, H * 0.38, 12, 60);
+            castle.fillTriangle(W * 0.62, H * 0.62, W * 0.74, H * 0.58, W * 0.74, H * 0.66);
+        }
+
+        // Água + reflexo — sprite real
+        if (this.textures.exists('bg_water')) {
+            this.add.image(W * 0.5, H * 0.91, 'bg_water').setDisplaySize(W, H * 0.18);
+        } else {
+            const water = this.add.graphics();
+            water.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+            water.fillStyle(0xffffff, 0.08).fillRect(0, H * 0.82, W, 2);
+        }
+        // barco — sprite real
+        if (this.textures.exists('bg_boat')) {
+            this.add.image(W * 0.80, H * 0.80, 'bg_boat').setScale(1.2);
+        } else {
+            const boat = this.add.graphics();
+            boat.fillStyle(0x1a0a1a, 1);
+            boat.fillTriangle(W * 0.78, H * 0.79, W * 0.80, H * 0.75, W * 0.82, H * 0.79);
+            boat.fillRect(W * 0.79, H * 0.79, 12, 6);
+        }
+
+        // Bandada de pássaros — sprite real
+        if (this.textures.exists('bg_birds')) {
+            this.add.image(W * 0.52, H * 0.22, 'bg_birds').setScale(1.8).setAlpha(0.9);
+        } else {
+            for (let i = 0; i < 7; i++) {
+                const bx = W * 0.42 + i * 10;
+                const by = H * 0.22 + (i % 2 ? 6 : -4);
+                const bird = this.add.graphics();
+                bird.fillStyle(0x1a0a1a, 1);
+                bird.fillTriangle(bx, by, bx + 4, by - 3, bx + 8, by);
+            }
+        }
+
+        // Nuvens — sprite real
+        if (this.textures.exists('bg_clouds')) {
+            this.add.image(W * 0.55, H * 0.42, 'bg_clouds').setScale(2.2).setAlpha(0.9);
+        } else {
+            const clouds = this.add.graphics();
+            clouds.fillStyle(0xffd07a, 0.9).fillCircle(W * 0.48, H * 0.42, 38);
+            clouds.fillCircle(W * 0.56, H * 0.40, 44);
+            clouds.fillCircle(W * 0.62, H * 0.44, 30);
+        }
 
         // ---------- personagem à esquerda (formiga soldado gigante em contra-luz) ----------
         // Usar sprite ant_soldier se disponível, senão silhueta

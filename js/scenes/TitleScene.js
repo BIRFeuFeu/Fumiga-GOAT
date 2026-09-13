@@ -63,34 +63,56 @@ export class TitleScene extends Phaser.Scene {
         const H = this.scale.height;
 
         // ---------- TELA PRÉ-MENU — Réplica 1:1 Tela_pré-menu.jpg Dead Cells ----------
-        // Fundo degradê laranja estourado + castelo/formigueiro + água com reflexo + barco
+        // Fundo degradê laranja estourado (gradiente permanece Graphics — não é placeholder)
         const bg = this.add.graphics();
         bg.fillStyle(0xff3b30, 1).fillRect(0, 0, W, H * 0.32);
         bg.fillStyle(0xff7a2a, 1).fillRect(0, H * 0.32, W, H * 0.22);
         bg.fillStyle(0xffb82a, 1).fillRect(0, H * 0.54, W, H * 0.16);
         bg.fillStyle(0xffe066, 1).fillRect(0, H * 0.70, W, H * 0.12);
-        // silhueta castelo/formigueiro central-direita
-        const castle = this.add.graphics();
-        castle.fillStyle(0x3a0a2a, 0.85);
-        castle.fillTriangle(W * 0.38, H * 0.82, W * 0.68, H * 0.14, W * 1.02, H * 0.82);
-        castle.fillRect(W * 0.52, H * 0.26, 14, 88);
-        castle.fillRect(W * 0.66, H * 0.18, 18, 108);
-        castle.fillStyle(0x1a0a1a, 1);
-        castle.fillTriangle(W * 0.46, H * 0.48, W * 0.60, H * 0.44, W * 0.60, H * 0.50);
-        // água + reflexo
-        castle.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
-        castle.fillStyle(0xffffff, 0.18).fillRect(W * 0.48, H * 0.82, W * 0.44, 2);
-        const boat = this.add.graphics();
-        boat.fillStyle(0x1a0a1a, 1).fillTriangle(W * 0.70, H * 0.80, W * 0.72, H * 0.76, W * 0.74, H * 0.80);
-        boat.fillRect(W * 0.71, H * 0.80, 10, 5);
-        // nuvens amarelas
-        const clouds = this.add.graphics();
-        clouds.fillStyle(0xffd07a, 0.85).fillCircle(W * 0.44, H * 0.38, 34);
-        clouds.fillCircle(W * 0.52, H * 0.36, 38);
-        clouds.fillCircle(W * 0.58, H * 0.40, 26);
-        // brilho estourado no horizonte
-        const glow = this.add.graphics();
-        glow.fillStyle(0xffffff, 0.14).fillRect(W * 0.42, H * 0.78, W * 0.38, 12);
+        // castelo/formigueiro — sprite real
+        if (this.textures.exists('bg_castle')) {
+            const sc = (W * 0.64) / 128;
+            this.add.image(W * 0.70, H * 0.52, 'bg_castle').setScale(sc, sc).setAlpha(0.95);
+        } else {
+            const castle = this.add.graphics();
+            castle.fillStyle(0x3a0a2a, 0.85);
+            castle.fillTriangle(W * 0.38, H * 0.82, W * 0.68, H * 0.14, W * 1.02, H * 0.82);
+            castle.fillRect(W * 0.52, H * 0.26, 14, 88);
+            castle.fillRect(W * 0.66, H * 0.18, 18, 108);
+            castle.fillStyle(0x1a0a1a, 1);
+            castle.fillTriangle(W * 0.46, H * 0.48, W * 0.60, H * 0.44, W * 0.60, H * 0.50);
+            castle.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+            castle.fillStyle(0xffffff, 0.18).fillRect(W * 0.48, H * 0.82, W * 0.44, 2);
+        }
+        // água + reflexo — sprite real
+        if (this.textures.exists('bg_water')) {
+            this.add.image(W * 0.5, H * 0.91, 'bg_water').setDisplaySize(W, H * 0.18);
+        } else {
+            const castle2 = this.add.graphics();
+            castle2.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+            castle2.fillStyle(0xffffff, 0.18).fillRect(W * 0.48, H * 0.82, W * 0.44, 2);
+        }
+        if (this.textures.exists('bg_boat')) {
+            this.add.image(W * 0.72, H * 0.80, 'bg_boat').setScale(1.2);
+        } else {
+            const boat = this.add.graphics();
+            boat.fillStyle(0x1a0a1a, 1).fillTriangle(W * 0.70, H * 0.80, W * 0.72, H * 0.76, W * 0.74, H * 0.80);
+            boat.fillRect(W * 0.71, H * 0.80, 10, 5);
+        }
+        // nuvens — sprite real
+        if (this.textures.exists('bg_clouds')) {
+            this.add.image(W * 0.51, H * 0.38, 'bg_clouds').setScale(2.0).setAlpha(0.9);
+        } else {
+            const clouds = this.add.graphics();
+            clouds.fillStyle(0xffd07a, 0.85).fillCircle(W * 0.44, H * 0.38, 34);
+            clouds.fillCircle(W * 0.52, H * 0.36, 38);
+            clouds.fillCircle(W * 0.58, H * 0.40, 26);
+        }
+        // brilho horizonte — sprite água reflexo já cobre; fallback Graphics
+        if (!this.textures.exists('bg_water')) {
+            const glow = this.add.graphics();
+            glow.fillStyle(0xffffff, 0.14).fillRect(W * 0.42, H * 0.78, W * 0.38, 12);
+        }
 
         // ---------- logo FUMIGA — Réplica Dead Cells: ciano brilhante com outer glow, centralizado topo ----------
         // glow atrás (duplicata ciana 22% alpha)

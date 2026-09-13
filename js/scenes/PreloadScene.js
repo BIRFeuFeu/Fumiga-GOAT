@@ -166,14 +166,26 @@ export class PreloadScene extends Phaser.Scene {
             registerChromaKey(this.game, this.cache.text.get('chromakey_frag'))
         );
 
-        // texturas de partícula/brilho geradas em runtime
-        const p = this.add.graphics();
-        p.fillStyle(0xffffff, 1).fillRect(0, 0, 3, 3);
-        p.generateTexture('particle', 3, 3);
-        p.clear();
-        p.fillStyle(0xb6ff3c, 1).fillCircle(4, 4, 4);
-        p.generateTexture('glow', 8, 8);
-        p.destroy();
+        // texturas de partícula/brilho: usa arquivo se já carregado via manifest, senão fallback runtime (headless)
+        if (!this.textures.exists('particle')) {
+            const p = this.add.graphics();
+            p.fillStyle(0xffffff, 1).fillRect(0, 0, 3, 3);
+            p.generateTexture('particle', 3, 3);
+            p.destroy();
+        }
+        if (!this.textures.exists('glow')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xb6ff3c, 1).fillCircle(4, 4, 4);
+            g.generateTexture('glow', 8, 8);
+            g.destroy();
+        }
+        if (!this.textures.exists('fogbrush')) {
+            // fogbrush já vem de assets/sprites/fogbrush.png via manifest; fallback apenas se ausente
+            const f = this.add.graphics();
+            f.fillStyle(0xffffff, 1).fillCircle(16, 16, 16);
+            f.generateTexture('fogbrush', 32, 32);
+            f.destroy();
+        }
 
         // Próxima tela na ordem pedida: Apresentação > Carregamento > Pré-menu
         this.scene.start('ApresentacaoScene');

@@ -203,12 +203,14 @@ export class GameScene extends Phaser.Scene {
 
     _initFog() {
         this.fog.fill(0, 0, 64 * TILE, 64 * TILE, 0x000000, 0.55);
-        // texturas de pincel de névoa
-        const g = this.add.graphics();
-        g.fillStyle(0xffffff, 1);
-        g.fillCircle(16, 16, 16);
-        g.generateTexture('fogbrush', 32, 32);
-        g.destroy();
+        // pincel de névoa: usa arquivo se já carregado, senão gera fallback
+        if (!this.textures.exists('fogbrush')) {
+            const g = this.add.graphics();
+            g.fillStyle(0xffffff, 1);
+            g.fillCircle(16, 16, 16);
+            g.generateTexture('fogbrush', 32, 32);
+            g.destroy();
+        }
     }
 
     revealFog(tx, ty, radius) {

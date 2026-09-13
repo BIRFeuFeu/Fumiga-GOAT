@@ -93,17 +93,26 @@ export class LoadingScene extends Phaser.Scene {
                 }
             } catch {}
         }
-        // janela em arco com luz amarela (como Dead Cells)
+        // janela em arco com luz amarela — sprite real se disponível
         const winX = W * 0.52, winY = topH * 0.42;
         const winW = 78, winH = 92;
-        const glow = this.add.graphics();
-        glow.fillStyle(0xffd54a, 0.16).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
-        const win = this.add.graphics();
-        win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 - 6, winY - winH/2, winW + 12, winH);
-        win.fillStyle(0x4a5a6a, 1).fillCircle(winX, winY - winH/2, winW/2 + 6);
-        win.fillStyle(0xffd54a, 1).fillRect(winX - winW/2, winY - winH/2 + 6, winW, winH - 12);
-        for (let i = 1; i < 4; i++) win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 + i * (winW/4) -1, winY - winH/2 + 6, 2, winH - 12);
-        win.fillStyle(0xffe066, 0.20).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
+        if (this.textures.exists('bg_window')) {
+            const im = this.add.image(winX, winY, 'bg_window');
+            im.setDisplaySize(winW + 12, winH).setAlpha(0.95);
+            // luz volumétrica via sprite tint já inclusa
+            const glow2 = this.add.graphics();
+            glow2.fillStyle(0xffd54a, 0.16).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
+            glow2.fillStyle(0xffe066, 0.20).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
+        } else {
+            const glow = this.add.graphics();
+            glow.fillStyle(0xffd54a, 0.16).fillRect(winX - winW, winY - winH * 0.6, winW * 2, winH * 1.6);
+            const win = this.add.graphics();
+            win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 - 6, winY - winH/2, winW + 12, winH);
+            win.fillStyle(0x4a5a6a, 1).fillCircle(winX, winY - winH/2, winW/2 + 6);
+            win.fillStyle(0xffd54a, 1).fillRect(winX - winW/2, winY - winH/2 + 6, winW, winH - 12);
+            for (let i = 1; i < 4; i++) win.fillStyle(0x2a3a4a, 1).fillRect(winX - winW/2 + i * (winW/4) -1, winY - winH/2 + 6, 2, winH - 12);
+            win.fillStyle(0xffe066, 0.20).fillTriangle(winX - winW/2, winY + winH/2, winX + winW/2, winY + winH/2, winX + winW*0.7, topH - 14);
+        }
         // gaiola
         const cage = this.add.graphics();
         cage.lineStyle(1.4, 0x0a0f1e, 1).strokeRect(winX + winW/2 + 22, winY - winH/2 + 10, 18, 28);
