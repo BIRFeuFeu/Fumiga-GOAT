@@ -22,7 +22,7 @@ class GameManagerImpl {
         this.state = RUN_STATE.IDLE;
         this.biomeId = 'bosque_umido';
         this.wave = 0;
-        this.maxWave = 5; // chefe na onda 5
+        this.maxWave = 7; // chefe na onda 7 [G-01]
         this.waveTimer = 0;
         this.stats = { kills: 0, biomassCollected: 0, roomsBuilt: 0, mutations: 0 };
         this._loaded = null;
@@ -57,7 +57,7 @@ class GameManagerImpl {
         return 1 + this.skill('speed_buff') * 0.08;
     }
     get maxBiomassBase() {
-        return 200 + this.skill('pantry') * 20;
+        return 260 + this.skill('pantry') * 20;
     }
     get incubationMult() {
         return Math.max(0.4, 1 - this.skill('incubation') * 0.12);

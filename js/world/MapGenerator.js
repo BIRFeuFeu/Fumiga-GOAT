@@ -87,7 +87,7 @@ export class MapGenerator {
 
         // recursos de biomassa na superfície
         const resources = [];
-        const resourceCount = Math.floor(width * 0.5);
+        const resourceCount = Math.floor(width * 0.75); // [A-01] 32→48
         for (let i = 0; i < resourceCount; i++) {
             const x = 1 + Math.floor(rng() * (width - 2));
             const y = skyRows + Math.floor(rng() * surfaceDepth);

@@ -50,7 +50,8 @@ export class GameScene extends Phaser.Scene {
         this.grid = this.map.grid;
         this.surfaceRow = this.map.surfaceRow;
 
-        this.economy = new EconomyManager({ biomass: 100, maxBiomass: GameManager.maxBiomassBase, royalJelly: 0 });
+        this.economy = new EconomyManager({ biomass: 140, maxBiomass: GameManager.maxBiomassBase, royalJelly: 0 }); // [A-01] 100→140, max 260
+        this.economy.setPassiveRate(0.1);
         this.rooms = new RoomBuilder(this);
         this.pheromone = new PheromoneSystem();
         this.mutationSystem = new MutationSystem(this.cache.json.get('mutations'));
@@ -62,7 +63,7 @@ export class GameScene extends Phaser.Scene {
         this.ants = this.physics.add.group();
         this.enemies = this.physics.add.group();
         this.projectiles = [];
-        this.resources = this.map.resources.map((r) => ({ ...r, value: 10, taken: false }));
+        this.resources = this.map.resources.map((r) => ({ ...r, value: 12, taken: false })); // [A-01] 10→12
 
         // refs globais p/ entidades
         this.gameRef = {
@@ -114,7 +115,7 @@ export class GameScene extends Phaser.Scene {
 
         // ---------- ondas ----------
         this.wave = 0;
-        this.waveTimer = 8;
+        this.waveTimer = 10; // [G-01] 8→10
         this.bossSpawned = false;
         this.boss = null;
 
@@ -531,9 +532,9 @@ export class GameScene extends Phaser.Scene {
         if (GameManager.state === 'playing' && !this.bossSpawned) {
             this.waveTimer -= (delta / 1000) * this.timeController.getTimeScale();
             if (this.waveTimer <= 0) {
-                this.waveTimer = 14;
+                this.waveTimer = 18; // [G-01] 14→18
                 this.wave++;
-                if (this.wave >= GameManager.maxWave) this.spawnBoss();
+                if (this.wave >= GameManager.maxWave) { if (this.rooms.rooms.length >= 2 || GameManager.stats.biomassCollected >= 80) this.spawnBoss(); else { this.waveTimer = 2; } } // [G-01] gate salas 2 ou biomass 80
                 else this._spawnWave();
             }
         }

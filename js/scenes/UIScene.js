@@ -81,16 +81,22 @@ export class UIScene extends Phaser.Scene {
             }
         });
 
-        // ---- HP da Rainha (oculto por padrão) ----
+        // ---- HP da Rainha — sempre visível 20% [D-01] ----
         this.queenBarBg = this.add.graphics();
         this.queenBar = this.add.graphics();
-        this.queenBarAlpha = 0;
+        this.queenBarAlpha = 0.22;
         this._drawQueenBar(1);
+        // seta off-screen amarela
+        this.queenArrow = this.add.bitmapText(W / 2, H - 38, 'fumiga', '▲', 10).setOrigin(0.5).setTint(0xffc832).setVisible(false).setDepth(10);
+        // pulse tween para borda quando baixa vida
+        this._queenPulse = null;
 
         // ---- overlays ----
         this.overlay = this.add.container(0, 0).setDepth(50).setVisible(false);
 
         this._subscribe();
+        // atualiza seta off-screen a cada 200ms [D-01]
+        this.time.addEvent({ delay: 200, loop: true, callback: () => this._updateQueenArrow() });
     }
 
     _subscribe() {
@@ -118,15 +124,47 @@ export class UIScene extends Phaser.Scene {
         const H = this.scale.height;
         const w = 200;
         const x = W / 2 - w / 2;
-        const y = H - 24;
+        const y = H - 18;
+        const h = 6;
+        const low = frac < 0.7;
         this.queenBarBg.clear();
-        this.queenBarBg.fillStyle(0x141414, 0.8);
-        this.queenBarBg.fillRect(x, y, w, 10);
-        this.queenBarBg.lineStyle(2, 0xc8912a, 0.9);
-        this.queenBarBg.strokeRect(x, y, w, 10);
+        this.queenBarBg.fillStyle(0x141414, low ? 0.95 : 0.22);
+        this.queenBarBg.fillRect(x, y, w, h);
+        this.queenBarBg.lineStyle(low ? 2 : 1, low ? 0xff3b30 : 0xc8912a, low ? 1 : 0.6);
+        this.queenBarBg.strokeRect(x, y, w, h);
         this.queenBar.clear();
-        this.queenBar.fillStyle(0xe03a3a, 1);
-        this.queenBar.fillRect(x + 1, y + 1, (w - 2) * Phaser.Math.Clamp(frac, 0, 1), 8);
+        // cor: verde c8ff5a → vermelho e03a3a quando low
+        const col = low ? 0xe03a3a : 0xc8ff5a;
+        this.queenBar.fillStyle(col, 1);
+        this.queenBar.fillRect(x + 1, y + 1, (w - 2) * Phaser.Math.Clamp(frac, 0, 1), h - 2);
+        // pulsação borda se low
+        if (low && !this._queenPulse) {
+            this._queenPulse = this.tweens.add({ targets: [this.queenBarBg, this.queenBar], alpha: { from: 1, to: 0.6 }, duration: 400, yoyo: true, repeat: -1 });
+        } else if (!low && this._queenPulse) {
+            this._queenPulse.stop(); this._queenPulse = null;
+            this.queenBarBg.setAlpha(1); this.queenBar.setAlpha(1);
+        }
+        // seta off-screen [D-01]
+        this._updateQueenArrow();
+    }
+
+    _updateQueenArrow() {
+        try {
+            const g = this.scene.get('GameScene');
+            if (!g || !g.queen || !g.cam) { this.queenArrow.setVisible(false); return; }
+            const q = g.queen;
+            const view = g.cam.worldView;
+            const inside = q.x >= view.x && q.x <= view.right && q.y >= view.y && q.y <= view.bottom;
+            if (inside) { this.queenArrow.setVisible(false); return; }
+            // fora da viewport → mostra seta
+            this.queenArrow.setVisible(true);
+            const cx = this.scale.width / 2, cy = this.scale.height - 38;
+            // direção simplificada: aponta para queen
+            const dx = q.x - (view.x + view.width/2), dy = q.y - (view.y + view.height/2);
+            const ang = Math.atan2(dy, dx);
+            this.queenArrow.setPosition(cx + Math.cos(ang)*30, cy + Math.sin(ang)*12);
+            this.queenArrow.setAngle(ang * 180 / Math.PI + 90);
+        } catch { this.queenArrow.setVisible(false); }
     }
 
     _queenHp(frac) {
@@ -135,6 +173,8 @@ export class UIScene extends Phaser.Scene {
             this._queenHurt = true;
             this._setQueenBarVisible(true);
             clearTimeout(this._barTimer);
+            // não esconde se HP<90% [D-01]
+            if (frac < 0.9) return;
             this._barTimer = setTimeout(() => {
                 this._queenHurt = false;
                 if (!this._tactical) this._setQueenBarVisible(false);
@@ -144,13 +184,20 @@ export class UIScene extends Phaser.Scene {
 
     flashQueenBar() {
         this._setQueenBarVisible(true);
+        // se já está sempre visível 20%, garante que fica opaco por 1s
+        clearTimeout(this._barTimer);
+        this._barTimer = setTimeout(() => {
+            if (!this._queenHurt) this._setQueenBarVisible(false);
+        }, 1000);
     }
 
     _setQueenBarVisible(v) {
         this._tactical = v;
-        const a = v ? 1 : 0;
+        // [D-01] sempre visível 20%, só aumenta para 100% quando tactical/hurt
+        const a = v ? 1 : 0.22;
         this.queenBarBg.setAlpha(a);
         this.queenBar.setAlpha(a);
+        this.queenArrow.setAlpha(a);
     }
 
     _announce(name) {

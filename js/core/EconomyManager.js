@@ -8,7 +8,7 @@
 import { Emitter } from './Emitter.js';
 
 export class EconomyManager {
-    constructor({ biomass = 100, maxBiomass = 200, royalJelly = 0 } = {}) {
+    constructor({ biomass = 100, maxBiomass = 260, royalJelly = 0 } = {}) {
         this.events = new Emitter();
         this.biomass = biomass;
         this.maxBiomass = maxBiomass;

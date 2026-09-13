@@ -82,7 +82,7 @@ export class RoomBuilder {
         g.statsRooms();
         this.scene.audio.play('build');
 
-        if (roomId === 'pantry') g.economy.addMax(100);
+        if (roomId === 'pantry') g.economy.addMax(120); // [A-01] +100→+120
         if (roomId === 'fungus') this._recomputePassive();
         if (roomId === 'trap') {
             const zone = this.scene.physics.add.zone(x * TILE + TILE / 2, y * TILE + TILE / 2, TILE, TILE);
@@ -96,7 +96,7 @@ export class RoomBuilder {
 
     _recomputePassive() {
         const fungus = this.rooms.filter((r) => r.id === 'fungus').length;
-        this.scene.gameRef.economy.setPassiveRate(fungus * 0.4);
+        this.scene.gameRef.economy.setPassiveRate(0.1 + fungus * 0.4); // [A-01] base 0.1/s
     }
 
     count(id) {

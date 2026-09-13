@@ -67,7 +67,16 @@ export class EntityBase extends Phaser.Physics.Arcade.Sprite {
         if (this.dead) return 0;
         // Casco de Cristal: imune a fogo/ácido
         if ((type === 'fire' || type === 'acid') && this.scene.gameRef && this.scene.gameRef.flag('crystal')) return 0;
-        let final = Math.max(1, amount * (1 - this.armor / 100));
+        // [M-08] defesa aplica armor: só para Player (formigas)
+        let effArmor = this.armor || 0;
+        try {
+            if (this.faction === 'Player' && this.scene && this.scene.gameRef && this.scene.gameRef.rooms) {
+                effArmor += this.scene.gameRef.rooms.defenseArmor();
+            }
+            // AntBase effectiveArmor override
+            if (typeof this.effectiveArmor === 'function') effArmor = this.effectiveArmor();
+        } catch {}
+        let final = Math.max(1, amount * (1 - effArmor / 100));
         this.currentHp -= final;
 
         // feedback agressivo (Estética §4): flash branco/vermelho

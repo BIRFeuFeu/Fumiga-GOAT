@@ -136,5 +136,5 @@ test('RoomBuilder: escavar e construir mutam grid + economia', async () => {
     assert.ok(rooms.buildRoom(tx, ty, 'pantry'), 'construiu despensa');
     assert.equal(map.grid.get(tx, ty), 2, 'virou sala');
     assert.equal(economy.biomass, before - ROOM_DEFS.pantry.cost, 'cobrou biomassa');
-    assert.equal(economy.maxBiomass, 400, 'despensa aumentou cap');
+    assert.equal(economy.maxBiomass, 420, 'despensa aumentou cap [A-01] 100→120');
 });

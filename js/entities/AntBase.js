@@ -99,6 +99,12 @@ export class AntBase extends EntityBase {
         return true;
     }
 
+    effectiveArmor() {
+        let base = this.armor || 0;
+        try { if (this.scene && this.scene.gameRef && this.scene.gameRef.rooms) base += this.scene.gameRef.rooms.defenseArmor(); } catch {}
+        return base;
+    }
+
     effectiveSpeed() {
         return this.moveSpeed * this.speedMultiplier() * this.scene.getTimeScale() * (this.scene.gameRef ? this.scene.gameRef.globalSpeedMult || 1 : 1);
     }
