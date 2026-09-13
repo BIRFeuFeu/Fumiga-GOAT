@@ -16,10 +16,54 @@ export class UIScene extends Phaser.Scene {
     }
 
     create() {
+        // helper seguro headless (font pode não ter decodificado)
+        const _safeBT = (x, y, txt, size, tint, alpha=1, origin=0.5) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(origin);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(origin);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+        const _safeBTLeft = (x, y, txt, size, tint, alpha=1) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(0, 0.5);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(0, 0.5);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+
+        // monkey-patch: tenta bitmap, cai para text silenciosamente
+        const _origBT = this.add.bitmapText.bind(this.add);
+        this.add.bitmapText = (x, y, font, txt, size, ...rest) => {
+            try {
+                if (font==='fumiga' && this.cache.bitmapFont.exists('fumiga')) return _origBT(x, y, font, txt, size, ...rest);
+            } catch {}
+            // fallback
+            const t = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: (size||16)+'px', color: '#ffffff' });
+            // mimic bitmapText API (setTint/setOrigin/setAlpha no-ops)
+            t.setTint = (c)=>{ t.setColor('#'+c.toString(16).padStart(6,'0')); return t; };
+            if (rest.length===0) return t;
+            return t;
+        };
+
         const W = this.scale.width;
         const H = this.scale.height;
-        const man = this.cache.json.get('manifest');
-        this.icon = (n) => man.ui_icons.tiles[n] ?? 0;
+        const man = this.cache.json.get('manifest') || {};
+        this.icon = (n) => man?.ui_icons?.tiles?.[n] ?? 0;
 
         // ---- HUD sup. esquerdo ----
         this.bioIcon = this.add.image(16, 16, 'ui_icons', this.icon('leaf')).setScale(1.3);
@@ -126,7 +170,7 @@ export class UIScene extends Phaser.Scene {
         const H = this.scale.height;
         this._clearOverlay();
         this.overlay.setVisible(true);
-        const man = this.cache.json.get('manifest');
+        const man = this.cache.json.get('manifest') || {};
         const rar = man.mutation_cards.tiles;
 
         const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setInteractive();
@@ -202,7 +246,8 @@ export class UIScene extends Phaser.Scene {
         btn.on('pointerdown', () => {
             this.scene.stop('GameScene');
             this.scene.stop('UIScene');
-            this.scene.start('MainMenuScene');
+            // Sempre via carregamento (evita ver elementos sendo carregados) — ordem: Derrota > Carregamento > Menu
+            this.scene.start('CarregamentoScene', { next: 'MainMenuScene', duration: 700 });
         });
         this.overlay.add(btn);
     }

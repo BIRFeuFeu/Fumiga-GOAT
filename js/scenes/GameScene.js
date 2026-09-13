@@ -145,7 +145,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     _drawProp(x, y, roomId) {
-        const man = this.cache.json.get('manifest');
+        const man = this.cache.json.get('manifest') || {};
         const frame = man.props.tiles[ROOM_DEFS[roomId].prop];
         const img = this.add.image(x * TILE + 8, y * TILE + 8, 'props', frame);
         this.propLayer.add(img);
@@ -153,7 +153,7 @@ export class GameScene extends Phaser.Scene {
 
     _drawTile(x, y) {
         const v = this.grid.get(x, y);
-        const man = this.cache.json.get('manifest');
+        const man = this.cache.json.get('manifest') || {};
         const tiles = man[this.tileKey].tiles;
         let frame;
         if (v === T.SOLID) frame = (x + y) % 2 ? tiles.dirt : tiles.dirt_alt;
@@ -469,7 +469,9 @@ export class GameScene extends Phaser.Scene {
         this.game.events.on('migrationChosen', (id) => {
             GameManager.discoverBiome(id);
             GameManager.persist();
-            this.scene.restart({ biome: id });
+            // Sempre via carregamento para evitar ver tiles sendo gerados (ordem pós-menu > carregamento > jogo)
+            this.scene.stop('UIScene');
+            this.scene.start('CarregamentoScene', { next: 'LoadingScene', payload: { biome: id }, biome: id, duration: 800 });
         });
     }
 

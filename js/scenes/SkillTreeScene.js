@@ -14,6 +14,50 @@ export class SkillTreeScene extends Phaser.Scene {
     }
 
     create() {
+        // helper seguro headless (font pode não ter decodificado)
+        const _safeBT = (x, y, txt, size, tint, alpha=1, origin=0.5) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(origin);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(origin);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+        const _safeBTLeft = (x, y, txt, size, tint, alpha=1) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(0, 0.5);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(0, 0.5);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+
+        // monkey-patch: tenta bitmap, cai para text silenciosamente
+        const _origBT = this.add.bitmapText.bind(this.add);
+        this.add.bitmapText = (x, y, font, txt, size, ...rest) => {
+            try {
+                if (font==='fumiga' && this.cache.bitmapFont.exists('fumiga')) return _origBT(x, y, font, txt, size, ...rest);
+            } catch {}
+            // fallback
+            const t = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: (size||16)+'px', color: '#ffffff' });
+            // mimic bitmapText API (setTint/setOrigin/setAlpha no-ops)
+            t.setTint = (c)=>{ t.setColor('#'+c.toString(16).padStart(6,'0')); return t; };
+            if (rest.length===0) return t;
+            return t;
+        };
+
         const W = this.scale.width;
         const H = this.scale.height;
 
@@ -56,10 +100,10 @@ export class SkillTreeScene extends Phaser.Scene {
         back.on('pointerdown', () => {
             this.audioClick();
             this.cameras.main.fadeOut(220, 11, 7, 5);
-            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('MainMenuScene'));
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('CarregamentoScene', { next: 'MainMenuScene', duration: 400 }));
         });
         const kb = this.input.keyboard;
-        if (kb) kb.once('keydown-ESC', () => this.scene.start('MainMenuScene'));
+        if (kb) kb.once('keydown-ESC', () => this.scene.start('CarregamentoScene', { next: 'MainMenuScene', duration: 400 }));
 
         GameManager.init().then(() => this._refreshAll()).catch(() => {});
         this.cameras.main.fadeIn(300, 11, 7, 5);
@@ -70,8 +114,8 @@ export class SkillTreeScene extends Phaser.Scene {
     }
 
     _icon(name) {
-        const m = this.cache.json.get('manifest');
-        return m.ui_icons.tiles[name] ?? 0;
+        const m = this.cache.json.get('manifest') || {};
+        return m?.ui_icons?.tiles?.[name] ?? 0;
     }
 
     audioClick() {
