@@ -109,9 +109,9 @@ export class UIScene extends Phaser.Scene {
         this.queenBarBg = this.add.graphics();
         this.queenBar = this.add.graphics();
         this.queenBarAlpha = 0.22;
-        this._drawQueenBar(1);
-        // seta off-screen amarela
+        // seta off-screen amarela (criada ANTES do _drawQueenBar que usa _updateQueenArrow)
         this.queenArrow = this.add.bitmapText(W / 2, H - 38, 'fumiga', '▲', 10).setOrigin(0.5).setTint(0xffc832).setVisible(false).setDepth(10);
+        this._drawQueenBar(1);
         // pulse tween para borda quando baixa vida
         this._queenPulse = null;
 
@@ -241,22 +241,23 @@ export class UIScene extends Phaser.Scene {
     }
 
     _updateQueenArrow() {
+        if (!this.queenArrow) return;
         try {
             const g = this.scene.get('GameScene');
-            if (!g || !g.queen || !g.cam) { this.queenArrow.setVisible(false); return; }
+            if (!g || !g.queen || !g.cam) { try { this.queenArrow.setVisible(false); } catch {} return; }
             const q = g.queen;
             const view = g.cam.worldView;
             const inside = q.x >= view.x && q.x <= view.right && q.y >= view.y && q.y <= view.bottom;
-            if (inside) { this.queenArrow.setVisible(false); return; }
+            if (inside) { try { this.queenArrow.setVisible(false); } catch {} return; }
             // fora da viewport → mostra seta
-            this.queenArrow.setVisible(true);
+            try { this.queenArrow.setVisible(true); } catch {}
             const cx = this.scale.width / 2, cy = this.scale.height - 38;
             // direção simplificada: aponta para queen
             const dx = q.x - (view.x + view.width/2), dy = q.y - (view.y + view.height/2);
             const ang = Math.atan2(dy, dx);
-            this.queenArrow.setPosition(cx + Math.cos(ang)*30, cy + Math.sin(ang)*12);
-            this.queenArrow.setAngle(ang * 180 / Math.PI + 90);
-        } catch { this.queenArrow.setVisible(false); }
+            try { this.queenArrow.setPosition(cx + Math.cos(ang)*30, cy + Math.sin(ang)*12); } catch {}
+            try { this.queenArrow.setAngle(ang * 180 / Math.PI + 90); } catch {}
+        } catch { try { this.queenArrow.setVisible(false); } catch {} }
     }
 
     _queenHp(frac) {

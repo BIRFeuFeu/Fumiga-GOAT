@@ -121,6 +121,20 @@ export class EntityBase extends Phaser.Physics.Arcade.Sprite {
 
     /** Sincroniza o corpo Arcade (usado p/ overlaps de armadilha). */
     syncBody() {
-        if (this.body) this.body.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+        try {
+            if (!this.body) return;
+            // Phaser 3.90: Body não tem .set, usa position.set ou reset
+            if (this.body.position && this.body.position.set) {
+                this.body.position.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+            } else if (typeof this.body.set === 'function') {
+                this.body.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+            } else if (typeof this.body.reset === 'function') {
+                this.body.reset(this.x, this.y);
+            } else {
+                // fallback direto
+                this.body.x = this.x - this.body.width / 2;
+                this.body.y = this.y - this.body.height / 2;
+            }
+        } catch {}
     }
 }

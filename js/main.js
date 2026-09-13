@@ -42,7 +42,37 @@ const config = {
     scene: [BootScene, PreloadScene, ApresentacaoScene, CarregamentoScene, TitleScene, MainMenuScene, PosMenuScene, SaveSlotScene, SkillTreeScene, LoadingScene, GameScene, UIScene]
 };
 
-const game = new Phaser.Game(config);
+let game;
+try {
+    game = new Phaser.Game(config);
+} catch (e) {
+    // Fallback Canvas se WebGL falhar (comum em iframes restritos / WebView antigo)
+    try {
+        console.error('[FUMIGA] Phaser.AUTO falhou, tentando CANVAS', e);
+        config.type = Phaser.CANVAS;
+        game = new Phaser.Game(config);
+    } catch (e2) {
+        console.error('[FUMIGA] Falha crítica ao criar Phaser.Game', e2);
+        const box = typeof document !== 'undefined' ? document.getElementById('boot-errors') : null;
+        if (box) {
+            box.hidden = false;
+            box.textContent += '[ERRO CRÍTICO] ' + (e2 && (e2.stack || e2.message) || e2) + '\n';
+            box.textContent += '[INFO] Tente recarregar ou limpar o cache. Se persistir, o navegador pode não suportar WebGL/Canvas necessário.\n';
+        }
+    }
+}
 
-// expõe para debug / testes
-if (typeof window !== 'undefined') window.__FUMIGA__ = game;
+// expõe para debug / testes (mesmo que falhe, expõe erro)
+if (typeof window !== 'undefined') {
+    window.__FUMIGA__ = game || { __error: true };
+    // Se a criação falhou, watchdog não deve ficar esperando 30s em silêncio
+    if (!game) {
+        setTimeout(() => {
+            const box = document.getElementById('boot-errors');
+            if (box && box.hidden) {
+                box.hidden = false;
+                box.textContent += '[WATCHDOG] Game não criado. Verifique o erro acima.\n';
+            }
+        }, 1000);
+    }
+}

@@ -121,6 +121,12 @@ export class PreloadScene extends Phaser.Scene {
             bar.clear();
             bar.fillStyle(0xc8ff5a, 1).fillRect(w / 2 - 160, 300, 320 * p, 12);
         });
+        this.load.on('loaderror', (file) => {
+            const msg = '[LOADERROR] ' + (file && (file.key || file.src || file.url) || 'arquivo desconhecido');
+            console.warn(msg);
+            const box = document.getElementById('boot-errors');
+            if (box) { box.hidden = false; box.textContent += msg + '\n'; }
+        });
         this.load.once('complete', () => stageTimer.remove());
 
         // ---------- fase 2: sprites/texturas do manifest ----------

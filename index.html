@@ -47,6 +47,12 @@
             var r = e.reason;
             show('[PROMISE] ' + (r && (r.stack || r.message) || r));
         });
+        // Watchdog 30s (dev)
+        setTimeout(function () {
+            if (!window.__FUMIGA__) {
+                show('[WATCHDOG] A engine não inicializou em 30s. Se vazio, /assets/* bloqueado ou dispositivo lento. Recarregue.');
+            }
+        }, 30000);
     })();
     </script>
 

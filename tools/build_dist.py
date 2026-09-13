@@ -75,7 +75,22 @@ def read(rel):
 def strip_module_syntax(src, rel):
     src = EXPORT_DECL_RE.sub(r"\1", src)
     src = EXPORT_BRACE_RE.sub("", src)
+    # Preserva aliases `import { X as Y }` → `const Y = X;` (topo-ordenado já garante X definido)
+    # Detecta imports nomeados com `as` antes de removê-los.
+    alias_re = re.compile(r"^\s*import\s*\{([^}]+)\}\s*from\s*['\"][^'\"]+['\"]\s*;?\s*$", re.M)
+    aliases = []
+    for m in alias_re.finditer(src):
+        inner = m.group(1)
+        for part in inner.split(','):
+            part = part.strip()
+            if ' as ' in part:
+                orig, alias = [p.strip() for p in part.split(' as ', 1)]
+                if orig != alias:
+                    aliases.append(f"const {alias} = {orig};")
     src = IMPORT_RE.sub("", src)  # imports relativos e globais somem (topo-ordenados)
+    if aliases:
+        # Injeta aliases logo no topo do módulo (após remoção, mas antes do código)
+        src = "\n".join(aliases) + "\n" + src
 
     def dyn(m):
         target = resolve(rel, m.group(1))
@@ -133,13 +148,15 @@ __CSS__
             show('[PROMISE] ' + (r && (r.stack || r.message) || r));
         });
         // Watchdog: se a engine não subiu, diz na tela (não fica preto sem pistas)
+        // Aumentado para 30s para dispositivos lentos (1.5MB bundle + 56 assets)
         setTimeout(function () {
             if (!window.__FUMIGA__) {
-                show('[WATCHDOG] A engine não inicializou em 15s. ' +
+                show('[WATCHDOG] A engine não inicializou em 30s. ' +
                      'Se o erro acima estiver vazio, o carregamento de /assets/* ' +
-                     'pode estar bloqueado pela rede.');
+                     'pode estar bloqueado pela rede ou o dispositivo está lento. ' +
+                     'Tente recarregar ou limpar o cache. (build ' + new Date().toISOString().slice(0,10) + ')');
             }
-        }, 15000);
+        }, 30000);
     })();
     </script>
 

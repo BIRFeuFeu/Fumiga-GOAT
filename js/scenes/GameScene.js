@@ -18,7 +18,8 @@ import { PheromoneSystem } from '../ai/PheromoneSystem.js';
 import { Analytics } from '../core/Analytics.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { RadialMenu } from '../ui/RadialMenu.js';
-import { TILE_KIND as T } from '../ai/AStarGrid.js';
+import { TILE_KIND } from '../ai/AStarGrid.js';
+const T = TILE_KIND;
 import { Queen } from '../entities/Queen.js';
 import { WorkerAnt } from '../entities/WorkerAnt.js';
 import { CollectorAnt } from '../entities/CollectorAnt.js';
@@ -99,7 +100,7 @@ export class GameScene extends Phaser.Scene {
         this._initFog();
 
         // ---------- entidades base ----------
-        this.queen = new Queen(this, this.gameRef.queenPx.x, this.gameRef.queenPx.y, { hp: 400 * GameManager.hpBuff() });
+        this.queen = new Queen(this, this.gameRef.queenPx.x, this.gameRef.queenPx.y, { hp: 400 * GameManager.hpBuff });
         this.ants.add(this.queen);
 
         // operárias iniciais
@@ -167,37 +168,45 @@ export class GameScene extends Phaser.Scene {
     }
 
     _drawProp(x, y, roomId) {
-        const man = this.cache.json.get('manifest') || {};
-        const frame = man.props.tiles[ROOM_DEFS[roomId].prop];
-        const img = this.add.image(x * TILE + 8, y * TILE + 8, 'props', frame);
-        this.propLayer.add(img);
+        try {
+            const man = this.cache.json.get('manifest') || {};
+            const frame = man.props?.tiles?.[ROOM_DEFS[roomId].prop];
+            if (frame === undefined) return;
+            const img = this.add.image(x * TILE + 8, y * TILE + 8, 'props', frame);
+            this.propLayer.add(img);
+        } catch {}
     }
 
     _drawTile(x, y) {
-        const v = this.grid.get(x, y);
-        const man = this.cache.json.get('manifest') || {};
-        const tiles = man[this.tileKey].tiles;
-        let frame;
-        if (v === T.SOLID) frame = (x + y) % 2 ? tiles.dirt : tiles.dirt_alt;
-        else if (v === T.WALK) frame = tiles.tunnel;
-        else if (v === T.ROOM) frame = tiles.tunnel;
-        else if (v === T.ROCK) frame = tiles.rock;
-        else if (v === T.SURFACE) frame = (x + y) % 2 ? tiles.surface : tiles.surface_alt;
-        else frame = null; // céu
+        try {
+            const v = this.grid.get(x, y);
+            const man = this.cache.json.get('manifest') || {};
+            const tiles = man[this.tileKey]?.tiles;
+            if (!tiles) { this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409); return; }
+            let frame;
+            if (v === T.SOLID) frame = (x + y) % 2 ? tiles.dirt : tiles.dirt_alt;
+            else if (v === T.WALK) frame = tiles.tunnel;
+            else if (v === T.ROOM) frame = tiles.tunnel;
+            else if (v === T.ROCK) frame = tiles.rock;
+            else if (v === T.SURFACE) frame = (x + y) % 2 ? tiles.surface : tiles.surface_alt;
+            else frame = null; // céu
 
-        if (frame === null) {
-            this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409);
-        } else {
-            this.mapRT.drawFrame(this.tileKey, frame, x * TILE, y * TILE);
-            // [D-07] tint por bioma 0.08
-            try{
-                const biome = BiomeManager.byId(this.biomeId);
-                if(biome.light) this.mapRT.fill(x*TILE, y*TILE, TILE, TILE, biome.light, 0.08);
-            }catch{}
-        }
-        // hazard overlay na superfície
-        if (this.map.hazards.has(`${x},${y}`) && (v === T.SURFACE || v === T.WALK)) {
-            this.mapRT.drawFrame(this.tileKey, (x + y) % 2 ? tiles.hazard : tiles.hazard_alt, x * TILE, y * TILE);
+            if (frame === null || frame === undefined) {
+                this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409);
+            } else {
+                try { this.mapRT.drawFrame(this.tileKey, frame, x * TILE, y * TILE); } catch {}
+                // [D-07] tint por bioma 0.08
+                try{
+                    const biome = BiomeManager.byId(this.biomeId);
+                    if(biome.light) this.mapRT.fill(x*TILE, y*TILE, TILE, TILE, biome.light, 0.08);
+                }catch{}
+            }
+            // hazard overlay na superfície
+            if (this.map.hazards.has(`${x},${y}`) && (v === T.SURFACE || v === T.WALK)) {
+                try { this.mapRT.drawFrame(this.tileKey, (x + y) % 2 ? tiles.hazard : tiles.hazard_alt, x * TILE, y * TILE); } catch {}
+            }
+        } catch (e) {
+            try { this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409); } catch {}
         }
     }
 
@@ -254,7 +263,7 @@ export class GameScene extends Phaser.Scene {
         const diff = BiomeManager.difficulty(this.biomeId);
         const cfg = { hp: def.hp * diff, speed: def.speed, damage: def.damage * diff, armor: def.armor, biomass: def.biomass };
         const e = new EnemyBase(this, x, y, def.sprite, cfg, type);
-        if (this.anims.exists(def.sprite + '_walk')) e.play(def.sprite + '_walk');
+        if (this.anims.exists(def.sprite + '_walk')) try { e.play(def.sprite + '_walk'); } catch {}
         this.enemies.add(e);
         return e;
     }
@@ -267,7 +276,7 @@ export class GameScene extends Phaser.Scene {
         const b = new EnemyBase(this, (this.map.rivalNest.x + 0.5) * TILE, this.surfaceRow * TILE, def.sprite, cfg, biome.boss);
         b.boss = true;
         b.bossKind = biome.boss;
-        if (this.anims.exists(def.sprite + '_walk')) b.play(def.sprite + '_walk');
+        if (this.anims.exists(def.sprite + '_walk')) try { b.play(def.sprite + '_walk'); } catch {}
         this.enemies.add(b);
         this.boss = b;
         this.bossSpawned = true;

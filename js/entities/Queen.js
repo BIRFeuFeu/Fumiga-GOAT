@@ -16,7 +16,7 @@ export class Queen extends EntityBase {
         this.spawnInterval = 2.5; // segundos (reduzido por Berçário / Incubação)
         this.panic = false;
         this.setDepth(3);
-        this.play('queen_idle');
+        try { if (scene.anims && scene.anims.exists('queen_idle')) this.play('queen_idle'); } catch {}
     }
 
     enqueue(cls) {
@@ -70,7 +70,7 @@ export class Queen extends EntityBase {
     die(source) {
         if (this.dead) return;
         this.dead = true;
-        this.play('queen_death');
+        try { if (this.scene.anims && this.scene.anims.exists('queen_death')) this.play('queen_death'); } catch {}
         this.scene.events.emit('queenDied', this);
         this.scene.time.delayedCall(600, () => this.destroy());
     }

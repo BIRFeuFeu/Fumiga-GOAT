@@ -74,6 +74,20 @@ class Handler(SimpleHTTPRequestHandler):
                 self.path = '/dist/index.html'
         super().do_GET()
 
+    def do_HEAD(self):
+        path = self.path.split('?')[0]
+        if path == '/healthz':
+            body = b'ok\n'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            return
+        if path == '/':
+            if os.path.isfile(DIST_INDEX):
+                self.path = '/dist/index.html'
+        super().do_HEAD()
+
     # --- CORS preflight
     def do_OPTIONS(self):
         self.send_response(204)
