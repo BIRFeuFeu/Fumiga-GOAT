@@ -59,14 +59,32 @@ export class RadialMenu {
 
     open(pointer) {
         const s = this.scene;
-        const world = s.cam.getWorldPoint(pointer.x, pointer.y);
-        this.center = { x: pointer.x, y: pointer.y };
+        let cx = pointer.x, cy = pointer.y;
+        // teclado: centra na Rainha, não no centro da câmera [J-08]
+        if (pointer.keyboard && s.gameRef && s.gameRef.queenTile) {
+            try {
+                const q = s.gameRef.queenTile;
+                const wx = q.x * TILE + 8, wy = q.y * TILE + 8;
+                // converte world -> screen
+                const cam = s.cam;
+                // Phaser cam: worldView + zoom
+                if (cam.worldView) {
+                    cx = (wx - cam.worldView.x) * cam.zoom;
+                    cy = (wy - cam.worldView.y) * cam.zoom;
+                    // clamp dentro da tela
+                    cx = Phaser.Math.Clamp(cx, 60, s.game.config.width - 60);
+                    cy = Phaser.Math.Clamp(cy, 60, s.game.config.height - 60);
+                }
+            } catch {}
+        }
+        const world = s.cam.getWorldPoint(cx, cy);
+        this.center = { x: cx, y: cy };
         this.targetTile = { x: Math.floor(world.x / TILE), y: Math.floor(world.y / TILE) };
         this.options = this.buildOptions(this.targetTile, world);
         this.hoverIndex = -1;
         this.isOpen = true;
         this._draw();
-        s.audio.play('click');
+        try { s.audio.play('click'); } catch {}
     }
 
     _clear() {
@@ -91,18 +109,29 @@ export class RadialMenu {
             const a0 = -Math.PI / 2 + i * step;
             const a1 = a0 + step;
             const hov = i === this.hoverIndex;
-            g.fillStyle(hov ? 0x2e7d32 : 0x141414, hov ? 0.92 : 0.8);
+            const isCancel = this.options[i].id === 'cancel';
+            // cancel cinza [J-07]
+            if (isCancel) g.fillStyle(hov ? 0x555555 : 0x333333, hov ? 0.92 : 0.85);
+            else g.fillStyle(hov ? 0x2e7d32 : 0x141414, hov ? 0.92 : 0.8);
             g.slice(this.center.x, this.center.y, OUTER, a0, a1, false);
             g.fillPath();
-            g.lineStyle(2, 0xc8912a, 0.9); // separadores âmbar
+            g.lineStyle(2, 0xc8912a, 0.9);
             g.beginPath();
             g.moveTo(this.center.x, this.center.y);
             g.lineTo(this.center.x + Math.cos(a0) * OUTER, this.center.y + Math.sin(a0) * OUTER);
             g.strokePath();
         }
-        // furo central
+        // furo central = cancel
         g.fillStyle(0x0b0705, 0.95);
         g.fillCircle(this.center.x, this.center.y, INNER - 4);
+        // X central
+        g.lineStyle(2, 0x888888, 0.9);
+        g.beginPath();
+        g.moveTo(this.center.x - 6, this.center.y - 6);
+        g.lineTo(this.center.x + 6, this.center.y + 6);
+        g.moveTo(this.center.x + 6, this.center.y - 6);
+        g.lineTo(this.center.x - 6, this.center.y + 6);
+        g.strokePath();
         this.g = g;
 
         // ícones + rótulos
@@ -137,7 +166,11 @@ export class RadialMenu {
         const dy = pointer.y - this.center.y;
         const d = Math.hypot(dx, dy);
         let idx = -1;
-        if (d >= INNER - 6 && d <= OUTER + 10) {
+        if (d < INNER) {
+            // dentro do furo central = cancel [J-07]
+            const ci = this.options.findIndex(o => o.id === 'cancel');
+            idx = ci >= 0 ? ci : -1;
+        } else if (d >= INNER - 6 && d <= OUTER + 10) {
             const n = this.options.length;
             const step = (Math.PI * 2) / n;
             let ang = Math.atan2(dy, dx) + Math.PI / 2;
