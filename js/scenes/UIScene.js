@@ -65,11 +65,35 @@ export class UIScene extends Phaser.Scene {
         const man = this.cache.json.get('manifest') || {};
         this.icon = (n) => man?.ui_icons?.tiles?.[n] ?? 0;
 
-        // ---- HUD sup. esquerdo ----
+        // ---- HUD sup. esquerdo [HUD-01] ----
         this.bioIcon = this.add.image(16, 16, 'ui_icons', this.icon('leaf')).setScale(1.3);
         this.bioText = this.add.bitmapText(28, 10, 'fumiga', '0', 10).setTint(0xc8ff5a);
+        this.bioMaxText = this.add.bitmapText(28, 20, 'fumiga', '/ 260', 6).setTint(0x6d5a41);
+        this.bioBar = this.add.graphics().setDepth(5);
         this.jellyIcon = this.add.image(16, 36, 'ui_icons', this.icon('jelly')).setScale(1.3);
         this.jellyText = this.add.bitmapText(28, 30, 'fumiga', '0', 10).setTint(0xffc832);
+        // fila de ovos [HUD-01] 5 ovos com timer radial
+        this.eggQueue = [];
+        for (let i=0;i<5;i++) {
+            const ix = 16 + i*14;
+            const bg = this.add.graphics().setDepth(6);
+            bg.fillStyle(0x1a0f09,0.9).fillCircle(ix, 52, 6);
+            bg.lineStyle(1,0xc8912a,0.6).strokeCircle(ix,52,6);
+            const img = this.add.image(ix,52,'ui_icons', this.icon('egg_icon')).setScale(0.9).setDepth(7).setVisible(false);
+            const ring = this.add.graphics().setDepth(8);
+            this.eggQueue.push({bg,img,ring,progress:0});
+        }
+        // contador de ondas top-center [HUD-02]
+        this.waveText = this.add.bitmapText(this.scale.width/2, 10, 'fumiga', 'ONDA 0/7 — 00:00', 8).setOrigin(0.5).setTint(0xe8d9b5).setDepth(10);
+        this.waveSkull = this.add.graphics().setDepth(10);
+        this.pheromoneLayer = this.add.container(0,0).setDepth(9);
+        // pool damage numbers [D-05] 12 bitmapText
+        this.damagePool = [];
+        for(let i=0;i<12;i++){
+            const txt = this.add.bitmapText(0,0,'fumiga','',8).setOrigin(0.5).setDepth(15).setVisible(false);
+            this.damagePool.push(txt);
+        }
+        this._damageIdx=0;
 
         // ---- engrenagem sup. direito ----
         this.gear = this.add.image(W - 18, 18, 'ui_icons', this.icon('gear')).setScale(1.5).setInteractive({ useHandCursor: true });
@@ -112,11 +136,79 @@ export class UIScene extends Phaser.Scene {
         ge.on('migrationOffer', (choices) => this._migration(choices));
         ge.on('gameOver', (d) => this._gameOver(d));
         ge.on('bossAnnounce', (name) => this._announce(name));
+        ge.on('wave', (d) => this._updateWave(d.wave, d.maxWave, d.timer));
+        ge.on('eggQueue', (q) => this._updateEggQueue(q));
+        ge.on('damageNumber', (d) => this._showDamageNumber(d.x, d.y, d.amount, d.crit));
     }
 
     _hud({ biomass, jelly }) {
-        if (biomass !== undefined) this.bioText.setText(String(Math.floor(biomass)));
+        if (biomass !== undefined) {
+            this.bioText.setText(String(Math.floor(biomass)));
+            try {
+                const g = this.scene.get('GameScene');
+                const max = g && g.economy ? g.economy.maxBiomass : 260;
+                this.bioMaxText.setText('/ ' + max);
+                // barra 60x4 verde pisca vermelho se custo>saldo
+                const frac = biomass / max;
+                this.bioBar.clear();
+                this.bioBar.fillStyle(0x141414,0.8).fillRect(28, 22, 60, 4);
+                this.bioBar.fillStyle(frac<0.3?0xe03a3a:0x5ad25a,1).fillRect(28,22,60*Phaser.Math.Clamp(frac,0,1),4);
+                this.bioBar.lineStyle(1,0xc8912a,0.5).strokeRect(28,22,60,4);
+            } catch {}
+        }
         if (jelly !== undefined) this.jellyText.setText(String(Math.floor(jelly)));
+    }
+
+    _updateWave(wave, maxWave, timer){
+        if(!this.waveText) return;
+        const m = Math.floor(timer/60), s = Math.floor(timer%60);
+        this.waveText.setText(`ONDA ${wave}/${maxWave} — ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+        // skull preenchendo
+        try{
+            const frac = wave / maxWave;
+            this.waveSkull.clear();
+            this.waveSkull.fillStyle(0x141414,0.6).fillCircle(this.scale.width/2 + 70, 10, 8);
+            this.waveSkull.fillStyle(0xe03a3a,0.9).fillCircle(this.scale.width/2+70,10,8*frac);
+        }catch{}
+        if(timer<5 && wave<maxWave){
+            this.waveText.setTint(0xffc832);
+        } else this.waveText.setTint(0xe8d9b5);
+    }
+
+    _updateEggQueue(queue){
+        // queue: array of {cls, progress}
+        for(let i=0;i<5;i++){
+            const q = this.eggQueue[i];
+            const item = queue && queue[i];
+            if(item){
+                q.img.setVisible(true);
+                q.ring.clear();
+                q.ring.lineStyle(2,0xc8ff5a,0.9);
+                const prog = item.progress || 0;
+                q.ring.beginPath();
+                q.ring.arc(q.img.x, q.img.y, 7, -Math.PI/2, -Math.PI/2 + Math.PI*2*prog, false);
+                q.ring.strokePath();
+            } else {
+                q.img.setVisible(false);
+                q.ring.clear();
+            }
+        }
+    }
+
+    _showDamageNumber(x,y,amount,crit){
+        const txt = this.damagePool[this._damageIdx % this.damagePool.length];
+        this._damageIdx++;
+        txt.setPosition(x,y);
+        txt.setText(String(amount));
+        txt.setTint(crit?0xffc832:0xffffff);
+        txt.setAlpha(1);
+        txt.setVisible(true);
+        this.tweens.add({targets:txt, y: y-12, alpha:0, duration:400, onComplete:()=>txt.setVisible(false)});
+        // shake proporcional [D-05]
+        try{
+            const g=this.scene.get('GameScene');
+            if(g) g.shake(Phaser.Math.Clamp(amount/60*12,2,12));
+        }catch{}
     }
 
     _drawQueenBar(frac) {

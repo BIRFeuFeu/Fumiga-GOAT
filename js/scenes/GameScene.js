@@ -187,7 +187,16 @@ export class GameScene extends Phaser.Scene {
     }
 
     revealFog(tx, ty, radius) {
-        this.fog.erase('fogbrush', tx * TILE + 8 - 16, ty * TILE + 8 - 16);
+        // [J-06b] radius usado com *8
+        const r = radius * 8;
+        const brush = this.textures.exists('fogbrush') ? 'fogbrush' : null;
+        if (brush) this.fog.erase(brush, tx * TILE + 8 - r/2, ty * TILE + 8 - r/2);
+        else this.fog.erase('fogbrush', tx * TILE + 8 - 16, ty * TILE + 8 - 16);
+        // também limpa círculo manual para garantir raio
+        try {
+            const g = this.add.graphics(); g.fillStyle(0xffffff,1).fillCircle(0,0,r); g.generateTexture('fogbig_'+r, r*2, r*2); g.destroy();
+            this.fog.erase('fogbig_'+r, tx*TILE+8 - r, ty*TILE+8 - r);
+        } catch {}
     }
 
     /* ================= SPAWNS ================= */
@@ -291,13 +300,11 @@ export class GameScene extends Phaser.Scene {
         let bd = Infinity;
         for (const a of this.ants.getChildren()) {
             if (a.dead || a === self) continue;
-            if (a.ignored) continue; // espiãs
+            if (a.ignored) continue;
+            if (a.stealth && this._d2(self,a) > (4*TILE)**2) continue; // [M-02] exploradora stealth >4 tiles ignorada
             if (a.faction !== 'Player') continue;
             const d = this._d2(self, a);
-            if (d < bd) {
-                bd = d;
-                best = a;
-            }
+            if (d < bd) { bd = d; best = a; }
         }
         return best;
     }
@@ -405,7 +412,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     shake(ms) {
-        this.cam.shake(ms, 0.004);
+        // [D-05] shake proporcional já tratado em damageNumber, aqui só garante clamp
+        const c = Phaser.Math.Clamp(ms/1000, 0.002, 0.012);
+        this.cam.shake(ms, c);
     }
 
     _burst(x, y, radius) {
