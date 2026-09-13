@@ -1690,7 +1690,144 @@ console.log('[gen:art] backgrounds — Dead Cells gótico...');
 }
 
 /* ========================================================================== *
+ * Portraits 64x64 — Identidade visual distinta por personagem (Dead Cells gótico)
+ * ========================================================================== */
+{
+    const PORTRAIT_BG = { worker:'#1a2a1a', collector:'#2a2a14', scout:'#1a2a3a', soldier:'#2a1a1a', guardian:'#1a2a2e', sniper:'#2a1a2a', spy:'#1a1a2a', healer:'#1a2a2a', digger:'#2e2a1a', giant:'#1a1a2a', queen:'#2a1a2e', centipede:'#1e1a14', beetle:'#1a2a1e', scorpion:'#2a1e14', fly:'#1a1e2a', moth:'#1e1a2a', termite:'#2a1e14', plant:'#1a2a14', spiderling:'#1a1a14', wolf_spider:'#1a0a14', bombardier:'#2a1e0a', putrid_centipede:'#1a1e1a', first_queen:'#2a0a14' };
+    const CLASSES = [
+        {id:'ant_worker', label:'Operária', col:'#a8d44a', accent:'#5a8a1a', icon:'mand'},
+        {id:'ant_collector', label:'Coletor', col:'#f4d44a', accent:'#8a6a1a', icon:'bag'},
+        {id:'ant_scout', label:'Batedora', col:'#6ac8ff', accent:'#1a5a8a', icon:'eye'},
+        {id:'ant_soldier', label:'Soldado', col:'#ff4a3a', accent:'#8a1a0a', icon:'sword'},
+        {id:'ant_guardian', label:'Guardiã', col:'#aaccff', accent:'#3a4a6a', icon:'shield'},
+        {id:'ant_sniper', label:'Atiradeira', col:'#7aff6a', accent:'#1a5a1a', icon:'bow'},
+        {id:'ant_spy', label:'Espia', col:'#c8aaff', accent:'#4a1a8a', icon:'cloak'},
+        {id:'ant_healer', label:'Curandeira', col:'#ffaae0', accent:'#8a2a5a', icon:'cross'},
+        {id:'ant_digger', label:'Escavadeira', col:'#d4a86a', accent:'#5a3a1a', icon:'pick'},
+        {id:'ant_giant', label:'Gigante', col:'#ff8a2a', accent:'#5a2a0a', icon:'fist'},
+        {id:'queen', label:'Rainha', col:'#ffd54a', accent:'#8a5a1a', icon:'crown'},
+        {id:'enemy_centipede', label:'Centopeia', col:'#8a2a2a', accent:'#3a0a0a', icon:'seg'},
+        {id:'enemy_beetle', label:'Besouro', col:'#2a6a4a', accent:'#0a2a1a', icon:'shell'},
+        {id:'enemy_scorpion', label:'Escorpião', col:'#c8a02a', accent:'#4a3a0a', icon:'stinger'},
+        {id:'enemy_fly', label:'Mosca', col:'#2a2a3a', accent:'#1a1a2a', icon:'wing'},
+        {id:'enemy_moth', label:'Mariposa', col:'#c8c8ff', accent:'#4a4a6a', icon:'dust'},
+        {id:'enemy_termite', label:'Cupim', col:'#8a5a2a', accent:'#3a1a0a', icon:'jaw'},
+        {id:'enemy_plant', label:'Planta', col:'#3aaa4a', accent:'#1a4a1a', icon:'thorn'},
+        {id:'enemy_spiderling', label:'Aranha', col:'#2a2a2a', accent:'#0a0a0a', icon:'web'},
+        {id:'boss_wolf_spider', label:'Loba', col:'#1a1a1a', accent:'#4a1a1a', icon:'fang'},
+        {id:'boss_bombardier', label:'Bombardeiro', col:'#ff6a0a', accent:'#4a1a0a', icon:'fire'},
+        {id:'boss_putrid_centipede', label:'Pútrida', col:'#4a6a3a', accent:'#1a2a1a', icon:'rot'},
+        {id:'boss_first_queen', label:'Primeira', col:'#ffd54a', accent:'#4a1a2a', icon:'regal'},
+    ];
+    function drawPortrait(cls){
+        const W=64,H=64;
+        const s=new Surface(W,H);
+        const bg = PORTRAIT_BG[cls.id.replace('ant_','').replace('enemy_','').replace('boss_','')] || '#1a1a1a';
+        // fundo degradê vertical com vinheta
+        for(let y=0;y<H;y++){
+            const t=y/H;
+            const c = mix(bg, '#0a0a0f', t*0.5);
+            s.rect(0,y,W,1,c);
+        }
+        // vinheta gótica
+        for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+            const dx=(x-32)/32, dy=(y-32)/32, d=Math.sqrt(dx*dx+dy*dy);
+            if(d>0.85) s.px(x,y, [0,0,0, Math.floor((d-0.85)/0.15*120)]);
+        }
+        // moldura de pedra 3px com bevel estilo Dead Cells
+        s.rect(0,0,W,3, shade('#3a2a1a',0.25));
+        s.rect(0,H-3,W,3, shade('#3a2a1a',-0.45));
+        s.rect(0,0,3,H, shade('#3a2a1a',0.15));
+        s.rect(W-3,0,3,H, shade('#3a2a1a',-0.35));
+        s.rect(3,3,W-6,1, '#5a4a2a');
+        // halo interno dourado para queen/bosses
+        if(cls.id.includes('queen')||cls.id.includes('boss')){
+            for(let a=0;a<360;a+=12){
+                const x=Math.round(32+Math.cos(a*Math.PI/180)*26), y=Math.round(32+Math.sin(a*Math.PI/180)*26);
+                s.px(x,y, [255,213,74,40]);
+            }
+        }
+        // ícone central estilizado (forma + paleta + shading denso)
+        const cx=32, cy=32;
+        // corpo base elipse com rampa
+        const base = cls.col, dark = shade(base,-0.55), light = shade(base,0.45);
+        if(cls.id.startsWith('ant_')||cls.id==='queen'){
+            // formiga: cabeça + tórax + abdome com luz volumétrica
+            s.ellipse(cx, cy+8, 10, 12, base, {outline:true, rim:true, rampSteps:5});
+            s.ellipse(cx, cy-4, 8, 7, mix(base, light,0.3), {outline:true, rim:true, rampSteps:4});
+            s.ellipse(cx, cy-12, 6, 5, light, {outline:true, rim:false});
+            // antenas
+            s.line(cx-3, cy-16, cx-7, cy-22, dark);
+            s.line(cx+3, cy-16, cx+7, cy-22, dark);
+            s.px(cx-7, cy-22, light); s.px(cx+7, cy-22, light);
+            // mandíbulas/accent
+            if(cls.icon==='sword') s.poly([[cx-6,cy+2],[cx-10,cy+6],[cx-6,cy+8]], cls.accent);
+            if(cls.icon==='shield') s.rect(cx-8, cy+4, 6,8, cls.accent);
+            if(cls.icon==='bag') s.ellipse(cx+6, cy+8, 4,5, '#f4d44a', {outline:false});
+            if(cls.icon==='eye') s.ellipse(cx, cy-12, 3,2, '#ffffff', {outline:false}); s.px(cx,cy-12, '#1a5a8a');
+            if(cls.icon==='bow') s.line(cx+8, cy-2, cx+12, cy+6, '#5a3a1a');
+            if(cls.icon==='cloak') s.poly([[cx-8,cy-2],[cx,cy-10],[cx+8,cy-2],[cx,cy+6]], shade(cls.col,-0.2));
+            if(cls.icon==='cross') s.rect(cx-2, cy+6, 4,2, '#ffffff'); s.rect(cx, cy+4, 2,6, '#ffffff');
+            if(cls.icon==='pick') s.line(cx-8, cy+2, cx+8, cy+2, '#8a6a3a');
+            if(cls.icon==='fist') s.ellipse(cx, cy+2, 7,6, cls.accent, {outline:true});
+            if(cls.icon==='crown'){
+                s.poly([[cx-7,cy-14],[cx,cy-20],[cx+7,cy-14],[cx,cy-12]], '#ffd54a');
+                s.px(cx,cy-18, '#ffffff');
+            }
+        } else if(cls.id.startsWith('enemy_')){
+            // inimigos: silhueta distinta + textura
+            if(cls.id==='enemy_centipede'){
+                for(let i=0;i<5;i++) s.ellipse(cx-8+i*4, cy+4, 4,3, i%2?base:dark, {outline:false});
+                s.line(cx-10, cy, cx+10, cy, '#ff3a2a');
+            } else if(cls.id==='enemy_beetle'){
+                s.ellipse(cx, cy+6, 12,8, dark, {outline:true});
+                s.ellipse(cx, cy+2, 8,6, base, {outline:false});
+                s.line(cx-6, cy-2, cx-10, cy-6, dark); s.line(cx+6, cy-2, cx+10, cy-6, dark);
+            } else if(cls.id==='enemy_scorpion'){
+                s.ellipse(cx, cy+6, 10,6, base, {outline:true});
+                s.line(cx, cy-4, cx, cy+6, dark);
+                s.line(cx, cy-4, cx-8, cy-8, dark); s.line(cx, cy-4, cx+8, cy-8, dark);
+                s.px(cx-8, cy-8, '#ffea2a'); s.px(cx+8, cy-8, '#ffea2a');
+            } else {
+                s.ellipse(cx, cy+4, 10,9, base, {outline:true, rampSteps:4});
+                s.ellipse(cx, cy-4, 6,6, light, {outline:true});
+            }
+        } else { // bosses: maior + coroa/ornamento
+            s.ellipse(cx, cy+6, 14,11, base, {outline:true, rampSteps:5});
+            s.ellipse(cx, cy-6, 9,8, light, {outline:true});
+            // chifres/coroa de boss
+            s.poly([[cx-10,cy-8],[cx-6,cy-16],[cx-4,cy-8]], dark);
+            s.poly([[cx+10,cy-8],[cx+6,cy-16],[cx+4,cy-8]], dark);
+            if(cls.id==='boss_bombardier') s.ellipse(cx, cy+2, 6,4, '#ff6a0a', {outline:false});
+            if(cls.id==='boss_first_queen') s.ellipse(cx, cy-14, 7,4, '#ffd54a', {outline:false});
+        }
+        // brilho volumétrico topo
+        s.ellipse(cx-6, cy-10, 3,2, [255,255,255,90], {outline:false, rim:false});
+        // ruído textural sutil
+        const rnd = s.noise(cls.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0));
+        for(let i=0;i<40;i++){
+            const x=8+Math.floor(rnd()*48), y=8+Math.floor(rnd()*48);
+            if(rnd()<0.3) s.px(x,y, [255,255,255,12]);
+        }
+        // borda interna dourada inferior
+        s.rect(3,H-6,W-6,1, [255,213,74,40]);
+        return s;
+    }
+    // garante diretório
+    mkdirSync(path.join(ROOT, 'assets/sprites/portraits'), {recursive:true});
+    const portraitMap = {};
+    for(const cls of CLASSES){
+        const surf = drawPortrait(cls);
+        const file = `assets/sprites/portraits/${cls.id}.png`;
+        writePNG(path.join(ROOT, file), surf);
+        portraitMap[cls.id] = { file, w:64, h:64 };
+    }
+    // registra no manifest como categoria `portraits`
+    manifest.portraits = portraitMap;
+}
+
+/* ========================================================================== *
  * Manifest
  * ========================================================================== */
 writeFileSync(path.join(ROOT, 'assets/sprites/manifest.json'), JSON.stringify(manifest, null, 2));
-console.log(`[gen:art] OK — ${Object.keys(manifest).length} assets em assets/sprites/manifest.json`);
+console.log(`[gen:art] OK — ${Object.keys(manifest).length} módulos (inclui ${Object.keys(manifest.portraits||{}).length} retratos) em assets/sprites/manifest.json`);

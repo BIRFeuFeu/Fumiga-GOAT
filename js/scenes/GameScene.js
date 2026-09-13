@@ -144,22 +144,30 @@ export class GameScene extends Phaser.Scene {
         this.revealFog(this.map.queenPos.x, this.map.queenPos.y, 8);
         // telemetria [F-02]
         try{ Analytics.log('run_start', {biome:this.biomeId, seed}); }catch{}
-        // [D-07] partículas ambiente por bioma
+        // [D-07] partículas ambiente por bioma (otimizado: 6 em vez de 12, pool único)
         try{
             const biome = BiomeManager.byId(this.biomeId);
             const effect = biome.effect;
             const cols = effect==='burn'?0xff6a2a : effect==='poison'?0x5ad25a : effect==='slow'?0x6a9eff : effect==='crystal'?0xffe066 : 0xffffff;
-            for(let i=0;i<12;i++){
+            for(let i=0;i<6;i++){
                 const x = Phaser.Math.Between(0, 64*TILE), y=Phaser.Math.Between(0, 64*TILE);
-                const p = this.add.image(x,y,'particle').setTint(cols).setAlpha(0.5).setDepth(3);
-                this.tweens.add({targets:p, y: y-20, alpha:{from:0.5,to:0}, duration:Phaser.Math.Between(2000,4000), repeat:-1, delay: Phaser.Math.Between(0,2000)});
+                const p = this.add.image(x,y,'particle').setTint(cols).setAlpha(0.45).setDepth(3);
+                this.tweens.add({targets:p, y: y-12, alpha:{from:0.45,to:0}, duration:Phaser.Math.Between(3000,5000), repeat:-1, delay: Phaser.Math.Between(0,2000)});
             }
         }catch{}
     }
 
     /* ================= RENDER ================= */
     redrawAll() {
-        for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) this._drawTile(x, y);
+        // Otimizado: fatiamento por coluna para não bloquear main thread em mobile (16 batch)
+        let y = 0;
+        const batch = () => {
+            for (let b = 0; b < 4 && y < 64; b++, y++) {
+                for (let x = 0; x < 64; x++) this._drawTile(x, y);
+            }
+            if (y < 64) this.time.delayedCall(0, batch);
+        };
+        batch();
     }
 
     redrawTile(x, y, roomId = null) {
@@ -454,12 +462,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     _burst(x, y, radius) {
-        const n = 8;
+        const n = 5;
         for (let i = 0; i < n; i++) {
-            const p = this.add.image(x, y, 'particle');
+            const p = this.add.image(x, y, 'particle').setDepth(6);
             p.setTint(0xffe066);
             const a = (i / n) * Math.PI * 2;
-            this.tweens.add({ targets: p, x: x + Math.cos(a) * radius * 0.6, y: y + Math.sin(a) * radius * 0.6, alpha: 0, duration: 250, onComplete: () => p.destroy() });
+            this.tweens.add({ targets: p, x: x + Math.cos(a) * radius * 0.5, y: y + Math.sin(a) * radius * 0.5, alpha: 0, duration: 220, onComplete: () => p.destroy() });
         }
     }
 
@@ -577,14 +585,22 @@ export class GameScene extends Phaser.Scene {
         const playing = GameManager.state === 'playing';
         // wave emit para HUD [HUD-02]
         try{ if(playing) this.game.events.emit('wave', {wave:this.wave, maxWave:GameManager.maxWave, timer:this.waveTimer}); }catch{}
-        // culling 40*TILE [GOLD-02]
-        const doCulling = (group)=>{
-            for(const e of group.getChildren()){
-                const d = Math.hypot(e.x - this.cam.worldView.x - this.cam.worldView.width/2, e.y - this.cam.worldView.y - this.cam.worldView.height/2);
-                e.visible = d < 40*16;
-            }
-        };
-        try{ doCulling(this.ants); doCulling(this.enemies); }catch{}
+        // culling 40*TILE [GOLD-02] otimizado: a cada 6 frames + distância ao quadrado
+        this._cullTick = (this._cullTick||0)+1;
+        if(this._cullTick%6===0){
+            try{
+                const cx = this.cam.worldView.x + this.cam.worldView.width/2;
+                const cy = this.cam.worldView.y + this.cam.worldView.height/2;
+                const r2 = (40*16)*(40*16);
+                const doCulling = (group)=>{
+                    for(const e of group.getChildren()){
+                        const dx=e.x-cx, dy=e.y-cy;
+                        e.visible = (dx*dx+dy*dy) < r2;
+                    }
+                };
+                doCulling(this.ants); doCulling(this.enemies);
+            }catch{}
+        }
         // tsunami [Mut-01] a cada 14s
         try{
             if(GameManager.flag('tsunami') && playing){

@@ -906,5 +906,122 @@
     "frameWidth": 64,
     "frameHeight": 64,
     "frames": 1
+  },
+  "portraits": {
+    "ant_worker": {
+      "file": "assets/sprites/portraits/ant_worker.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_collector": {
+      "file": "assets/sprites/portraits/ant_collector.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_scout": {
+      "file": "assets/sprites/portraits/ant_scout.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_soldier": {
+      "file": "assets/sprites/portraits/ant_soldier.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_guardian": {
+      "file": "assets/sprites/portraits/ant_guardian.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_sniper": {
+      "file": "assets/sprites/portraits/ant_sniper.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_spy": {
+      "file": "assets/sprites/portraits/ant_spy.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_healer": {
+      "file": "assets/sprites/portraits/ant_healer.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_digger": {
+      "file": "assets/sprites/portraits/ant_digger.png",
+      "w": 64,
+      "h": 64
+    },
+    "ant_giant": {
+      "file": "assets/sprites/portraits/ant_giant.png",
+      "w": 64,
+      "h": 64
+    },
+    "queen": {
+      "file": "assets/sprites/portraits/queen.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_centipede": {
+      "file": "assets/sprites/portraits/enemy_centipede.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_beetle": {
+      "file": "assets/sprites/portraits/enemy_beetle.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_scorpion": {
+      "file": "assets/sprites/portraits/enemy_scorpion.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_fly": {
+      "file": "assets/sprites/portraits/enemy_fly.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_moth": {
+      "file": "assets/sprites/portraits/enemy_moth.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_termite": {
+      "file": "assets/sprites/portraits/enemy_termite.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_plant": {
+      "file": "assets/sprites/portraits/enemy_plant.png",
+      "w": 64,
+      "h": 64
+    },
+    "enemy_spiderling": {
+      "file": "assets/sprites/portraits/enemy_spiderling.png",
+      "w": 64,
+      "h": 64
+    },
+    "boss_wolf_spider": {
+      "file": "assets/sprites/portraits/boss_wolf_spider.png",
+      "w": 64,
+      "h": 64
+    },
+    "boss_bombardier": {
+      "file": "assets/sprites/portraits/boss_bombardier.png",
+      "w": 64,
+      "h": 64
+    },
+    "boss_putrid_centipede": {
+      "file": "assets/sprites/portraits/boss_putrid_centipede.png",
+      "w": 64,
+      "h": 64
+    },
+    "boss_first_queen": {
+      "file": "assets/sprites/portraits/boss_first_queen.png",
+      "w": 64,
+      "h": 64
+    }
   }
 }

@@ -194,6 +194,24 @@ def detect_collisions(order):
                          f"Renomeie em um dos módulos (padrão: sufixo descritivo).")
 
 
+def _minify_js(code):
+    """Minificação segura: remove apenas comentários de bloco e linhas vazias, preserva semântica."""
+    # Remove comentários de bloco
+    code = re.sub(r'/\*.*?\*/', '', code, flags=re.S)
+    # Remove linhas que são só comentário // (preserva // em código)
+    lines = []
+    for line in code.split('\n'):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith('//'):
+            continue
+        # preserva banners de módulo removidos já
+        lines.append(line.rstrip())
+    # Junta preservando quebras (menos agressivo que antes — evita ASI bugs)
+    minified = '\n'.join(lines)
+    return minified
+
 def main():
     order = collect(ENTRY)
     detect_collisions(order)
@@ -201,8 +219,9 @@ def main():
     parts = []
     for rel in order:
         code = strip_module_syntax(read(rel), rel)
-        banner = f"\n/* ======== {rel} ======== */\n"
-        parts.append(banner + code.strip('\n') + "\n")
+        # Minifica cada módulo (mantém IIFE wrapper legível)
+        code = _minify_js(code)
+        parts.append(code + "\n")
     bundle = ''.join(parts)
 
     # Sanidade: nada de sintaxe de módulo pode sobrar
@@ -224,6 +243,16 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(OUT_FILE, 'w', encoding='utf-8') as fh:
         fh.write(html)
+    # Gera .gz para serving otimizado
+    try:
+        import gzip
+        gz_path = OUT_FILE + '.gz'
+        with open(OUT_FILE, 'rb') as f_in, gzip.open(gz_path, 'wb', compresslevel=9) as f_out:
+            f_out.write(f_in.read())
+        gz_kb = os.path.getsize(gz_path) // 1024
+        print(f"[FUMIGA build] dist/index.html.gz gerado: {gz_kb} KB (gzip)")
+    except Exception as e:
+        print(f"[FUMIGA build] gzip falhou: {e}")
 
     kb = os.path.getsize(OUT_FILE) // 1024
     print(f"[FUMIGA build] dist/index.html gerado: {kb} KB, "
