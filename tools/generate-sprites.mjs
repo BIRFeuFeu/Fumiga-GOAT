@@ -63,17 +63,20 @@ function drawAnt(o) {
     const cx = frame / 2 - 0.5 + (pose === 'attack' && phase === 1 ? 1 : 0);
     const cy = frame / 2;
 
-    const dark = outline || shade(palette, -0.72);
+    // Dead Cells: tons saturados, outline preto espesso, highlight quente no topo-esquerda
+    const dark = outline || shade(palette, -0.78);
     const mid = palette;
-    const light = shade(palette, 0.38);
+    const light = shade(palette, 0.45);
+    const rimCol = shade(palette, 0.65);
+    const deep = shade(palette, -0.92);
 
-    // --- Pernas (6, desenhadas antes do corpo) ---
-    const legDark = shade(palette, -0.55);
-    const legMid = shade(palette, -0.3);
+    // --- Pernas Dead Cells: 2 segmentos + garra clara + highlight + junta ---
+    const legDark = shade(palette, -0.62);
+    const legMid = shade(palette, -0.28);
+    const legHi = shade(palette, 0.18);
     for (const side of [-1, 1]) {
         for (let k = 0; k < 3; k++) {
             const baseX = cx - 1.5 + k * 1.8;
-            // marcha trípede: pernas 0 e 2 de um lado com 1 do outro
             const tripod = (k + (side > 0 ? 0 : 1)) % 2 === 0 ? 0 : Math.PI;
             const swing = pose === 'idle' ? 0 : Math.sin(phase * (Math.PI / 2) + tripod) * 1.5;
             const kneeX = baseX + swing * 0.8;
@@ -81,56 +84,78 @@ function drawAnt(o) {
             const footX = baseX + swing * 1.7;
             const footY = cy + side * (4.4 + Math.abs(swing) * 0.25);
             s.thickLine(baseX, cy, kneeX, kneeY, legDark, 1);
+            s.px(Math.round((baseX+kneeX)/2), Math.round((cy+kneeY)/2 - side*0.5), legHi);
             s.thickLine(kneeX, kneeY, footX, footY, legMid, 1);
-            s.px(footX, footY, light);
+            s.px(Math.round(kneeX), Math.round(kneeY), deep);
+            s.px(footX, footY, '#fff6b0');
+            s.px(footX, footY - side*0.6, light);
         }
     }
 
-    // --- Abdomen (gaster) com segmentação ---
-    s.ellipse(cx - bodyLen * 0.72, cy, abdomenR * 1.15, abdomenR * 0.86, mid, { outline: true });
+    // --- Abdomen Dead Cells: volume 3 tons + highlight ---
+    const abdX = cx - bodyLen * 0.72;
+    s.ellipse(abdX+0.3, cy+0.3, abdomenR*1.18, abdomenR*0.88, deep, {outline:false, rim:false});
+    s.ellipse(abdX, cy, abdomenR * 1.15, abdomenR * 0.86, mid, { outline: true, rim: true, rampSteps:5 });
+    s.ellipse(abdX- abdomenR*0.25, cy- abdomenR*0.3, abdomenR*0.55, abdomenR*0.35, rimCol, {outline:false, rim:false});
+    s.px(Math.round(abdX-0.5), Math.round(cy- abdomenR*0.55), '#ffffff');
     for (let i = 1; i <= 2; i++) {
-        const gx = cx - bodyLen * 0.72 + i * (abdomenR * 0.55);
+        const gx = abdX + i * (abdomenR * 0.55) - 0.2;
         for (let y = -abdomenR * 0.7; y <= abdomenR * 0.7; y++) {
-            const nx = 0;
             const ny = y / (abdomenR * 0.86);
-            if (Math.abs(ny) < 0.95) s.px(gx + nx, cy + Math.round(y), dark);
+            if (Math.abs(ny) < 0.95) {
+                s.px(gx, cy + Math.round(y), dark);
+                if(Math.abs(ny)<0.6) s.px(gx+1, cy+Math.round(y), shade(palette,0.12));
+            }
         }
     }
 
-    // --- Pecíolo (cintura) ---
-    s.rect(Math.round(cx - bodyLen * 0.32), Math.round(cy), 2, 1, dark);
-
-    // --- Tórax ---
-    s.ellipse(cx + bodyLen * 0.12, cy, thoraxR * 1.25, thoraxR, mid, { outline: true });
+    // --- Pecíolo Dead Cells: nó com highlight ---
+    s.rect(Math.round(cx - bodyLen * 0.32), Math.round(cy-0.5), 2, 2, dark);
+    s.px(Math.round(cx - bodyLen*0.32)+1, Math.round(cy-0.5), light);
+    // --- Tórax com placas e volume ---
+    const thX=cx + bodyLen * 0.12;
+    s.ellipse(thX+0.2, cy+0.3, thoraxR*1.28, thoraxR*1.02, deep, {outline:false, rim:false});
+    s.ellipse(thX, cy, thoraxR * 1.25, thoraxR, mid, { outline: true, rim: true, rampSteps:4 });
+    s.line(thX-0.5, cy-thoraxR*0.7, thX+0.5, cy+thoraxR*0.7, shade(mid,0.28));
+    s.px(Math.round(thX- thoraxR*0.2), Math.round(cy- thoraxR*0.4), rimCol);
 
     // --- Cabeça ---
+    // --- Cabeça Dead Cells: volume + carena ---
     const headX = cx + bodyLen * 0.62;
-    s.ellipse(headX, cy, headR * 1.05, headR * 0.95, mid, { outline: true });
+    s.ellipse(headX+0.25, cy+0.25, headR*1.08, headR*0.98, deep, {outline:false, rim:false});
+    s.ellipse(headX, cy, headR * 1.05, headR * 0.95, mid, { outline: true, rim: true, rampSteps:4 });
+    s.line(headX- headR*0.3, cy, headX+ headR*0.4, cy, shade(mid,0.22));
 
-    // Olhos compostos: pontos escuros discretos (nada de "olhos de desenho")
-    s.px(Math.round(headX + headR * 0.35), Math.round(cy - headR * 0.5), shade(palette, -0.9));
-    s.px(Math.round(headX + headR * 0.35), Math.round(cy + headR * 0.5), shade(palette, -0.9));
+    // Olhos facetados Dead Cells: base preta + brilho vermelho
+    for(const side of [-1,1]){
+        const ex=Math.round(headX + headR * 0.42), ey=Math.round(cy + side*headR * 0.52);
+        s.ellipse(ex,ey,1.4,1.2, '#0a0a0a', {outline:false, rim:false});
+        s.px(ex,ey, '#1a1a2a');
+        s.px(ex+1, ey-1, '#ff3b30');
+    }
 
-    // --- Mandíbulas (abrem no frame de ataque) ---
+    // --- Mandíbulas Dead Cells: serrilhadas, dente interno, highlight ---
     const open = pose === 'attack' ? (phase === 1 ? 2 : 1) : 0;
-    const mDark = shade(palette, -0.25);
-    const mLight = shade(palette, 0.15);
+    const mDark = shade(palette, -0.32);
+    const mMid = shade(palette, -0.08);
+    const mLight = shade(palette, 0.28);
     for (const side of [-1, 1]) {
         const spread = side * (1 + open);
         const tipX = headX + headR + mandible;
         const tipY = cy + spread * (0.9 + mandible * 0.12);
-        s.poly(
-            [
-                [headX + headR * 0.6, cy + side * 0.9],
+        s.poly([
+                [headX + headR * 0.55, cy + side * 0.9],
+                [tipX-0.8, tipY - side*0.6],
                 [tipX, tipY],
-                [headX + headR * 0.9, cy + side * 0.1]
-            ],
-            mDark
-        );
+                [headX + headR * 0.85, cy + side * 0.1]
+            ], mMid);
+        s.line(headX+headR*0.55, cy+side*0.9, tipX, tipY, mDark);
+        s.px(Math.round(headX+headR*0.7 + mandible*0.4), Math.round(cy+ side*(1.2+open*0.3)), deep);
         s.px(tipX, tipY, mLight);
+        s.px(tipX-1, tipY - side*0.5, '#ffffff');
     }
 
-    // --- Antenas (dobradas em cotovelo, típico de formiga) ---
+    // --- Antenas Dead Cells: segmentadas com clava e highlight ---
     const wig = pose === 'idle' ? (phase % 2 === 0 ? -1 : 1) * 0.5 : 0;
     for (const side of [-1, 1]) {
         const ax = headX + headR * 0.3;
@@ -140,15 +165,18 @@ function drawAnt(o) {
         const tipX2 = elbowX + antenna * 0.75;
         const tipY2 = elbowY + side * (antenna * 0.35) - wig * 0.5;
         s.line(ax, ay, elbowX, elbowY, legMid);
+        s.px(Math.round((ax+elbowX)/2), Math.round((ay+elbowY)/2), shade(legMid,0.22));
         s.line(elbowX, elbowY, tipX2, tipY2, legMid);
+        s.ellipse(tipX2, tipY2, 1.1,0.9, deep, {outline:false, rim:false});
         s.px(tipX2, tipY2, light);
+        s.px(tipX2+0.5, tipY2-0.4, '#ffffff');
     }
 
-    // --- Detalhes por classe ---
-    for (const fx of extras) fx(s, { cx, cy, headX, palette, dark, mid, light });
+    // --- Detalhes por classe --- Dead Cells: extras com highlight
+    for (const fx of extras) fx(s, { cx, cy, headX, palette, dark, mid, light, rimCol, deep });
 
     if (glow) {
-        s.recolor((p) => (p[3] > 0 ? mix(p, glow, 0.12) : null));
+        s.recolor((p) => (p[3] > 0 ? mix(p, glow, 0.14) : null));
     }
     return s;
 }
@@ -585,81 +613,129 @@ export const BIOME_ART = {
 function drawTile(w, h, base, kind, seed, hazard) {
     const s = new Surface(w, h);
     const rnd = s.noise(seed);
-    const r = ramp(base, 4);
+    // Dead Cells: 5 tons com rampa densa + dithering + outline preto
+    const r = ramp(base, 5);
     for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
             const n = rnd();
-            let c = r[n < 0.55 ? 0 : n < 0.8 ? 1 : n < 0.94 ? 2 : 3];
-            // bordas mais escuras (profundidade do grid)
-            if (x === 0 || y === 0) c = shade(c, -0.28);
-            if (x === w - 1 || y === h - 1) c = shade(c, -0.15);
+            // dithering: mistura tons adjacentes para textura pintada
+            let idx = n < 0.45 ? 0 : n < 0.70 ? 1 : n < 0.85 ? 2 : n < 0.95 ? 3 : 4;
+            // variação de xorshift para evitar padrão
+            if(((x*3+y*7)%5===0) && idx>0 && rnd()<0.15) idx--;
+            let c = r[idx];
+            // profundidade do grid: bordas escuras + bevel interno
+            if (x === 0 || y === 0) c = shade(c, -0.32);
+            else if (x===1 || y===1) c = shade(c, -0.12);
+            if (x === w - 1 || y === h - 1) c = shade(c, -0.18);
+            else if (x===w-2 || y===h-2) c = shade(c, 0.08);
             s.px(x, y, c);
         }
     }
     if (kind === 'dirt' || kind === 'dirt_alt') {
-        // seixos
+        // Dead Cells: terra com seixos facetados, raízes finas e fenda
+        for (let i = 0; i < 5; i++) {
+            const x = 2 + Math.floor(rnd() * (w - 4));
+            const y = 2 + Math.floor(rnd() * (h - 4));
+            const peb = shade(base, -0.38);
+            s.ellipse(x, y, 1.4, 1.1, peb, { outline: false, rim: false });
+            // highlight seixo topo-esquerda
+            s.px(x-1, y-1, shade(base, 0.22));
+            s.px(x, y+1, shade(base, -0.55));
+        }
+        // raízes / rachaduras finas
+        for(let i=0;i<2;i++){
+            const x0=1+Math.floor(rnd()*(w-2)), y0=1+Math.floor(rnd()*(h-2));
+            s.line(x0,y0, x0+ (rnd()>0.5?2:-2), y0+ (rnd()>0.5?2:-2), shade(base,-0.55));
+        }
+        if (kind === 'dirt_alt') {
+            // veio mineral horizontal (Dead Cells: linha de sedimento)
+            s.line(1, h - 4, w - 2, h - 4, shade(base, -0.48));
+            s.line(1, h - 5, w - 2, h - 5, shade(base, 0.14));
+        }
+    } else if (kind === 'tunnel') {
+        // túnel escavado: mais escuro, marcas de mandíbula e cascalho solto
+        s.recolor((p) => mix(p, '#0d0604', 0.58));
+        // marcas de escavação (3 riscos curvos)
         for (let i = 0; i < 4; i++) {
             const x = 2 + Math.floor(rnd() * (w - 4));
             const y = 2 + Math.floor(rnd() * (h - 4));
-            s.ellipse(x, y, 1.3, 1, shade(base, -0.35), { outline: false, rim: false });
-            s.px(x, y - 1, shade(base, 0.15));
+            s.px(x, y, shade(base, 0.08));
+            s.px(x+1, y+1, shade(base, -0.22));
         }
-        if (kind === 'dirt_alt') {
-            s.line(2, h - 3, w - 3, h - 4, shade(base, -0.45));
+        // cascalho solto 2px
+        for(let i=0;i<3;i++){
+            const x=1+Math.floor(rnd()*(w-2)), y=1+Math.floor(rnd()*(h-2));
+            s.px(x,y, shade(base,0.18));
         }
-    } else if (kind === 'tunnel') {
-        // chão escavado: mais escuro, com marcas de mandíbula
-        s.recolor((p) => mix(p, '#0d0806', 0.55));
-        for (let i = 0; i < 5; i++) {
-            const x = 1 + Math.floor(rnd() * (w - 2));
-            const y = 1 + Math.floor(rnd() * (h - 2));
-            s.px(x, y, shade(base, -0.1));
-        }
-        // contorno sutil de "buraco"
+        // sombra de borda superior (teto do túnel) e luz inferior
         for (let x = 0; x < w; x++) {
-            s.px(x, 0, 'rgba(0,0,0,90)');
-            s.px(x, h - 1, 'rgba(0,0,0,60)');
+            s.px(x, 0, [0,0,0,110]);
+            s.px(x, 1, [0,0,0,55]);
+            s.px(x, h - 1, [0,0,0,70]);
         }
     } else if (kind === 'rock') {
-        // rocha indestrutível: facetada e clara
-        for (let i = 0; i < 3; i++) {
-            const cx = 3 + Math.floor(rnd() * (w - 6));
-            const cy = 3 + Math.floor(rnd() * (h - 6));
-            s.poly(
-                [
-                    [cx, cy - 3],
-                    [cx + 3, cy],
-                    [cx, cy + 3],
-                    [cx - 3, cy]
-                ],
-                shade(base, 0.25)
-            );
-            s.line(cx - 3, cy, cx, cy - 3, shade(base, 0.5));
+        // rocha Dead Cells: 3 facetas com luz topo-esquerda + rachadura central + musgo opcional
+        for (let i = 0; i < 2; i++) {
+            const cx = 4 + Math.floor(rnd() * (w - 8));
+            const cy = 4 + Math.floor(rnd() * (h - 8));
+            const sz=2.6+rnd()*0.8;
+            // faceta base
+            s.poly([[cx, cy - sz],[cx+sz, cy],[cx, cy+sz],[cx-sz, cy]], shade(base, 0.22));
+            // luz topo-esquerda
+            s.line(cx - sz, cy, cx, cy - sz, shade(base, 0.48));
+            s.line(cx, cy - sz, cx+sz, cy, shade(base, 0.12));
+            // sombra inferior-direita
+            s.line(cx+sz, cy, cx, cy+sz, shade(base, -0.32));
+            s.line(cx, cy+sz, cx-sz, cy, shade(base, -0.18));
+            // rachadura fina
+            s.line(cx-1, cy-1, cx+1, cy+1, shade(base,-0.42));
         }
+        // borda rochosa escura (outline interno)
+        s.rect(0,0,w,1, shade(base,-0.45));
+        s.rect(0,0,1,h, shade(base,-0.45));
     } else if (kind === 'surface' || kind === 'surface_alt') {
-        // superfície: grama/vegetação no topo (isometria leve -> faixa superior)
+        // superfície Dead Cells: grama com lâminas individuais + terra exposta
         for (let x = 0; x < w; x++) {
             const gh = 2 + Math.floor(rnd() * 3);
             for (let y = 0; y < gh; y++) {
-                s.px(x, y, shade(base, 0.2 - y * 0.12));
+                const blade = (x%2===0)? shade(base, 0.32 - y*0.14) : shade(base, 0.24 - y*0.10);
+                s.px(x, y, blade);
+                if(y===0 && rnd()<0.35) s.px(x, y-0.5, '#fff6b0'); // ponta iluminada
             }
+            // talo escuro entre lâminas
+            if(x%3===0) s.px(x, gh, shade(base,-0.22));
         }
         if (kind === 'surface_alt') {
-            s.ellipse(w / 2, h / 2 + 2, 2.4, 1.4, shade(base, -0.3), { outline: false, rim: false });
+            // touceira / pedra exposta
+            s.ellipse(w/2, h/2+1, 2.6,1.6, shade(base,-0.32), {outline:false, rim:false});
+            s.ellipse(w/2-0.5, h/2+0.5, 1.2,0.8, shade(base,0.18), {outline:false, rim:false});
         }
     } else if (kind === 'hazard' || kind === 'hazard_alt') {
-        // tile de perigo do bioma: neon saturado (regra "ação em destaque")
-        s.recolor((p) => mix(p, hazard, 0.45));
-        for (let i = 0; i < 6; i++) {
+        // hazard Dead Cells: base com veias neon + pulsação + partículas
+        s.recolor((p) => mix(p, hazard, 0.48));
+        // veias orgânicas
+        for(let i=0;i<4;i++){
+            const x=Math.floor(rnd()*w), y=Math.floor(rnd()*h);
+            s.line(x,y, x+ (rnd()>0.5?2:-2), y+ (rnd()>0.5?1:-1), hazard);
+            s.px(x, y-1, shade(hazard,0.45));
+            s.px(x, y+1, shade(hazard,-0.25));
+        }
+        for (let i = 0; i < 5; i++) {
             const x = Math.floor(rnd() * w);
             const y = Math.floor(rnd() * h);
             s.px(x, y, hazard);
-            s.px(x, y - 1, shade(hazard, 0.4));
+            s.px(x, y - 1, shade(hazard, 0.52));
+            s.px(x, y + 1, shade(hazard, -0.32));
         }
+        // brilho central
+        s.px(w/2, h/2, '#ffffff');
         if (kind === 'hazard_alt') {
-            s.line(0, h - 2, w - 1, h - 3, shade(hazard, -0.3));
+            s.line(0, h - 2, w - 1, h - 3, shade(hazard, -0.34));
+            s.line(0, h - 3, w - 1, h - 4, [255,255,255,22]);
         }
     }
+    // outline preto final estilo Dead Cells (1px borda escura já acima, reforça cantos)
+    s.px(0,0, shade(base,-0.55));
     return s;
 }
 
@@ -1295,111 +1371,322 @@ console.log('[gen:art] fonte bitmap...');
 }
 
 /* ========================================================================== *
- * 10b. SPRITES DE FUNDO (castelo, água, barco, nuvens, lua) — substitui placeholders Graphics
+ * 10b. SPRITES DE FUNDO — Dead Cells gótico rico (pintura à mão, luz volumétrica)
  * ========================================================================== */
-console.log('[gen:art] backgrounds...');
+console.log('[gen:art] backgrounds — Dead Cells gótico...');
 {
-    // Castelo/Formigueiro silhueta — 128x96 (transparente = céu)
-    const s = new Surface(128, 96);
-    // montanha base
-    s.poly([[0,96],[64,16],[128,96]], '#1a0a2a');
-    // torres
-    s.rect(48, 24, 14, 72, '#1a0a2a');
-    s.rect(72, 16, 18, 80, '#1a0a2a');
-    s.rect(56, 36, 12, 60, '#1a0a2a');
-    // ponte
-    s.poly([[56,60],[72,56],[72,64]], '#1a0a2a');
-    // janelas luz
-    s.rect(52, 40, 4, 6, '#ffd54a');
-    s.rect(76, 32, 4, 8, '#ffd54a');
+// Castelo gótico detalhado — 128x96 — Dead Cells: tons desaturados, tijolos, luz quente nas janelas, silhueta com volume
+    const W=128,H=96;
+    const s = new Surface(W,H);
+    const rnd = s.noise(777);
+    // montanha/volume com shading vertical + textura rochosa
+    s.poly([[0,H],[64,16],[W,H]], '#1a0a2a');
+    // textura rochosa sutil na montanha (sombra + highlight + ruído)
+    for(let y=16;y<H;y++){
+        for(let x=0;x<W;x++){
+            // verifica se pixel está dentro do poly (aprox. por scan — já pintado) — só modula onde já é escuro
+            const idx=(y*W+x)*4;
+            if(s.data[idx+3]===0) continue;
+            const n=rnd();
+            if(n<0.04) s.px(x,y, shade('#1a0a2a', 0.22));
+            if(n>0.96) s.px(x,y, shade('#1a0a2a', -0.35));
+        }
+    }
+    // highlight na crista (luz lateral esquerda)
+    for(let y=16;y<H;y++){
+        const t=(H-y)/(H-16);
+        if(t>0.6) s.px(64+(Math.sin(y*0.2)*2), y, mix('#1a0a2a','#3a2a5a', t*0.25));
+    }
+    // torres com volume (rectShaded) + tijolos + ameias
+    function drawTower(x,y,w,h, base){
+        const tower = new Surface(w,h);
+        // corpo com gradiente vertical (luz vinda de cima-esquerda, Dead Cells)
+        const rr=ramp(base,5);
+        for(let j=0;j<h;j++){
+            const t=j/h;
+            const c=rr[Math.floor((1-t)* (rr.length-1))];
+            for(let i=0;i<w;i++) tower.px(i,j, c);
+        }
+        // tijolos: argamassa escura
+        for(let j=2;j<h-2;j+=4){
+            for(let i=0;i<w;i++) tower.px(i,j, shade(base,-0.55));
+            const offset=(Math.floor(j/4)%2)*3;
+            for(let i=offset;i<w;i+=6) for(let k=0;k<2;k++) tower.px(i+k,j+1, shade(base,-0.55));
+        }
+        // sombra lateral direita (volume)
+        for(let j=0;j<h;j++) for(let i=w-3;i<w;i++) tower.px(i,j, shade(base,-0.45));
+        // highlight borda esquerda
+        for(let j=0;j<h;j++) tower.px(0,j, shade(base,0.18));
+        s.blit(tower,x,y);
+        // ameias no topo (Dead Cells gótico)
+        for(let i=0;i<w;i+=4){
+            s.rect(x+i, y-3, 2,3, shade(base,0.15));
+            s.rect(x+i, y-3, 2,1, shade(base,0.35));
+        }
+    }
+    drawTower(46,24,14,72,'#2a1a3a');
+    drawTower(70,16,18,80,'#2e1e40');
+    drawTower(56,36,12,60,'#241a32');
+    // ponte de pedra com arco
+    s.poly([[56,60],[72,56],[72,64]], '#2a1e35');
+    s.poly([[58,60],[70,57],[70,62]], '#1a0f22'); // sombra arco
+    for(let x=58;x<70;x+=2) s.px(x,60, shade('#2a1e35',0.2)); // tabuleiro claro
+    // janelas com luz quente volumétrica + cruz + brilho externo (Dead Cells)
+    function win(x,y,w,h){
+        // vidro quente
+        s.rect(x,y,w,h,'#ffd54a');
+        // cruz de pedra
+        s.rect(x+w/2-1, y,2,h,'#1a0a2a');
+        s.rect(x, y+h/2-1,w,2,'#1a0a2a');
+        // brilho interno
+        s.rect(x+1,y+1, w-2,1, '#fff3b0');
+        s.rect(x+1,y+1,1,h-2, '#fff3b0');
+        // luz vazando (glow) 1px ao redor
+        for(let dy=-1;dy<=h;dy++) for(let dx=-1;dx<=w;dx++){
+            if(dx>=0&&dx<w&&dy>=0&&dy<h) continue;
+            if(Math.abs(dx)+Math.abs(dy)>2) continue;
+            s.px(x+dx,y+dy,[255,213,74,28]);
+        }
+    }
+    win(49,40,4,6);
+    win(74,32,4,8);
+    win(60,44,3,5);
+    // hera/musgo escuro na base das torres
+    for(let i=0;i<30;i++){
+        const x=46+Math.floor(rnd()*40), y=88+Math.floor(rnd()*8);
+        s.px(x,y, '#0f1a0f');
+        s.px(x+1,y, '#1a2a1a');
+    }
     writePNG(path.join(ROOT, 'assets/sprites/bg_castle.png'), s);
-    register('bg_castle', 'assets/sprites/bg_castle.png', 128, 96, 1);
+    register('bg_castle', 'assets/sprites/bg_castle.png', W, H, 1);
 }
 {
-    // Água com reflexo — 128x32
-    const s = new Surface(128, 32);
-    s.rect(0, 0, 128, 32, '#ffb82a');
-    s.rect(0, 0, 128, 2, [255,255,255,30]);
-    for(let x=0;x<128;x+=8) s.px(x, Math.round(8+Math.sin(x*0.2)*2), [255,255,255,60]);
+    // Água Dead Cells — 128x32 — gradiente profundo + ondas com espuma + reflexo dourado distorcido
+    const W=128,H=32;
+    const s = new Surface(W,H);
+    const rnd=s.noise(333);
+    // gradiente vertical profundo (Dead Cells: laranja queimado -> âmbar)
+    for(let y=0;y<H;y++){
+        const t=y/H;
+        const c=mix('#8a3a1a','#ffb82a', 0.15+t*0.85);
+        const sc=shade(c, Math.sin(y*0.5)*0.04);
+        for(let x=0;x<W;x++) s.px(x,y, sc);
+    }
+    // textura de ruído sutil na água
+    for(let i=0;i<400;i++){
+        const x=Math.floor(rnd()*W), y=Math.floor(rnd()*H);
+        s.px(x,y, rnd()>0.5? [255,255,255,10] : [0,0,0,18]);
+    }
+    // ondas horizontais com seno + espuma (3 faixas)
+    for(let y=4;y<H;y+=7){
+        const off=Math.sin(y*0.4)*6;
+        for(let x=0;x<W;x++){
+            const wx=x+off+Math.sin(x*0.15+y)*2;
+            const a=0.6+Math.sin(x*0.2+y*0.3)*0.4;
+            if(((x+y)%14)<2) s.px(Math.round(wx)%W, y, [255,255,255, Math.floor(22*a)]);
+            s.px(Math.round(wx)%W, y+1, [255,240,180, Math.floor(14*a)]);
+        }
+    }
+    // linha de espuma no topo (beira)
+    s.rect(0,0,W,2, [255,255,255,38]);
+    s.rect(0,1,W,1, [255,220,120,22]);
+    // reflexo dourado do castelo (distorcido, alfa baixo) — faixa central
+    for(let x=0;x<W;x++){
+        const rx=64+ (x-64)*0.45 + Math.sin(x*0.08)*3;
+        if(rx<0||rx>=W) continue;
+        for(let y=2;y<10;y++){
+            const a=Math.max(0, 1 - y/10)*0.18;
+            s.px(x,y, [255,213,74, Math.floor(a*255* (0.5+rnd()*0.5))]);
+        }
+    }
     writePNG(path.join(ROOT, 'assets/sprites/bg_water.png'), s);
-    register('bg_water', 'assets/sprites/bg_water.png', 128, 32, 1);
+    register('bg_water', 'assets/sprites/bg_water.png', W, H, 1);
 }
 {
-    // Barco à vela — 24x16
-    const s = new Surface(24, 16);
-    s.poly([[8,8],[12,2],[16,8]], '#1a0a1a'); // vela
-    s.rect(6, 8, 12, 6, '#1a0a1a'); // casco
-    s.line(6,8,18,8,'#3a2a1a');
+    // Barco à vela detalhado — 24x16 — casco de madeira com tábuas, vela com sombra e brisa
+    const W=24,H=16;
+    const s=new Surface(W,H);
+    // vela principal com shading (luz esquerda)
+    const sail=[[8,8],[12,1],[16,8]];
+    s.poly(sail, '#e8e0c8');
+    s.poly([[8,8],[12,1],[11,8]], '#ffffff'); // highlight
+    s.poly([[11,8],[12,1],[16,8]], shade('#e8e0c8',-0.18)); // sombra direita
+    s.line(12,1,12,8, '#8a7a5a'); // mastro
+    // segunda vela menor atrás
+    s.poly([[14,8],[15,4],[17,8]], '#d8c8a8');
+    // casco com tábuas e quilha
+    s.rect(5,8,14,6, '#2a1a0f');
+    for(let y=9;y<14;y+=2) s.line(5,y,19,y, '#3a2a18'); // tábuas
+    s.rect(5,8,14,1, '#5a3a1e'); // borda superior clara
+    s.ellipse(12,14,6,2, '#1a0a00', {outline:false, rim:false}); // sombra na água
+    // cordas
+    s.line(8,8,10,2, '#6a5a4a');
     writePNG(path.join(ROOT, 'assets/sprites/bg_boat.png'), s);
-    register('bg_boat', 'assets/sprites/bg_boat.png', 24, 16, 1);
+    register('bg_boat', 'assets/sprites/bg_boat.png', W,H,1);
 }
 {
-    // Nuvens — 64x32
-    const s = new Surface(64, 32);
-    s.ellipse(16, 16, 18, 12, '#ffd07a', { outline: false, rim: false });
-    s.ellipse(32, 12, 22, 14, '#ffd07a', { outline: false, rim: false });
-    s.ellipse(48, 18, 14, 10, '#ffd07a', { outline: false, rim: false });
+    // Nuvens volumétricas Dead Cells — 64x32 — 3 massas com sombra/rosto iluminado + back-light laranja
+    const W=64,H=32;
+    const s=new Surface(W,H);
+    function cloud(cx,cy,rx,ry, base){
+        const dark=shade(base,-0.45), light=shade(base,0.42), mid=base;
+        // sombra embaixo
+        s.ellipse(cx,cy+2,rx,ry, dark, {outline:false, rim:false});
+        // corpo
+        s.ellipse(cx,cy,rx,ry, mid, {outline:false, rim:false});
+        // luz topo-esquerda (Dead Cells rim light)
+        s.ellipse(cx- rx*0.2, cy- ry*0.25, rx*0.7, ry*0.6, light, {outline:false, rim:false});
+        // highlight pontual
+        s.ellipse(cx- rx*0.35, cy- ry*0.35, rx*0.25, ry*0.2, '#ffffff', {outline:false, rim:false});
+    }
+    cloud(16,16,18,12,'#ffd07a');
+    cloud(32,12,22,14,'#ffb84a');
+    cloud(48,18,14,10,'#ffd07a');
+    // neblina baixa alaranjada (atmosfera)
+    for(let x=0;x<W;x++) for(let y=H-6;y<H;y++) if((x+y)%3===0) s.px(x,y, [255,180,80,18]);
     writePNG(path.join(ROOT, 'assets/sprites/bg_clouds.png'), s);
-    register('bg_clouds', 'assets/sprites/bg_clouds.png', 64, 32, 1);
+    register('bg_clouds', 'assets/sprites/bg_clouds.png', W,H,1);
 }
 {
-    // Lua — 64x64
-    const s = new Surface(64, 64);
-    s.ellipse(32,32, 24,24, '#fff6b0', { outline: false, rim: false });
-    s.ellipse(32,32, 28,28, [255,255,255,20], { outline: false, rim: false });
-    // crateras
-    s.ellipse(28,28,3,3,'#e8d9a0', { outline: false, rim: false });
-    s.ellipse(36,36,2,2,'#e8d9a0', { outline: false, rim: false });
+    // Lua Dead Cells — 64x64 — disco com gradiente radial, crateras com sombra interna, halo azul-laranja
+    const W=64,H=64;
+    const s=new Surface(W,H);
+    const cx=32,cy=32;
+    // halo externo azulado (2 camadas)
+    s.ellipse(cx,cy,30,30, [255,246,176,18], {outline:false, rim:false});
+    s.ellipse(cx,cy,26,26, [180,200,255,12], {outline:false, rim:false});
+    // disco lunar com gradiente radial (centro mais claro, borda mais escura)
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const dx=x-cx, dy=y-cy, d=Math.sqrt(dx*dx+dy*dy);
+        if(d>24) continue;
+        const t=d/24;
+        const base=mix('#fff6b0','#e8d06a', t*0.7);
+        const shadeT= -t*0.25 + (dx*-0.02 + dy*-0.02);
+        s.px(x,y, shade(base, shadeT));
+    }
+    // contorno escuro suave (Dead Cells outline)
+    for(let a=0;a<360;a+=8){
+        const x=Math.round(cx+Math.cos(a*Math.PI/180)*24), y=Math.round(cy+Math.sin(a*Math.PI/180)*24);
+        s.px(x,y, shade('#fff6b0',-0.35));
+    }
+    // crateras com sombra interna e anel claro (pintura à mão)
+    function crater(x,y,r, dark=false){
+        const col=dark? '#c8b86a' : '#e8d9a0';
+        s.ellipse(x,y,r,r, shade(col,-0.35), {outline:false, rim:false}); // sombra
+        s.ellipse(x-1,y-1,r*0.85,r*0.85, col, {outline:false, rim:false});
+        s.ellipse(x-1,y-1,r*0.45,r*0.35, '#fff8c0', {outline:false, rim:false}); // highlight
+    }
+    crater(24,26,4);
+    crater(36,34,3);
+    crater(30,38,2);
+    crater(38,24,2.5);
+    crater(20,36,1.8);
     writePNG(path.join(ROOT, 'assets/sprites/bg_moon.png'), s);
-    register('bg_moon', 'assets/sprites/bg_moon.png', 64, 64, 1);
+    register('bg_moon', 'assets/sprites/bg_moon.png', W,H,1);
 }
 {
-    // Pássaros — 32x12 (6 em V)
-    const s = new Surface(32, 12);
+    // Pássaros góticos — 32x12 — 6 aves com asas em V, corpo e cabeça, variação de altitude
+    const W=32,H=12;
+    const s=new Surface(W,H);
     for(let i=0;i<6;i++){
-        const x=i*5+2, y=6 + (i%2?2:-2);
-        s.line(x,y, x+2, y-2, '#1a0a1a');
-        s.line(x+2, y-2, x+4, y, '#1a0a1a');
+        const x=i*5+2, y=6+(i%2?2:-2);
+        const flap=i%3===0?0:1;
+        // asas em V com espessura (2px)
+        s.line(x,y, x+2, y-2-flap, '#0a0a0f');
+        s.line(x+2, y-2-flap, x+4, y, '#0a0a0f');
+        s.line(x+0.3,y+0.3, x+2, y-1.7-flap, '#1a1a2a');
+        // corpo pontual
+        s.px(x+2,y-1, '#1a0a1a');
     }
     writePNG(path.join(ROOT, 'assets/sprites/bg_birds.png'), s);
-    register('bg_birds', 'assets/sprites/bg_birds.png', 32, 12, 1);
+    register('bg_birds', 'assets/sprites/bg_birds.png', W,H,1);
 }
 {
-    // Partícula — 3x3
-    const s = new Surface(3, 3);
+    // Partícula Dead Cells — 3x3 com halo sutil
+    const s=new Surface(3,3);
     s.rect(0,0,3,3,'#ffffff');
+    s.px(1,1,'#fff6b0');
     writePNG(path.join(ROOT, 'assets/sprites/particle.png'), s);
-    register('particle', 'assets/sprites/particle.png', 3, 3, 1);
+    register('particle', 'assets/sprites/particle.png', 3,3,1);
 }
 {
-    // Glow — 8x8 círculo
-    const s = new Surface(8, 8);
-    s.ellipse(4,4,4,4,'#b6ff3c', { outline: false, rim: false });
-    s.ellipse(4,4,2,2,'#ffffff', { outline: false, rim: false });
+    // Glow — 8x8 radial com falloff (Dead Cells: núcleo branco -> amarelo -> transparente)
+    const W=8,H=8;
+    const s=new Surface(W,H);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const dx=x-4, dy=y-4, d=Math.sqrt(dx*dx+dy*dy);
+        if(d>4) continue;
+        const t=d/4;
+        const col=t<0.4? '#ffffff' : t<0.7? '#b6ff3c' : mix('#b6ff3c','#3a5a1a', (t-0.7)/0.3);
+        const a=Math.floor((1-t*0.9)*255);
+        s.px(x,y, [rgba(col)[0], rgba(col)[1], rgba(col)[2], a]);
+    }
     writePNG(path.join(ROOT, 'assets/sprites/glow.png'), s);
-    register('glow', 'assets/sprites/glow.png', 8, 8, 1);
+    register('glow', 'assets/sprites/glow.png', W,H,1);
 }
 {
-    // Fog brush — 32x32 círculo branco para erase
-    const s = new Surface(32, 32);
-    s.ellipse(16,16,16,16,'#ffffff', { outline: false, rim: false });
+    // Fog brush — 32x32 radial suave para névoa (bordas feathered)
+    const W=32,H=32;
+    const s=new Surface(W,H);
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const dx=x-16, dy=y-16, d=Math.sqrt(dx*dx+dy*dy);
+        if(d>16) continue;
+        const t=d/16;
+        const a=Math.floor((1-t)*(1-t)*255); // falloff quadrático
+        s.px(x,y, [255,255,255, a]);
+    }
     writePNG(path.join(ROOT, 'assets/sprites/fogbrush.png'), s);
-    register('fogbrush', 'assets/sprites/fogbrush.png', 32, 32, 1);
+    register('fogbrush', 'assets/sprites/fogbrush.png', W,H,1);
 }
 {
-    // Janela com luz volumétrica — 64x64 (para Loading)
-    const s = new Surface(64, 64);
-    s.rect(0,0,64,64,'#2a3a4a');
-    s.rect(8,8,48,48,'#1a0f1e');
-    // luz
-    s.rect(16,16,32,32,[255,213,74,40]);
-    // traves
-    s.rect(30,8,4,48,'#3a2a1a');
-    s.rect(8,30,48,4,'#3a2a1a');
-    // brilho
-    s.ellipse(32,16,8,8,'#ffd54a', { outline: false, rim: false });
+    // Janela gótica com luz volumétrica — 64x64 — pedra com tijolos, arco ogival, vitral ambar, raio de luz com partículas
+    const W=64,H=64;
+    const s=new Surface(W,H);
+    const rnd=s.noise(999);
+    // parede de pedra atrás (textura)
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+        const n=rnd();
+        const c=n<0.5? '#2a3a4a' : n<0.8? '#334a5a' : '#1f2a3a';
+        s.px(x,y, shade(c, (x%8===0||y%8===0)? -0.18:0));
+    }
+    // abertura da janela (ogiva)
+    s.rect(12,12,40,40,'#0f0a14');
+    s.poly([[12,20],[32,8],[52,20],[52,52],[12,52]], '#1a0f1e');
+    // luz interna quente com gradiente (volumétrica)
+    for(let y=12;y<52;y++) for(let x=12;x<52;x++){
+        const dx=Math.abs(x-32), dy=Math.abs(y-30);
+        if(dx>18||dy>18) continue;
+        const t=(dx+dy)/36;
+        const a=Math.floor((1-t)*90 + 20);
+        s.px(x,y, [255,213,74, a]);
+    }
+    // vidro com reflexo
+    s.rect(14,14,36,36, [255,240,180,14]);
+    // traves de pedra (cruz gótica + arco)
+    s.rect(30,8,4,44,'#3a2a1a');
+    s.rect(12,30,40,4,'#3a2a1a');
+    // arco ogival
+    s.poly([[12,20],[32,12],[52,20],[52,24],[32,16],[12,24]], '#3a2a1a');
+    // pedras do arco (juntas)
+    for(let i=0;i<5;i++){
+        const ax=16+i*8;
+        s.line(ax,16, ax+2,12, '#5a3a1a');
+    }
+    // brilho central (sol)
+    s.ellipse(32,20,7,7,'#ffd54a', {outline:false, rim:false});
+    s.ellipse(32,20,4,4,'#fff6b0', {outline:false, rim:false});
+    // poeira no raio de luz (partículas)
+    for(let i=0;i<20;i++){
+        const x=20+Math.floor(rnd()*24), y=28+Math.floor(rnd()*20);
+        s.px(x,y, [255,255,200, 40+Math.floor(rnd()*40)]);
+    }
+    // moldura externa de pedra com bevel
+    s.rect(10,10,44,2, shade('#3a2a1a',0.25));
+    s.rect(10,52,44,2, shade('#3a2a1a',-0.4));
+    s.rect(10,10,2,44, shade('#3a2a1a',0.15));
+    s.rect(52,10,2,44, shade('#3a2a1a',-0.35));
     writePNG(path.join(ROOT, 'assets/sprites/bg_window.png'), s);
-    register('bg_window', 'assets/sprites/bg_window.png', 64, 64, 1);
+    register('bg_window', 'assets/sprites/bg_window.png', W,H,1);
 }
 
 /* ========================================================================== *
