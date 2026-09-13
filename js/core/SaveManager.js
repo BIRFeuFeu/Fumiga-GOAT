@@ -35,7 +35,13 @@ export class SaveManager {
     }
 
     _hasIDB() {
-        return typeof indexedDB !== 'undefined';
+        // iframe sandboxed/de terceiros: o PRÓPRIO ACESSO a `indexedDB`
+        // (getter) lança SecurityError — por isso o typeof vai em try/catch.
+        try {
+            return typeof indexedDB !== 'undefined' && !!indexedDB;
+        } catch (e) {
+            return false;
+        }
     }
     _hasLS() {
         try {
@@ -47,32 +53,50 @@ export class SaveManager {
 
     _open() {
         return new Promise((resolve) => {
-            if (!this._hasIDB()) return resolve(null);
-            const req = indexedDB.open('fumiga', 1);
+            let req = null;
+            try {
+                req = indexedDB.open('fumiga', 1);
+            } catch (e) {
+                // SecurityError síncrono (storage bloqueado) → fallback
+                resolve(null);
+                return;
+            }
             req.onupgradeneeded = () => {
                 const db = req.result;
                 if (!db.objectStoreNames.contains('saves')) db.createObjectStore('saves');
             };
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => resolve(null);
+            req.onblocked = () => resolve(null);
         });
     }
 
     async saveProgress(data) {
         if (this._hasIDB()) {
-            const db = this.db || (this.db = await this._open());
-            if (db) {
-                return new Promise((resolve) => {
-                    const tx = db.transaction('saves', 'readwrite');
-                    tx.objectStore('saves').put(data, KEY);
-                    tx.oncomplete = () => resolve(true);
-                    tx.onerror = () => resolve(false);
-                });
+            try {
+                const db = this.db || (this.db = await this._open());
+                if (db) {
+                    return await new Promise((resolve) => {
+                        try {
+                            const tx = db.transaction('saves', 'readwrite');
+                            tx.objectStore('saves').put(data, KEY);
+                            tx.oncomplete = () => resolve(true);
+                            tx.onerror = () => resolve(false);
+                            tx.onabort = () => resolve(false);
+                        } catch (e) {
+                            resolve(false); // db fechado/inválido → fallback
+                        }
+                    });
+                }
+            } catch (e) {
+                this.db = null; // IDB indisponível: cai p/ LS/memória
             }
         }
         if (this._hasLS()) {
-            localStorage.setItem(KEY, JSON.stringify(data));
-            return true;
+            try {
+                localStorage.setItem(KEY, JSON.stringify(data));
+                return true;
+            } catch (e) { /* quota/SecurityError → memória */ }
         }
         this._memory = data;
         return true;
@@ -80,24 +104,34 @@ export class SaveManager {
 
     async loadProgress() {
         if (this._hasIDB()) {
-            const db = this.db || (this.db = await this._open());
-            if (db) {
-                const data = await new Promise((resolve) => {
-                    const tx = db.transaction('saves', 'readonly');
-                    const req = tx.objectStore('saves').get(KEY);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => resolve(null);
-                });
-                if (data) return this._merge(data);
+            try {
+                const db = this.db || (this.db = await this._open());
+                if (db) {
+                    const data = await new Promise((resolve) => {
+                        try {
+                            const tx = db.transaction('saves', 'readonly');
+                            const req = tx.objectStore('saves').get(KEY);
+                            req.onsuccess = () => resolve(req.result || null);
+                            req.onerror = () => resolve(null);
+                        } catch (e) {
+                            resolve(null);
+                        }
+                    });
+                    if (data) return this._merge(data);
+                }
+            } catch (e) {
+                this.db = null;
             }
         }
         if (this._hasLS()) {
-            const raw = localStorage.getItem(KEY);
-            if (raw) {
-                try {
-                    return this._merge(JSON.parse(raw));
-                } catch (e) {}
-            }
+            try {
+                const raw = localStorage.getItem(KEY);
+                if (raw) {
+                    try {
+                        return this._merge(JSON.parse(raw));
+                    } catch (e) {}
+                }
+            } catch (e) { /* SecurityError → memória */ }
         }
         if (this._memory) return this._merge(this._memory);
         return DEFAULT_SAVE();

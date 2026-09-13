@@ -15,7 +15,7 @@
  * e as entidades chamam `recalculatePath()` quando percebem a mudança.
  * ---------------------------------------------------------------------------
  */
-export const TILE = {
+export const TILE_KIND = {
     SOLID: 0,
     WALK: 1,
     ROOM: 2,
@@ -41,7 +41,7 @@ export class AStarGrid {
     }
 
     get(x, y) {
-        return this.inBounds(x, y) ? this.matrix[this.index(x, y)] : TILE.ROCK;
+        return this.inBounds(x, y) ? this.matrix[this.index(x, y)] : TILE_KIND.ROCK;
     }
 
     set(x, y, value) {
@@ -53,7 +53,7 @@ export class AStarGrid {
 
     /** Andável = túnel, sala ou superfície. */
     isWalkableValue(v) {
-        return v === TILE.WALK || v === TILE.ROOM || v === TILE.SURFACE;
+        return v === TILE_KIND.WALK || v === TILE_KIND.ROOM || v === TILE_KIND.SURFACE;
     }
 
     isWalkable(x, y) {
@@ -61,7 +61,7 @@ export class AStarGrid {
     }
 
     isDigCandidate(x, y) {
-        return this.get(x, y) === TILE.SOLID;
+        return this.get(x, y) === TILE_KIND.SOLID;
     }
 
     /**

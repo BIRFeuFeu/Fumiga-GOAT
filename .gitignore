@@ -7,3 +7,7 @@ web-dist/
 dist/
 build/
 .arena/
+
+# bundle de produção (gerado por tools/build_dist.py)
+dist/
+__pycache__/

@@ -8,10 +8,30 @@ Este beta implementa o ciclo principal definido no **GDD**, respeitando a arquit
 
 ```bash
 npm install        # devDeps (phaser, jsdom, @napi-rs/canvas)
-npm start          # serve em http://localhost:8080 (bind 0.0.0.0)
+npm start          # http://localhost:3000 (porta única; gera o bundle e serve)
 ```
 
-Ou sirva a pasta com qualquer servidor estático (o jogo usa ES Modules + XHR de assets).
+- **Preview à prova de falhas**: `npm start` primeiro compila **`dist/index.html`** — o BETA
+  inteiro em UM arquivo (CSS + Phaser + jogo inline, ordem topológica dos módulos,
+  zero requisições de script externas) — e o serve em `/`. Assets ficam em `/assets/*`.
+- Build manual: `npm run build` (Python 3, `tools/build_dist.py`). O servidor de dev
+  reconstrói o bundle automaticamente a cada start.
+- Fallback Node: `npm run start:node`. Servidor: `tools/serve.py` (Python 3 stdlib,
+  bind dual-stack IPv4+IPv6, `/healthz`, log por request, shutdown gracioso).
+
+### Stack por camada (conforme o TDD §1)
+
+| Camada | Linguagem | Onde |
+|---|---|---|
+| Jogo (cenas, IA, entidades, sistemas) | **JavaScript (Vanilla ES6 Modules)** — prescrito pelo TDD | `js/` |
+| Documento/estrutura da UI | **HTML5** | `index.html` |
+| Estilos, HUD e animações | **CSS3** | `css/style.css` |
+| Dados de jogo (mutações, skills, manifest) | **JSON** | `assets/data/`, `assets/sprites/` |
+| Shaders | **GLSL** (arquivo `.frag` próprio) | `assets/shaders/` |
+| Ícone vetorial | **SVG** | `assets/ui/favicon.svg` |
+| Servidor de dev (tooling) | **Python 3** | `tools/serve.py` |
+| Geradores de assets (tooling, offline) | Node.js | `tools/generate-*.mjs` |
+| Motor gráfico | Phaser 3 (WebGL prioritário, fallback Canvas) | `vendor/` |
 
 ## 🎮 Controles (toque + mouse + teclado)
 

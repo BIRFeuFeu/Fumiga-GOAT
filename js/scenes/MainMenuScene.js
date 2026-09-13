@@ -1,26 +1,16 @@
 /**
- * js/scenes/MainMenuScene.js — Interface Inicial + Árvore de Metaprogresso [TDD §2 / GDD §9]
+ * js/scenes/MainMenuScene.js — Menu principal (estilo Dead Cells) [GDD §9]
  * ---------------------------------------------------------------------------
- * Menu Principal: título, Geleia Real acumulada, Árvore de Habilidades (gastar
- * Geleia) e o botão INICIAR (começa no Bosque Úmido). Tudo com tipografia Pixel Art.
+ * Ordem de telas: Title -> ESTA TELA -> (Loading -> Jogo | Árvore Real).
+ *
+ * Estilo Dead Cells: itens de TEXTO puro empilhados à esquerda (sem caixas),
+ * cursor '>' ao lado do item selecionado, seleção em amarelo, fundo escuro
+ * animado com brasas. Botão ARVORE REAL envia p/ a Árvore de Meta-habilidades.
  * ---------------------------------------------------------------------------
  */
 import { GameManager } from '../core/GameManager.js';
 
-const SKILLS = [
-    { key: 'hp_buff', name: 'CARAPACA FORTALECIDA', max: 5, base: 40, desc: '+10% HP' },
-    { key: 'speed_buff', name: 'PATAS AGEIS', max: 5, base: 40, desc: '+8% VEL' },
-    { key: 'luck', name: 'SORTE GENETICA', max: 5, base: 60, desc: '+DROP RARO' },
-    { key: 'pantry', name: 'DESPENSA OTIMIZADA', max: 5, base: 30, desc: '+20 CAP' },
-    { key: 'incubation', name: 'INCUBACAO ACELERADA', max: 5, base: 40, desc: '-SPAWN CD' },
-    { key: 'unlock_fungus', name: 'SALA: CAMARA DE FUNGOS', max: 1, base: 120, desc: '' },
-    { key: 'unlock_trap', name: 'SALA: TUNEL FALSO', max: 1, base: 80, desc: '' },
-    { key: 'unlock_sniper', name: 'CLASSE: CUSPIDORA', max: 1, base: 150, desc: '' },
-    { key: 'unlock_spy', name: 'CLASSE: ESPIA', max: 1, base: 200, desc: '' },
-    { key: 'unlock_giant', name: 'CLASSE: FORMIGA GIGANTE', max: 1, base: 300, desc: '' },
-    { key: 'unlock_digger', name: 'CLASSE: ESCAVADEIRA', max: 1, base: 120, desc: '' },
-    { key: 'unlock_healer', name: 'CLASSE: CURANDEIRA', max: 1, base: 140, desc: '' }
-];
+const ITEMS = ['INICIAR COLONIA', 'ARVORE REAL', 'SOM', 'CREDITOS'];
 
 export class MainMenuScene extends Phaser.Scene {
     constructor() {
@@ -28,77 +18,150 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     create() {
-        this.cameras.main.setBackgroundColor('#0b0705');
         const W = this.scale.width;
+        const H = this.scale.height;
+        this.sel = 0;
+        this._muted = this.sound.mute;
 
-        this.add.bitmapText(W / 2, 40, 'fumiga', 'FUMIGA', 24).setOrigin(0.5).setTint(0xc8ff5a);
-        this.add.bitmapText(W / 2, 70, 'fumiga', 'ROGUELITE COLONY-SIM - BETA', 8).setOrigin(0.5).setTint(0x6d5a41);
+        this.cameras.main.setBackgroundColor('#0b0705');
 
-        this.jellyText = this.add.bitmapText(W - 12, 12, 'fumiga', '', 10).setOrigin(1, 0).setTint(0xffc832);
-        this.add.image(W - 12 - 90, 18, 'ui_icons', this.icon('jelly')).setScale(1.4);
-
-        this.add.bitmapText(12, 96, 'fumiga', 'ARVORE DE HABILIDADES (GELEIA REAL)', 9).setTint(0xb44ad2);
-
-        this.rows = [];
-        let y = 118;
-        for (const skill of SKILLS) {
-            this.rows.push(this._row(skill, 12, y, W));
-            y += 24;
+        // ---------- fundo: silhueta + brasas (eco da tela de título) ----------
+        const soil = this.add.graphics();
+        soil.fillStyle(0x120c07, 1);
+        soil.fillTriangle(-40, H, W * 0.3, H * 0.86, W * 0.62, H);
+        soil.fillStyle(0x0e0905, 1);
+        soil.fillRect(0, H - 22, W, 22);
+        for (let i = 0; i < 18; i++) {
+            const x = Phaser.Math.Between(8, W - 8);
+            const y = Phaser.Math.Between(H * 0.4, H);
+            const p = this.add.image(x, y, 'particle')
+                .setTint(i % 3 ? 0xff9c40 : 0xc8ff5a)
+                .setAlpha(0).setScale(Phaser.Math.FloatBetween(0.5, 1.2));
+            this.tweens.add({
+                targets: p,
+                y: y - Phaser.Math.Between(40, 120),
+                alpha: { from: 0, to: Phaser.Math.FloatBetween(0.25, 0.7) },
+                duration: Phaser.Math.Between(2400, 4600),
+                yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 2200), ease: 'Sine.easeInOut'
+            });
         }
 
-        // botão iniciar
-        const btn = this.add.bitmapText(W / 2, this.scale.height - 40, 'fumiga', '[ INICIAR COLONIA ]', 14).setOrigin(0.5).setTint(0xc8ff5a).setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setTint(0xffffff));
-        btn.on('pointerout', () => btn.setTint(0xc8ff5a));
-        btn.on('pointerdown', () => this._start());
+        // ---------- topo: logo pequeno + Geleia Real ----------
+        this.add.bitmapText(16, 18, 'fumiga', 'FUMIGA', 16).setTint(0xc8ff5a);
+        this.add.bitmapText(17, 19, 'fumiga', 'FUMIGA', 16).setTint(0x2c3a10).setDepth(-1);
+        this.add.bitmapText(16, 40, 'fumiga', 'BETA', 8).setTint(0x6d5a41);
 
-        this._refresh();
-        this.audioPlay('click');
+        this.jellyText = this.add.bitmapText(W - 26, 18, 'fumiga', '0', 12).setOrigin(1, 0).setTint(0xffc832);
+        this.add.image(W - 14, 24, 'ui_icons', this._icon('jelly')).setScale(1.2);
+
+        // ---------- menu (texto puro, estilo DC) ----------
+        this.rows = [];
+        let y = Math.floor(H * 0.42);
+        for (const label of ITEMS) {
+            const item = this.add.bitmapText(34, y, 'fumiga', this._label(label), 12).setTint(0xe8d9b5);
+            item.setInteractive({ useHandCursor: true });
+            item.on('pointerover', () => this._select(ITEMS.indexOf(label)));
+            item.on('pointerdown', () => { this._select(ITEMS.indexOf(label)); this._activate(); });
+            this.rows.push(item);
+            y += 20;
+        }
+        this.cursor = this.add.bitmapText(20, 0, 'fumiga', '>', 12).setTint(0xffc832);
+        this.tweens.add({ targets: this.cursor, x: { from: 20, to: 24 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        // teclado (desktop): setas + enter, como em Dead Cells
+        const kb = this.input.keyboard;
+        if (kb) {
+            kb.on('keydown-DOWN', () => this._select((this.sel + 1) % ITEMS.length));
+            kb.on('keydown-S', () => this._select((this.sel + 1) % ITEMS.length));
+            kb.on('keydown-UP', () => this._select((this.sel + ITEMS.length - 1) % ITEMS.length));
+            kb.on('keydown-W', () => this._select((this.sel + ITEMS.length - 1) % ITEMS.length));
+            kb.on('keydown-ENTER', () => this._activate());
+            kb.on('keydown-SPACE', () => this._activate());
+        }
+
+        // rodapé
+        this.add.bitmapText(8, H - 12, 'fumiga', 'V0.1.0 BETA', 8).setTint(0x6d5a41);
+        this.add.bitmapText(W - 8, H - 12, 'fumiga', 'MENU RADIAL: SEGURE PARADO NO JOGO', 8).setOrigin(1, 0).setTint(0x4a3520);
+
+        this._select(0);
+
+        // metaprogresso (async, à prova de storage bloqueado)
+        GameManager.init().then(() => this._refreshJelly()).catch(() => {});
+        this.cameras.main.fadeIn(300, 11, 7, 5);
     }
 
-    icon(name) {
+    /* ---------- infraestrutura do menu ---------- */
+
+    _icon(name) {
         const m = this.cache.json.get('manifest');
         return m.ui_icons.tiles[name] ?? 0;
     }
 
-    _row(skill, x, y, W) {
-        const lvl = GameManager.skill(skill.key);
-        const isUnlock = skill.max === 1;
-        const owned = isUnlock ? GameManager.hasUnlock(skill.key) : false;
-        const cost = skill.base * (isUnlock ? 1 : lvl + 1);
-        const maxed = isUnlock ? owned : lvl >= skill.max;
-
-        const label = this.add.bitmapText(x, y, 'fumiga', skill.name, 8).setTint(maxed ? 0x5ad25a : 0xe8d9b5);
-        const info = this.add.bitmapText(W - 12, y, 'fumiga', '', 8).setOrigin(1, 0);
-        const hit = this.add.rectangle(x + W / 2 - 12, y + 4, W - 24, 22, 0x000000, 0).setInteractive({ useHandCursor: true });
-        hit.on('pointerdown', () => {
-            if (maxed) return;
-            if (GameManager.buySkill(skill.key, cost)) {
-                this.audioPlay('jelly');
-                GameManager.persist();
-                this.scene.restart();
-            } else {
-                this.audioPlay('hurt');
-            }
-        });
-        return { skill, info, maxedCheck: () => (skill.max === 1 ? GameManager.hasUnlock(skill.key) : GameManager.skill(skill.key) >= skill.max), lvlCheck: () => GameManager.skill(skill.key), costCheck: () => skill.base * (skill.max === 1 ? 1 : GameManager.skill(skill.key) + 1) };
+    _label(item) {
+        if (item === 'SOM') return 'SOM: ' + (this._muted ? 'DESLIGADO' : 'LIGADO');
+        return item;
     }
 
-    _refresh() {
-        this.jellyText.setText('GELEIA ' + GameManager.save.royalJelly);
-        for (const r of this.rows) {
-            const maxed = r.maxedCheck();
-            r.info.setText(maxed ? 'MAX' : `LV${r.lvlCheck()} ${r.costCheck()}g`);
-            r.info.setTint(maxed ? 0x5ad25a : 0xffc832);
+    _select(i) {
+        this.sel = i;
+        this.rows.forEach((row, j) => {
+            row.setY(Math.floor(this.scale.height * 0.42) + j * 20);
+            row.setTint(j === i ? 0xffc832 : 0xe8d9b5);
+        });
+        this.cursor.setY(this.rows[i].y);
+    }
+
+    _activate() {
+        const item = ITEMS[this.sel];
+        this.audioClick();
+        if (item === 'INICIAR COLONIA') {
+            this.cameras.main.fadeOut(260, 11, 7, 5);
+            this.cameras.main.once('camerafadeoutcomplete', () =>
+                this.scene.start('LoadingScene', { biome: 'bosque_umido' }));
+        } else if (item === 'ARVORE REAL') {
+            this.cameras.main.fadeOut(260, 11, 7, 5);
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SkillTreeScene'));
+        } else if (item === 'SOM') {
+            this._muted = !this._muted;
+            this.sound.mute = this._muted;
+            this.rows[this.sel].setText(this._label('SOM'));
+        } else if (item === 'CREDITOS') {
+            this._credits();
         }
     }
 
-    audioPlay(k) {
-        if (this.sound.get && this.sound.get(k)) this.sound.play(k);
+    audioClick() {
+        try {
+            const s = this.sound;
+            if (s && s.get && s.get('click')) s.play('click', { volume: 0.5 });
+        } catch (e) { /* áudio indisponível */ }
     }
 
-    _start() {
-        this.scene.stop('MainMenuScene');
-        this.scene.start('GameScene', { biome: 'bosque_umido' });
+    _refreshJelly() {
+        this.jellyText.setText(String(GameManager.save.royalJelly));
+    }
+
+    /* ---------- créditos (overlay à la Dead Cells) ---------- */
+    _credits() {
+        const W = this.scale.width;
+        const H = this.scale.height;
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x0b0705, 0.94).setInteractive();
+        const lines = [
+            ['FUMIGA', 0xc8ff5a, 16],
+            ['', 0, 8],
+            ['ROGUELITE / COLONY-SIM DE FORMIGAS', 0xe8d9b5, 8],
+            ['MOTOR: PHASER 3 - ARTE E AUDIO 100% PROCEDURAIS', 0xe8d9b5, 8],
+            ['ESTETICA E MENUS: TRIBUTO A DEAD CELLS', 0x6d5a41, 8],
+            ['', 0, 8],
+            ['TOQUE PARA VOLTAR', 0xffc832, 10]
+        ];
+        let y = H / 2 - 60;
+        for (const [txt, tint, size] of lines) {
+            this.add.bitmapText(W / 2, y, 'fumiga', txt || ' ', size).setOrigin(0.5).setTint(tint);
+            y += size + 10;
+        }
+        overlay.once('pointerdown', () => {
+            this.scene.restart();
+        });
     }
 }

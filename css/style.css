@@ -133,6 +133,34 @@ body.queen-hit #damage-flash {
     letter-spacing: 2px;
 }
 
+/* Barra indeterminada do splash (enquanto o Phaser não assume) */
+#boot-splash .bar > i {
+    width: 40%;
+    animation: fumiga-load 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes fumiga-load {
+    from { width: 8%; }
+    to   { width: 88%; }
+}
+
+/* Overlay de erros JS (index.html): visível somente quando algo quebra */
+#boot-errors {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-height: 40vh;
+    overflow: auto;
+    z-index: 60;
+    background: #2a0d0d;
+    color: #ff9c9c;
+    border: 2px solid #802020;
+    padding: 10px;
+    font: 11px/1.5 "Courier New", monospace;
+    white-space: pre-wrap;
+}
+
 #no-js {
     position: fixed;
     inset: 0;

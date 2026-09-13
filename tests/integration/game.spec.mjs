@@ -88,7 +88,10 @@ test('todos os módulos importam com Phaser global', async () => {
         '../../js/ui/RadialMenu.js',
         '../../js/scenes/BootScene.js',
         '../../js/scenes/PreloadScene.js',
+        '../../js/scenes/TitleScene.js',
         '../../js/scenes/MainMenuScene.js',
+        '../../js/scenes/SkillTreeScene.js',
+        '../../js/scenes/LoadingScene.js',
         '../../js/scenes/GameScene.js',
         '../../js/scenes/UIScene.js'
     ];

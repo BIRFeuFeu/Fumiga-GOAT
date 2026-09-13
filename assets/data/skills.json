@@ -1,0 +1,14 @@
+[
+  { "key": "hp_buff",       "name": "CARAPACA FORTALECIDA",    "max": 5, "base": 40,  "desc": "+10% HP" },
+  { "key": "speed_buff",    "name": "PATAS AGEIS",             "max": 5, "base": 40,  "desc": "+8% VEL" },
+  { "key": "luck",          "name": "SORTE GENETICA",          "max": 5, "base": 60,  "desc": "+DROP RARO" },
+  { "key": "pantry",        "name": "DESPENSA OTIMIZADA",      "max": 5, "base": 30,  "desc": "+20 CAP" },
+  { "key": "incubation",    "name": "INCUBACAO ACELERADA",     "max": 5, "base": 40,  "desc": "-SPAWN CD" },
+  { "key": "unlock_fungus", "name": "SALA: CAMARA DE FUNGOS",  "max": 1, "base": 120, "desc": "" },
+  { "key": "unlock_trap",   "name": "SALA: TUNEL FALSO",       "max": 1, "base": 80,  "desc": "" },
+  { "key": "unlock_sniper", "name": "CLASSE: CUSPIDORA",       "max": 1, "base": 150, "desc": "" },
+  { "key": "unlock_spy",    "name": "CLASSE: ESPIA",           "max": 1, "base": 200, "desc": "" },
+  { "key": "unlock_giant",  "name": "CLASSE: FORMIGA GIGANTE", "max": 1, "base": 300, "desc": "" },
+  { "key": "unlock_digger", "name": "CLASSE: ESCAVADEIRA",     "max": 1, "base": 120, "desc": "" },
+  { "key": "unlock_healer", "name": "CLASSE: CURANDEIRA",      "max": 1, "base": 140, "desc": "" }
+]

@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#0b0705">
     <meta name="description" content="FUMIGA — Roguelite / Colony-Sim. Escave, colete, mute e sobreviva.">
     <title>FUMIGA — Beta</title>
+    <link rel="icon" href="assets/ui/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -17,6 +18,37 @@
     <!-- Vinheta da Pausa Tática + flash de dano da Rainha (acionados via classes no body) -->
     <div id="tactical-vignette"></div>
     <div id="damage-flash"></div>
+
+    <!-- Tela de carregamento (estilos em css/style.css §boot-splash).
+         O BootScene adiciona .hidden quando o Phaser assume. -->
+    <div id="boot-splash">
+        <div class="title">FUMIGA</div>
+        <div class="bar"><i></i></div>
+        <div class="hint">CARREGANDO ENGINE…</div>
+    </div>
+
+    <!-- Overlay de erros JS: se algo quebrar (script/grafo de cenas), o erro
+         aparece AQUI na tela, em vez de uma página preta sem pistas. -->
+    <pre id="boot-errors" hidden></pre>
+    <script>
+    (function () {
+        'use strict';
+        var box = document.getElementById('boot-errors');
+        function show(msg) {
+            if (!box) return;
+            box.hidden = false;
+            box.textContent += msg + '\n';
+        }
+        window.addEventListener('error', function (e) {
+            show('[ERRO] ' + (e.message || e.error) +
+                 (e.filename ? '\n  em ' + e.filename + ':' + (e.lineno || '?') : ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            var r = e.reason;
+            show('[PROMISE] ' + (r && (r.stack || r.message) || r));
+        });
+    })();
+    </script>
 
     <noscript>
         <div id="no-js">FUMIGA precisa de JavaScript habilitado.</div>

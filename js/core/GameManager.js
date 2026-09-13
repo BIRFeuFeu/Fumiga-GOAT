@@ -83,7 +83,11 @@ class GameManagerImpl {
 
     /** Persiste ao fim da run (derrota ou migração). */
     async persist() {
-        return this.saveManager.saveProgress(this.save);
+        try {
+            return await this.saveManager.saveProgress(this.save);
+        } catch (e) {
+            return false; // persistência é best-effort; nunca rejeita
+        }
     }
 
     discoverBiome(id) {
