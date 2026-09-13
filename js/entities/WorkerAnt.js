@@ -18,9 +18,9 @@ export class WorkerAnt extends AntBase {
 
     doIdle(ctx) {
         const rooms = this.scene.gameRef.rooms;
-        // pega uma tarefa se não tem
+        // pega uma tarefa se não tem — passa requester para ROCK [M-04]
         if (!this.job) {
-            this.job = rooms.claimJob(this.tile());
+            this.job = rooms.claimJob(this.tile(), this);
             if (this.job) {
                 const adj = this.scene.gameRef.grid.nearestWalkable(this.job.x, this.job.y, 2) || this.job;
                 this.setPathTo(adj.x, adj.y);

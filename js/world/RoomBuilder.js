@@ -27,11 +27,12 @@ export class RoomBuilder {
     }
 
     /** Operária reivindica a tarefa mais próxima não reivindicada. */
-    claimJob(fromTile) {
+    claimJob(fromTile, requester = null) {
         let best = null;
         let bestD = Infinity;
         for (const j of this.pendingJobs) {
             if (j.claimed) continue;
+            if (j.isRock && !requester?.breaksRock) continue; // [M-04] só Digger pega ROCK
             const d = (j.x - fromTile.x) ** 2 + (j.y - fromTile.y) ** 2;
             if (d < bestD) {
                 bestD = d;
@@ -42,11 +43,18 @@ export class RoomBuilder {
         return best;
     }
 
-    requestDig(x, y, digTime = 0.8) {
+    requestDig(x, y, digTime = 0.8, requester = null) {
         const g = this.scene.gameRef;
-        if (g.grid.get(x, y) !== 0) return false;
+        const v = g.grid.get(x, y);
+        const isRock = v === 3; // ROCK indestrutível
+        const canBreak = isRock && requester?.breaksRock;
+        // [M-04] Digger quebra ROCK (2.8s) — só ROCK se requester tem breaksRock
+        if (v !== 0 && !(isRock && (canBreak || !requester))) return false;
+        // Se é ROCK e ninguém especifico, ainda permite criar job (para Digger pegar depois)
+        if (isRock && !canBreak && requester) return false;
         if (this.pendingJobs.some((j) => j.x === x && j.y === y && j.kind === 'dig')) return false;
-        this.pendingJobs.push({ x, y, kind: 'dig', claimed: false, digTime });
+        const time = isRock ? 2.8 : digTime;
+        this.pendingJobs.push({ x, y, kind: 'dig', claimed: false, digTime: time, isRock });
         return true;
     }
 

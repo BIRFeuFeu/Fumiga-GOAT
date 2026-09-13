@@ -55,9 +55,30 @@ export class EnemyBase extends EntityBase {
             }
         }
 
-        // desloca até a Rainha
+        // desloca até a Rainha — voador [G-03]
         if (this.flying) {
-            this.chase(g.queenPx, dt);
+            const tile = this.tile();
+            const overSolid = g.grid.get(tile.x, tile.y) === 0;
+            const overRock = g.grid.get(tile.x, tile.y) === 3;
+            if (overRock) {
+                // não atravessa ROCK [G-03]
+                this.setAlpha(0.5);
+                // tenta contornar
+                const near = g.grid.nearestWalkable(tile.x, tile.y, 3);
+                if (near) this.chase({ x: near.x*16+8, y: near.y*16+8 }, dt*0.7);
+                return;
+            }
+            this.setAlpha(overSolid ? 0.5 : 1);
+            // sombra no chão quando sobre terra
+            if (overSolid && this.scene.add) {
+                // shadow tint já via alpha
+            }
+            const speedMult = overSolid ? 0.7 : 1;
+            const dx = g.queenPx.x - this.x, dy = g.queenPx.y - this.y;
+            const d = Math.hypot(dx, dy) || 1;
+            this.x += (dx/d) * this.moveSpeed * speedMult * this.speedMultiplier() * this.scene.getTimeScale() * dt;
+            this.y += (dy/d) * this.moveSpeed * speedMult * this.speedMultiplier() * this.scene.getTimeScale() * dt;
+            this.setFlipX(dx < 0);
             return;
         }
         this.repathTimer -= dt;

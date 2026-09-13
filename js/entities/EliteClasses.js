@@ -69,12 +69,13 @@ export class SpyAnt extends AntBase {
 export class GiantAnt extends AntBase {
     constructor(scene, x, y, cfg) {
         super(scene, x, y, 'ant_giant', cfg, 'giant');
-        this.setScale(10); // TDD §4.2: colossal
-        this.moveSpeed *= 0.2; // -80% velocidade
+        this.setScale(2.2); // [M-05] 10→2.2
+        this.moveSpeed *= 0.5; // [M-05] -50% (era -80%)
         this.aggroRadius = 8;
         this.canFight = true;
         this.range = 1;
         this.setDepth(4);
+        try { this.setSize(18, 18); this.body.setSize(18,18); } catch {} // [M-05] hitbox 18
     }
     dealDamageTo(e) {
         const dmg = this.baseDamage * this.scene.gameRef.gm.damage();
