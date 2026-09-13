@@ -15,6 +15,7 @@ import { MapGenerator } from '../world/MapGenerator.js';
 import { BiomeManager } from '../world/BiomeManager.js';
 import { MutationSystem } from '../systems/MutationSystem.js';
 import { PheromoneSystem } from '../ai/PheromoneSystem.js';
+import { Analytics } from '../core/Analytics.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { RadialMenu } from '../ui/RadialMenu.js';
 import { TILE_KIND as T } from '../ai/AStarGrid.js';
@@ -26,6 +27,8 @@ import { GuardianAnt } from '../entities/GuardianAnt.js';
 import { ExplorerAnt } from '../entities/ExplorerAnt.js';
 import { SniperAnt, SpyAnt, GiantAnt, HealerAnt, DiggerAnt } from '../entities/EliteClasses.js';
 import { EnemyBase } from '../entities/EnemyBase.js';
+import { Minimap } from './Minimap.js';
+import { TutorialManager } from './Tutorial.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -58,6 +61,7 @@ export class GameScene extends Phaser.Scene {
 
         // entra em estado de jogo (ativa ondas + simulação)
         GameManager.startRun(this.biomeId);
+        this._runStart = Date.now();
 
         // grupos
         this.ants = this.physics.add.group();
@@ -131,8 +135,14 @@ export class GameScene extends Phaser.Scene {
 
         // lança HUD
         if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene');
+        // minimapa [J-06a]
+        try{ this.minimap = new Minimap(this); this.minimap.create(); }catch{}
+        // tutorial [A-05]
+        try{ if(!GameManager.save.tutorialDone) this.tutorial = new TutorialManager(this); }catch{}
 
         this.revealFog(this.map.queenPos.x, this.map.queenPos.y, 8);
+        // telemetria [F-02]
+        try{ Analytics.log('run_start', {biome:this.biomeId, seed}); }catch{}
         // [D-07] partículas ambiente por bioma
         try{
             const biome = BiomeManager.byId(this.biomeId);
@@ -521,7 +531,19 @@ export class GameScene extends Phaser.Scene {
     _endRun(win) {
         if (this._ended) return;
         this._ended = true;
-        const jelly = this.economy.royalJelly + (win ? 100 : 0);
+        let jelly = this.economy.royalJelly + (win ? 100 : 0);
+        // [A-03] bônus vitória: +20 sem dano Rainha, +50 speedrun <5min, stage*10, derrota *0.6
+        try{
+            const stage = (BiomeManager.byId(this.biomeId).stage||0);
+            if(win){
+                if(this.queen && this.queen.currentHp >= this.queen.maxHp) jelly+=20;
+                const duration = (Date.now() - (this._runStart||Date.now()))/1000;
+                if(duration < 300) jelly+=50;
+                jelly += stage*10;
+            } else {
+                jelly = Math.floor(jelly*0.6);
+            }
+        }catch{}
         GameManager.addRoyalJelly(jelly);
         GameManager.discoverBiome(this.biomeId);
         GameManager.persist();
@@ -529,6 +551,7 @@ export class GameScene extends Phaser.Scene {
         this.audio.play(win ? 'win' : 'gameover');
         this.audio.stopBgm();
         this.game.events.emit('gameOver', { win, stats: GameManager.stats, jelly });
+        try{ Analytics.log('run_end', {win, wave:this.wave, biomass:GameManager.stats.biomassCollected, rooms:GameManager.stats.roomsBuilt, duration: (Date.now()-(this._runStart||Date.now()))/1000, jelly}); }catch{}
     }
 
     getTimeScale() {
@@ -541,6 +564,34 @@ export class GameScene extends Phaser.Scene {
         this.inputHandler.update();
         const dt = delta / 1000;
         const playing = GameManager.state === 'playing';
+        // wave emit para HUD [HUD-02]
+        try{ if(playing) this.game.events.emit('wave', {wave:this.wave, maxWave:GameManager.maxWave, timer:this.waveTimer}); }catch{}
+        // culling 40*TILE [GOLD-02]
+        const doCulling = (group)=>{
+            for(const e of group.getChildren()){
+                const d = Math.hypot(e.x - this.cam.worldView.x - this.cam.worldView.width/2, e.y - this.cam.worldView.y - this.cam.worldView.height/2);
+                e.visible = d < 40*16;
+            }
+        };
+        try{ doCulling(this.ants); doCulling(this.enemies); }catch{}
+        // tsunami [Mut-01] a cada 14s
+        try{
+            if(GameManager.flag('tsunami') && playing){
+                this._tsunamiTimer = (this._tsunamiTimer||14) - dt*this.timeController.getTimeScale();
+                if(this._tsunamiTimer<=0){
+                    this._tsunamiTimer=14;
+                    this.aoe(this.queen.x, this.queen.y, 16*6, 12, 'Player');
+                    this._burst(this.queen.x, this.queen.y, 16*6);
+                }
+            }
+            if(GameManager.flag('time_fissure') && playing){
+                this._fissureTimer = (this._fissureTimer||22) - dt*this.timeController.getTimeScale();
+                if(this._fissureTimer<=0){
+                    this._fissureTimer=22;
+                    for(const e of this.enemies.getChildren()) if(!e.dead) e.addStatus('freeze',{duration:2.2});
+                }
+            }
+        }catch{}
 
         // entidades só simulam durante o jogo (cartas/migração = pausa 100%)
         if (playing) {

@@ -114,17 +114,25 @@ export class MapGenerator {
             hazards.add(`${x},${y}`);
         }
 
-        // água (jardim flutuante) — bloqueia caminhada no solo
+        // água (jardim flutuante) — bloqueia caminhada no solo [AquaFix]
         if (biome.water > 0) {
             const pools = Math.floor(biome.water * 10);
             for (let i = 0; i < pools; i++) {
-                const cx = Math.floor(rng() * width);
-                const cy = skyRows + Math.floor(rng() * surfaceDepth);
+                let cx, cy, tries=0;
+                do {
+                    cx = Math.floor(rng() * width);
+                    cy = skyRows + Math.floor(rng() * surfaceDepth);
+                    tries++;
+                } while (tries<10 && Math.hypot(cx - anthillPos.x, cy - anthillPos.y) < 3);
                 for (let dx = -2; dx <= 2; dx++) for (let dy = 0; dy <= 1; dy++) {
-                    if (rng() < 0.7) grid.set(cx + dx, cy + dy, TILE_KIND.SKY); // "água" = não caminhável p/ solo
+                    if (rng() < 0.7) grid.set(cx + dx, cy + dy, TILE_KIND.SKY);
                 }
             }
         }
+        // [AquaFix] garante anthill e rival walkable
+        grid.set(anthillPos.x, anthillPos.y, TILE_KIND.SURFACE);
+        grid.set(rivalNest.x, rivalNest.y, TILE_KIND.SURFACE);
+        grid.set(queenPos.x, queenPos.y, TILE_KIND.ROOM);
 
         return { grid, surfaceRow, skyRows, queenPos, anthillPos, rivalNest, resources, hazards };
     }

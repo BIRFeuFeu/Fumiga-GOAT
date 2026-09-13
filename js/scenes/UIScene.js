@@ -447,6 +447,23 @@ export class UIScene extends Phaser.Scene {
         this.overlay.add(this.add.bitmapText(W / 2, H / 2 - 30, 'fumiga', `ABATES ${stats.kills}  BIOMASSA ${stats.biomassCollected}`, 9).setOrigin(0.5));
         this.overlay.add(this.add.bitmapText(W / 2, H / 2 - 12, 'fumiga', `SALAS ${stats.roomsBuilt}  GENES ${stats.mutations}`, 9).setOrigin(0.5));
         this.overlay.add(this.add.bitmapText(W / 2, H / 2 + 10, 'fumiga', `GELEIA REAL +${jelly}`, 11).setOrigin(0.5).setTint(0xffc832));
+        // [A-04] SEED #ABCD + share
+        try{
+            const seed = this.scene.get('GameScene') ? this.scene.get('GameScene').map.seed || 0 : 0;
+            const hex = seed.toString(16).padStart(4,'0').toUpperCase();
+            this.overlay.add(this.add.bitmapText(W/2, H/2+24, 'fumiga', `SEED #${hex}`, 7).setOrigin(0.5).setTint(0x6d5a41));
+            const shareBtn = this.add.bitmapText(W/2+70, H/2+24, 'fumiga', '📸', 10).setOrigin(0.5).setInteractive({useHandCursor:true});
+            shareBtn.on('pointerdown',()=>{
+                try{
+                    const cvs = this.scene.get('GameScene').game.canvas;
+                    const data = cvs.toDataURL('image/png');
+                    // download
+                    const a=document.createElement('a'); a.href=data; a.download=`fumiga-${hex}.png`; a.click();
+                    if(navigator.clipboard) navigator.clipboard.writeText(`FUMIGA SEED #${hex} - ${win?'VITORIA':'DERROTA'} ${stats.kills} kills`);
+                }catch{}
+            });
+            this.overlay.add(shareBtn);
+        }catch{}
         const btn = this.add.bitmapText(W / 2, H / 2 + 60, 'fumiga', '[ VOLTAR AO MENU ]', 12).setOrigin(0.5).setTint(0xc8ff5a).setInteractive({ useHandCursor: true });
         btn.on('pointerdown', () => {
             this.scene.stop('GameScene');

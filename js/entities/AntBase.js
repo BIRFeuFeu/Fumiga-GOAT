@@ -111,6 +111,8 @@ export class AntBase extends EntityBase {
 
     /* ---------- ações BT ---------- */
     attackNearest(ctx) {
+        // [Mut-03] onipresença range*3 sem path
+        try{ if(this.scene.gameRef.gm.flag('omnipresence')){ const e=this._nearestEnemy; if(e && this.distTo(e) < (this.range||1)*16*3){ if(this.attackCooldown<=0){ this.playAttack(); this.dealDamageTo(e); this.attackCooldown=0.6; } return STATUS.RUNNING; } } }catch{}
         const e = this._nearestEnemy;
         if (!e || e.dead) return STATUS.FAILURE;
         this.faceToward(e);
@@ -197,6 +199,18 @@ export class AntBase extends EntityBase {
     }
 
     update(dt) {
+        // [G-04] flocking separação 12px
+        try{
+            for(const other of this.scene.ants.getChildren()){
+                if(other===this || other.dead) continue;
+                const d=this.distTo(other);
+                if(d<12 && d>0.1){
+                    const nx=(this.x-other.x)/d, ny=(this.y-other.y)/d;
+                    this.x += nx*0.4*dt*this.effectiveSpeed()*0.016;
+                    this.y += ny*0.4*dt*this.effectiveSpeed()*0.016;
+                }
+            }
+        }catch{}
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
         this.tickStatuses(dt);
         this._nearestEnemy = this.scene.findNearestEnemy(this);

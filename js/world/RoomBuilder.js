@@ -100,6 +100,12 @@ export class RoomBuilder {
             });
         }
         this.scene.events.emit('roomBuilt', { x, y, id: roomId });
+        // [Room-01] VFX por sala (partículas simples)
+        try{
+            const cols={nursery:0xc8ff5a, pantry:0xffe066, defense:0x6a9eff, trap:0xff4b2e, fungus:0x5ad25a};
+            const col=cols[roomId]||0xffffff;
+            for(let i=0;i<3;i++){ const p=this.scene.add.image(x*16+8, y*16+8, 'particle').setTint(col).setAlpha(0.7); this.scene.tweens.add({targets:p, y: y*16+8-12, alpha:0, duration:800, onComplete:()=>p.destroy()}); }
+        }catch{}
     }
 
     _recomputePassive() {
@@ -112,7 +118,7 @@ export class RoomBuilder {
     }
 
     nurseryMult() {
-        return Math.pow(0.8, this.count('nursery'));
+        return Math.max(0.4, Math.pow(0.8, this.count('nursery'))); // [Room-02] min 0.4
     }
 
     defenseArmor() {

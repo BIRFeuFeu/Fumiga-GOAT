@@ -82,6 +82,16 @@ export class SkillTreeScene extends Phaser.Scene {
         this.add.bitmapText(W / 2, 42, 'fumiga', 'GELEIA REAL: MELHORIAS PERMANENTES', 8).setOrigin(0.5).setTint(0x6d5a41);
 
         this.jellyText = this.add.bitmapText(W - 26, 14, 'fumiga', '0', 12).setOrigin(1, 0).setTint(0xffc832);
+        // [A-02] custo total
+        try{
+            let total=0;
+            for(const s of this._skills()){
+                const lvl=GameManager.skill(s.key);
+                if(s.max===1 && !GameManager.hasUnlock(s.key)) total+=s.base;
+                else if(s.max>1) total += (s.max-lvl)*s.base;
+            }
+            this.add.bitmapText(W/2, 52, 'fumiga', `FALTAM ${total} GEL`, 7).setOrigin(0.5).setTint(0xffc832);
+        }catch{}
         this.add.image(W - 14, 20, 'ui_icons', this._icon('jelly')).setScale(1.2);
 
         // ---------- linhas da árvore (skills.json) ----------
