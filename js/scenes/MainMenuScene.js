@@ -13,7 +13,6 @@ import { GameManager } from '../core/GameManager.js';
 const ITEMS = [
     { id: 'play', label: 'Jogar' },
     { id: 'options', label: 'Opções' },
-    { id: 'saves', label: 'Saves: Slot 1' },
     { id: 'patch', label: 'Notas da Atualização' },
     { id: 'dlc', label: 'Conteúdo Extra', color: 0xffc832 },
     { id: 'quit', label: 'Sair' },
@@ -214,14 +213,10 @@ export class MainMenuScene extends Phaser.Scene {
         const it = ITEMS[this.sel];
         this.audioClick();
         if (it.id === 'play') {
-            // Via pós-menu (ordem: Menu > Pós-menu > Jogo)
+            // Via pós-menu (ordem: Menu > Pós-menu > Jogo) — sempre via Carregamento
             this.cameras.main.fadeOut(200, 11, 7, 5);
             this.cameras.main.once('camerafadeoutcomplete', () =>
                 this.scene.start('CarregamentoScene', { next: 'PosMenuScene', duration: 600 }));
-        } else if (it.id === 'saves') {
-            this.cameras.main.fadeOut(200, 11, 7, 5);
-            this.cameras.main.once('camerafadeoutcomplete', () =>
-                this.scene.start('CarregamentoScene', { next: 'SaveSlotScene', duration: 500 }));
         } else if (it.id === 'options') {
             // Som por enquanto
             this._muted = !this._muted;
@@ -232,7 +227,7 @@ export class MainMenuScene extends Phaser.Scene {
             this._credits();
         } else if (it.id === 'dlc') {
             this.cameras.main.fadeOut(200, 11, 7, 5);
-            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SkillTreeScene'));
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('CarregamentoScene', { next: 'SkillTreeScene', duration: 500 }));
         } else if (it.id === 'quit') {
             const t = this.add.bitmapText(this.scale.width/2, this.scale.height/2, 'fumiga', 'ATÉ LOGO!', 12).setOrigin(0.5).setTint(0xe8d9b5);
             this.time.delayedCall(800, () => t.destroy());
