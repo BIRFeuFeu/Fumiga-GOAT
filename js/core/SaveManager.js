@@ -25,7 +25,9 @@ export const DEFAULT_SAVE = () => ({
         unlock_digger: false,
         unlock_healer: false
     },
-    discoveredBiomes: []
+    discoveredBiomes: [],
+    tutorialDone: false,
+    volume: { bgm: 0.6, sfx: 0.8, mute: false }
 });
 
 export class SaveManager {
@@ -143,7 +145,9 @@ export class SaveManager {
             ...base,
             ...data,
             skillTree: { ...base.skillTree, ...(data.skillTree || {}) },
-            discoveredBiomes: data.discoveredBiomes || []
+            discoveredBiomes: data.discoveredBiomes || [],
+            tutorialDone: data.tutorialDone ?? base.tutorialDone,
+            volume: { ...base.volume, ...(data.volume || {}) }
         };
     }
 
