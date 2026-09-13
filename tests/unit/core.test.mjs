@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AStarGrid, TILE } from '../../js/ai/AStarGrid.js';
+import { AStarGrid, TILE_KIND as TILE } from '../../js/ai/AStarGrid.js';
 import { MutationSystem } from '../../js/systems/MutationSystem.js';
 import { EconomyManager } from '../../js/core/EconomyManager.js';
 import { MapGenerator } from '../../js/world/MapGenerator.js';
@@ -81,4 +81,42 @@ test('SaveManager: roundtrip em memória', async () => {
     assert.equal(loaded.royalJelly, 77);
     assert.equal(loaded.skillTree.hp_buff, 2);
     assert.deepEqual(loaded.discoveredBiomes, ['bosque_umido']);
+});
+
+test('SaveManager: storage bloqueado (SecurityError de iframe) cai para memória', async () => {
+    // Simula iframe sandboxed/de terceiros no Chrome: o ACESSO a indexedDB
+    // (getter global) lança SecurityError. Nada pode rejeitar/estourar erro.
+    const g = globalThis;
+    const prev = Object.getOwnPropertyDescriptor(g, 'indexedDB');
+    Object.defineProperty(g, 'indexedDB', {
+        configurable: true,
+        get() { throw new Error('SecurityError: acesso a indexedDB bloqueado'); }
+    });
+    try {
+        const s = new SaveManager();
+        assert.equal(await s.saveProgress({ royalJelly: 42 }), true, 'saveProgress resolve true (memória)');
+        const loaded = await s.loadProgress();
+        assert.equal(loaded.royalJelly, 42, 'loadProgress lê da memória');
+    } finally {
+        if (prev) Object.defineProperty(g, 'indexedDB', prev);
+        else delete g.indexedDB;
+    }
+});
+
+test('SaveManager: open() que rejeita não derruba save/load', async () => {
+    // indexedDB presente mas open() lançando (ex.: partitioned storage)
+    const g = globalThis;
+    const prev = Object.getOwnPropertyDescriptor(g, 'indexedDB');
+    Object.defineProperty(g, 'indexedDB', {
+        configurable: true,
+        value: { open() { throw new Error('SecurityError'); } }
+    });
+    try {
+        const s = new SaveManager();
+        assert.equal(await s.saveProgress({ royalJelly: 9 }), true);
+        assert.equal((await s.loadProgress()).royalJelly, 9);
+    } finally {
+        if (prev) Object.defineProperty(g, 'indexedDB', prev);
+        else delete g.indexedDB;
+    }
 });

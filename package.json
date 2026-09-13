@@ -5,8 +5,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node tools/serve.mjs",
-    "dev": "node tools/serve.mjs",
+    "start": "python3 tools/serve.py",
+    "start:node": "node tools/serve.mjs",
+    "dev": "python3 tools/serve.py",
     "gen:art": "node tools/generate-sprites.mjs",
     "gen:audio": "node tools/generate-audio.mjs",
     "gen:assets": "npm run gen:art && npm run gen:audio",

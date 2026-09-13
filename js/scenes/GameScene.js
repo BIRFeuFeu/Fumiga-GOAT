@@ -17,7 +17,7 @@ import { MutationSystem } from '../systems/MutationSystem.js';
 import { PheromoneSystem } from '../ai/PheromoneSystem.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { RadialMenu } from '../ui/RadialMenu.js';
-import { TILE as T } from '../ai/AStarGrid.js';
+import { TILE_KIND as T } from '../ai/AStarGrid.js';
 import { Queen } from '../entities/Queen.js';
 import { WorkerAnt } from '../entities/WorkerAnt.js';
 import { CollectorAnt } from '../entities/CollectorAnt.js';

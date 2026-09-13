@@ -6,7 +6,7 @@
  * O terreno varia por bioma (densidade de pedra, perigos, água/cristal etc.).
  * ---------------------------------------------------------------------------
  */
-import { AStarGrid, TILE } from '../ai/AStarGrid.js';
+import { AStarGrid, TILE_KIND } from '../ai/AStarGrid.js';
 
 export function mulberry32(seed) {
     let a = seed >>> 0;
@@ -39,9 +39,9 @@ export class MapGenerator {
         // céu + superfície
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                if (y < skyRows) grid.set(x, y, TILE.SKY);
-                else if (y < surfaceRow) grid.set(x, y, TILE.SURFACE);
-                else grid.set(x, y, TILE.SOLID);
+                if (y < skyRows) grid.set(x, y, TILE_KIND.SKY);
+                else if (y < surfaceRow) grid.set(x, y, TILE_KIND.SURFACE);
+                else grid.set(x, y, TILE_KIND.SOLID);
             }
         }
 
@@ -53,7 +53,7 @@ export class MapGenerator {
             const size = 1 + Math.floor(rng() * 3);
             for (let dy = -size; dy <= size; dy++)
                 for (let dx = -size; dx <= size; dx++) {
-                    if (rng() < 0.6) grid.set(cx + dx, cy + dy, TILE.ROCK);
+                    if (rng() < 0.6) grid.set(cx + dx, cy + dy, TILE_KIND.ROCK);
                 }
         }
 
@@ -61,23 +61,23 @@ export class MapGenerator {
         const qcx = Math.floor(width / 2);
         const qcy = height - Math.floor((height - surfaceRow) * 0.35);
         for (let dy = -1; dy <= 1; dy++)
-            for (let dx = -1; dx <= 1; dx++) grid.set(qcx + dx, qcy + dy, TILE.ROOM);
+            for (let dx = -1; dx <= 1; dx++) grid.set(qcx + dx, qcy + dy, TILE_KIND.ROOM);
         const queenPos = { x: qcx, y: qcy };
 
         // túneis iniciais ao redor da câmara
         for (let dx = -2; dx <= 2; dx++) {
-            grid.set(qcx + dx, qcy - 2, TILE.WALK);
-            grid.set(qcx + dx, qcy + 2, TILE.WALK);
+            grid.set(qcx + dx, qcy - 2, TILE_KIND.WALK);
+            grid.set(qcx + dx, qcy + 2, TILE_KIND.WALK);
         }
         for (let dy = -2; dy <= 2; dy++) {
-            grid.set(qcx - 2, qcy + dy, TILE.WALK);
-            grid.set(qcx + 2, qcy + dy, TILE.WALK);
+            grid.set(qcx - 2, qcy + dy, TILE_KIND.WALK);
+            grid.set(qcx + 2, qcy + dy, TILE_KIND.WALK);
         }
 
         // poço de acesso superfície <-> subterrâneo (entrada do formigueiro)
         const ax = qcx;
         for (let y = skyRows; y <= qcy - 1; y++) {
-            grid.set(ax, y, y < surfaceRow ? TILE.SURFACE : TILE.WALK);
+            grid.set(ax, y, y < surfaceRow ? TILE_KIND.SURFACE : TILE_KIND.WALK);
         }
         const anthillPos = { x: ax, y: surfaceRow - 1 };
 
@@ -111,7 +111,7 @@ export class MapGenerator {
                 const cx = Math.floor(rng() * width);
                 const cy = skyRows + Math.floor(rng() * surfaceDepth);
                 for (let dx = -2; dx <= 2; dx++) for (let dy = 0; dy <= 1; dy++) {
-                    if (rng() < 0.7) grid.set(cx + dx, cy + dy, TILE.SKY); // "água" = não caminhável p/ solo
+                    if (rng() < 0.7) grid.set(cx + dx, cy + dy, TILE_KIND.SKY); // "água" = não caminhável p/ solo
                 }
             }
         }
