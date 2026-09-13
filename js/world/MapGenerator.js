@@ -46,7 +46,7 @@ export class MapGenerator {
         }
 
         // pedras indestrutíveis no subterrâneo (clusters)
-        const rockClusters = Math.floor(width * height * biome.rock * 0.02);
+        const rockClusters = Math.floor(width * height * biome.rock * 0.06); // [G-02a] 0.02→0.06 (3x)
         for (let i = 0; i < rockClusters; i++) {
             const cx = 2 + Math.floor(rng() * (width - 4));
             const cy = surfaceRow + 2 + Math.floor(rng() * (height - surfaceRow - 4));
@@ -85,6 +85,16 @@ export class MapGenerator {
         const rivalX = ax > width / 2 ? Math.floor(width * 0.18) : Math.floor(width * 0.82);
         const rivalNest = { x: rivalX, y: skyRows + 2 };
 
+        // 2 ruínas pré-escavadas 3x3 ROOM [G-02b]
+        for(let ri=0; ri<2; ri++){
+            const rx = 4 + Math.floor(rng()*(width-8));
+            const ry = surfaceRow + 4 + Math.floor(rng()*(height-surfaceRow-8));
+            if(Math.abs(rx - qcx) < 4 && Math.abs(ry - qcy) < 4) continue;
+            for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) grid.set(rx+dx, ry+dy, TILE_KIND.ROOM);
+            // loot 10 no centro
+            // resources will be added later, but mark as room
+        }
+
         // recursos de biomassa na superfície
         const resources = [];
         const resourceCount = Math.floor(width * 0.75); // [A-01] 32→48
@@ -97,7 +107,7 @@ export class MapGenerator {
 
         // tiles de perigo do bioma (overlay, ainda caminháveis)
         const hazards = new Set();
-        const hazardCount = Math.floor(width * height * biome.hazard * 0.06);
+        const hazardCount = Math.floor(width * height * biome.hazard * 0.12); // [G-02a] 0.06→0.12 (2x)
         for (let i = 0; i < hazardCount; i++) {
             const x = Math.floor(rng() * width);
             const y = skyRows + Math.floor(rng() * (height - skyRows));

@@ -46,16 +46,20 @@ export class MutationSystem {
      * Retorna array de objetos { ...mutation, rarityColor }.
      */
     rollMutations(luck = 0, count = 3, rng = Math.random) {
-        const pool = [...this.mutations];
+        // [D-02] filtra gigantismo só stage>=2
+        let pool = [...this.mutations];
+        try {
+            const stage = (typeof GameManager !== 'undefined' && GameManager.biome() && GameManager.biome().stage) || 0;
+            if (stage < 2) pool = pool.filter(m => m.id !== 'gigantismo');
+        } catch {}
         const out = [];
         for (let i = 0; i < count; i++) {
             const rarity = this.rollRarity(luck, rng);
             let candidates = pool.filter((m) => m.rarity === rarity);
             if (candidates.length === 0) {
-                // fallback: qualquer não escolhida
                 candidates = pool.filter((m) => !out.find((o) => o.id === m.id));
             }
-            if (candidates.length === 0) candidates = this.mutations;
+            if (candidates.length === 0) candidates = pool.length ? pool : this.mutations;
             const pick = candidates[Math.floor(rng() * candidates.length)];
             const idx = pool.indexOf(pick);
             if (idx >= 0) pool.splice(idx, 1);

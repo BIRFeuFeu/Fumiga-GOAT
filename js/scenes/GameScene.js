@@ -133,6 +133,17 @@ export class GameScene extends Phaser.Scene {
         if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene');
 
         this.revealFog(this.map.queenPos.x, this.map.queenPos.y, 8);
+        // [D-07] partículas ambiente por bioma
+        try{
+            const biome = BiomeManager.byId(this.biomeId);
+            const effect = biome.effect;
+            const cols = effect==='burn'?0xff6a2a : effect==='poison'?0x5ad25a : effect==='slow'?0x6a9eff : effect==='crystal'?0xffe066 : 0xffffff;
+            for(let i=0;i<12;i++){
+                const x = Phaser.Math.Between(0, 64*TILE), y=Phaser.Math.Between(0, 64*TILE);
+                const p = this.add.image(x,y,'particle').setTint(cols).setAlpha(0.5).setDepth(3);
+                this.tweens.add({targets:p, y: y-20, alpha:{from:0.5,to:0}, duration:Phaser.Math.Between(2000,4000), repeat:-1, delay: Phaser.Math.Between(0,2000)});
+            }
+        }catch{}
     }
 
     /* ================= RENDER ================= */
@@ -165,10 +176,14 @@ export class GameScene extends Phaser.Scene {
         else frame = null; // céu
 
         if (frame === null) {
-            // céu/água: pinta com cor de luz do bioma escura
             this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409);
         } else {
             this.mapRT.drawFrame(this.tileKey, frame, x * TILE, y * TILE);
+            // [D-07] tint por bioma 0.08
+            try{
+                const biome = BiomeManager.byId(this.biomeId);
+                if(biome.light) this.mapRT.fill(x*TILE, y*TILE, TILE, TILE, biome.light, 0.08);
+            }catch{}
         }
         // hazard overlay na superfície
         if (this.map.hazards.has(`${x},${y}`) && (v === T.SURFACE || v === T.WALK)) {

@@ -303,48 +303,106 @@ export class UIScene extends Phaser.Scene {
         this.overlay.setVisible(false);
     }
 
-    /* ---------- Cartas de Mutação (pausa 100%) ---------- */
+    /* ---------- Cartas de Mutação (pausa 100%) [D-02] ---------- */
     _mutationCards(cards) {
         const W = this.scale.width;
         const H = this.scale.height;
         this._clearOverlay();
         this.overlay.setVisible(true);
         const man = this.cache.json.get('manifest') || {};
-        const rar = man.mutation_cards.tiles;
+        const rar = man.mutation_cards ? man.mutation_cards.tiles : {};
+        // estado reroll [D-02]
+        this._rerolled = this._rerolled || false;
+        this._currentCards = cards;
 
         const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7).setInteractive();
         this.overlay.add(dim);
         const title = this.add.bitmapText(W / 2, 70, 'fumiga', 'BIOMASSA ESPECIAL - ESCOLHA UM GENE', 10).setOrigin(0.5).setTint(0xb44ad2);
         this.overlay.add(title);
+        // mostra delta ANTES→DEPOIS [D-02]
+        const getDelta = (card) => {
+            try {
+                const gm = this.scene.get('GameScene').gameRef.gm;
+                if(card.effect.type==='stat' && card.effect.stat==='damage') return `DANO ${Math.round(gm.damage()*9)}→${Math.round(gm.damage()*9*card.effect.mult)}`;
+                if(card.effect.type==='stat' && card.effect.stat==='speed') return `VEL ${gm.speed().toFixed(2)}→${(gm.speed()*card.effect.mult).toFixed(2)}`;
+                if(card.effect.type==='stat' && card.effect.stat==='hp') return `HP x${gm.hpMult().toFixed(1)}→x${(gm.hpMult()*card.effect.mult).toFixed(1)}`;
+            } catch {}
+            return card.desc;
+        };
 
         const cardW = 96;
         const gap = 16;
         const total = cards.length * cardW + (cards.length - 1) * gap;
         let x = W / 2 - total / 2;
-        cards.forEach((card, i) => {
-            const cx = x + cardW / 2;
-            const frame = this.add.image(cx, H / 2, 'mutation_cards', rar[card.rarity] ?? 0);
-            frame.setInteractive({ useHandCursor: true });
-            const icon = this.add.image(cx, H / 2 - 28, 'ui_icons', this.icon(card.icon) || 0).setScale(2);
-            const name = this.add.bitmapText(cx, H / 2 + 20, 'fumiga', card.name, 8).setOrigin(0.5).setTint(0xffffff);
-            const desc = this.add.bitmapText(cx, H / 2 + 40, 'fumiga', this._wrap(card.desc), 7).setOrigin(0.5).setTint(0xcfc4a8);
-            const group = [frame, icon, name, desc];
-            group.forEach((o) => this.overlay.add(o));
-            frame.on('pointerover', () => group.forEach((o) => o.setScale && o.setScale(o === frame ? 1.05 : o.scale * 1.05)));
-            frame.on('pointerout', () => group.forEach((o) => o.setScale && o.setScale(o === frame ? 1 : o.scale / 1.05)));
-            frame.on('pointerdown', () => {
-                this.game.events.emit('mutationChosen', card.id);
-                this._clearOverlay();
+        // responsivo: se W<400 empilha [D-03]
+        const stack = W < 400;
+        if(stack){
+            // 1 coluna 280x90 com scroll simplificado
+            let y = 110;
+            cards.forEach(card=>{
+                const frame = this.add.rectangle(W/2, y, 280, 90, 0x1a0f09, 0.95).setStrokeStyle(2, card.rarityColor?Phaser.Display.Color.HexStringToColor(card.rarityColor).color:0xc8912a).setInteractive({useHandCursor:true});
+                const icon = this.add.image(W/2 -100, y, 'ui_icons', this.icon(card.icon)||0).setScale(1.8);
+                const name = this.add.bitmapText(W/2 -70, y-20, 'fumiga', card.name, 8).setTint(0xffffff);
+                const desc = this.add.bitmapText(W/2 -70, y, 'fumiga', this._wrap(getDelta(card)), 6).setTint(0xcfc4a8);
+                const rarTxt = this.add.bitmapText(W/2 -70, y+18, 'fumiga', card.rarity.toUpperCase(), 6).setTint(card.rarityColor?Phaser.Display.Color.HexStringToColor(card.rarityColor).color:0xffffff);
+                [frame,icon,name,desc,rarTxt].forEach(o=>this.overlay.add(o));
+                frame.on('pointerdown',()=>{this.game.events.emit('mutationChosen',card.id); this._clearOverlay();});
+                y+=100;
             });
-            x += cardW + gap;
+        } else {
+            cards.forEach((card, i) => {
+                const cx = x + cardW / 2;
+                const frame = this.add.image(cx, H / 2, 'mutation_cards', rar[card.rarity] ?? 0);
+                frame.setInteractive({ useHandCursor: true });
+                const icon = this.add.image(cx, H / 2 - 28, 'ui_icons', this.icon(card.icon) || 0).setScale(2);
+                const name = this.add.bitmapText(cx, H / 2 + 20, 'fumiga', card.name, 7).setOrigin(0.5).setTint(0xffffff);
+                const delta = getDelta(card);
+                const desc = this.add.bitmapText(cx, H / 2 + 36, 'fumiga', this._wrap(delta), 6).setOrigin(0.5).setTint(0x5ad25a);
+                const rarTxt = this.add.bitmapText(cx, H / 2 + 48, 'fumiga', card.rarity.toUpperCase(), 5).setOrigin(0.5).setTint(card.rarityColor?Phaser.Display.Color.HexStringToColor(card.rarityColor).color:0xffffff);
+                const group = [frame, icon, name, desc, rarTxt];
+                group.forEach((o) => this.overlay.add(o));
+                frame.on('pointerover', () => frame.setScale(1.05));
+                frame.on('pointerout', () => frame.setScale(1));
+                frame.on('pointerdown', () => {
+                    this.game.events.emit('mutationChosen', card.id);
+                    this._clearOverlay();
+                });
+                x += cardW + gap;
+            });
+        }
+        // botão reroll 1x 10 geleia [D-02]
+        if(!this._rerolled){
+            const rr = this.add.bitmapText(W/2, H - 40, 'fumiga', '[ REROLL 10 GELEIA ]', 8).setOrigin(0.5).setTint(0xffc832).setInteractive({useHandCursor:true});
+            rr.on('pointerdown',()=>{
+                const gm = this.scene.get('GameScene').gameRef.gm;
+                if(gm.spendJelly(10)){
+                    this._rerolled=true;
+                    const ms = this.scene.get('GameScene').mutationSystem;
+                    const newCards = ms.rollMutations(gm.luck);
+                    this._mutationCards(newCards);
+                } else {
+                    rr.setTint(0xe03a3a);
+                    this.tweens.add({targets:rr, x: W/2+4, duration:60, yoyo:true, repeat:3});
+                }
+            });
+            this.overlay.add(rr);
+        }
+        // 4a opção RECUSAR +15 BIO
+        const rec = this.add.bitmapText(W/2, H - 22, 'fumiga', '[ RECUSAR +15 BIO ]', 7).setOrigin(0.5).setTint(0x6d5a41).setInteractive({useHandCursor:true});
+        rec.on('pointerdown',()=>{
+            const g=this.scene.get('GameScene');
+            if(g) g.economy.add(15);
+            this.game.events.emit('mutationChosen','recusar');
+            this._clearOverlay();
         });
+        this.overlay.add(rec);
     }
 
     _wrap(t) {
         return t.length > 26 ? t.slice(0, 26) : t;
     }
 
-    /* ---------- Escolha de Migração ---------- */
+    /* ---------- Escolha de Migração [D-04] ---------- */
     _migration(choices) {
         const W = this.scale.width;
         const H = this.scale.height;
@@ -353,17 +411,25 @@ export class UIScene extends Phaser.Scene {
         const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.8).setInteractive();
         this.overlay.add(dim);
         this.overlay.add(this.add.bitmapText(W / 2, 80, 'fumiga', 'MIGRACAO - ESCOLHA A ROTA', 12).setOrigin(0.5).setTint(0xc8ff5a));
-        let y = 140;
+        let y = 130;
         for (const c of choices) {
-            const label = this.add.bitmapText(W / 2, y, 'fumiga', '> ' + c.name, 10).setOrigin(0.5).setTint(0xe8d9b5).setInteractive({ useHandCursor: true });
-            label.on('pointerover', () => label.setTint(0xc8ff5a));
-            label.on('pointerout', () => label.setTint(0xe8d9b5));
-            label.on('pointerdown', () => {
+            const card = this.add.rectangle(W/2, y, Math.min(360, W-20), 36, 0x1a0f09, 0.9).setStrokeStyle(1,0xc8912a).setInteractive({useHandCursor:true});
+            const thumbKey = 'tiles_'+c.id;
+            if(this.textures.exists(thumbKey)){
+                try{ const thumb = this.add.image(W/2 -150, y, thumbKey).setDisplaySize(32,32).setOrigin(0.5); this.overlay.add(thumb);}catch{}
+            }
+            const label = this.add.bitmapText(W/2, y-8, 'fumiga', c.name, 8).setOrigin(0.5).setTint(0xe8d9b5);
+            let info = '';
+            try{ const bm = this.scene.get('GameScene').biomeId; info = `ID:${c.id}  GEL:+40`; }catch{ info=c.name; }
+            const det = this.add.bitmapText(W/2, y+8, 'fumiga', info, 5).setOrigin(0.5).setTint(0x6d5a41);
+            [card,label,det].forEach(o=>this.overlay.add(o));
+            card.on('pointerover',()=>card.setFillStyle(0x2a1a0a,0.95));
+            card.on('pointerout',()=>card.setFillStyle(0x1a0f09,0.9));
+            card.on('pointerdown',()=>{
                 this.game.events.emit('migrationChosen', c.id);
                 this._clearOverlay();
             });
-            this.overlay.add(label);
-            y += 34;
+            y+=46;
         }
     }
 

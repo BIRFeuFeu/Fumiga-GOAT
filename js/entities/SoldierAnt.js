@@ -10,7 +10,7 @@ import { AntBase } from './AntBase.js';
 export class SoldierAnt extends AntBase {
     constructor(scene, x, y, cfg) {
         super(scene, x, y, 'ant_soldier', cfg, 'soldier');
-        this.aggroRadius = 12;
+        this.aggroRadius = 14 // [SoldierFix] 12→14;
         this.canFight = true;
         this.range = 1;
         this.pheromoneTypes = ['attack', 'retreat'];
