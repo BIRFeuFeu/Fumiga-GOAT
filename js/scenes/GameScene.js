@@ -95,6 +95,8 @@ export class GameScene extends Phaser.Scene {
         this.mapRT = this.add.renderTexture(0, 0, 64 * TILE, 64 * TILE).setOrigin(0);
         this.propLayer = this.add.container(0, 0);
         this.redrawAll();
+        // decoração nova: árvores, arbustos, pedras, cristais (recorte fiel)
+        try { this._spawnDecor(); } catch(e){ console.warn('[decor]', e); }
 
         this.fog = this.add.renderTexture(0, 0, 64 * TILE, 64 * TILE).setOrigin(0);
         this._initFog();
@@ -218,6 +220,78 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    _spawnDecor(){
+        // usa os novos props recortados: árvores, arbustos, pedras, cristais
+        const man = this.cache.json.get('manifest')||{};
+        const pick = (key) => {
+            const m = man[key];
+            if(!m || !this.textures.exists(key)) return null;
+            const f = Phaser.Math.Between(0, (m.frames||1)-1);
+            return {key, frame:f, w:m.frameWidth, h:m.frameHeight};
+        };
+        // distribui 40 decorações na superfície + 20 no subterrâneo
+        const decorSets = [
+            {key:'props_arvores', weight:0.15, scale:1}, // árvores grandes
+            {key:'props_arbustos', weight:0.25, scale:1},
+            {key:'props_pedras', weight:0.35, scale:0.9},
+            {key:'props_pedras2', weight:0.15, scale:0.9},
+            {key:'props_cristais', weight:0.1, scale:1},
+        ];
+        const tryPlace = (x,y)=>{
+            const r = Math.random();
+            let acc=0, chosen=null;
+            for(const s of decorSets){
+                acc+=s.weight;
+                if(r<acc){ chosen=s; break; }
+            }
+            if(!chosen) chosen=decorSets[2];
+            const p = pick(chosen.key);
+            if(!p) return;
+            // evita colocar em cima da entrada ou da rainha rival
+            if(Math.hypot(x - this.map.anthillPos.x, y - this.map.anthillPos.y) < 3) return;
+            if(Math.hypot(x - this.map.rivalNest.x, y - this.map.rivalNest.y) < 4) return;
+            if(this.grid.get(x,y)===T.ROCK) return;
+            const img = this.add.image(x*TILE+8, y*TILE+8, p.key, p.frame);
+            img.setOrigin(0.5, 0.8); // base no chão
+            img.setDepth(y); // y-sort
+            img.setScale(chosen.scale);
+            // leve variação
+            img.setTint(0xffffff);
+            this.propLayer.add(img);
+        };
+        // superfície: 40
+        for(let i=0;i<40;i++){
+            const x = Phaser.Math.Between(1,62);
+            const y = Phaser.Math.Between(this.map.skyRows, this.map.surfaceRow-1);
+            if(this.grid.get(x,y)===T.SURFACE) tryPlace(x,y);
+        }
+        // subterrâneo decor leve: 15 pedras/cristais
+        for(let i=0;i<15;i++){
+            const x = Phaser.Math.Between(4,60);
+            const y = Phaser.Math.Between(this.map.surfaceRow+2, 62);
+            if(this.grid.get(x,y)===T.SOLID || this.grid.get(x,y)===T.WALK) {
+                const p = pick(Math.random()<0.5?'props_pedras':'props_cristais');
+                if(!p) continue;
+                const img = this.add.image(x*TILE+8, y*TILE+8, p.key, p.frame);
+                img.setOrigin(0.5,0.5);
+                img.setAlpha(0.85);
+                img.setDepth(y);
+                this.propLayer.add(img);
+            }
+        }
+        // gen cenários como background distante (2-3 ao fundo)
+        try{
+            const bgs = Object.keys(man).filter(k=>k.startsWith('bg_cenario_') && this.textures.exists(k));
+            for(let i=0;i<Math.min(2,bgs.length);i++){
+                const k = Phaser.Math.RND.pick(bgs);
+                const img = this.add.image(Phaser.Math.Between(100, 900), Phaser.Math.Between(20, 80), k);
+                img.setScrollFactor(0.3,0.3);
+                img.setDepth(-10);
+                img.setAlpha(0.6);
+                img.setScale(0.5);
+            }
+        }catch{}
+    }
     _initFog() {
         this.fog.fill(0, 0, 64 * TILE, 64 * TILE, 0x000000, 0.55);
         // pincel de névoa: usa arquivo se já carregado, senão gera fallback

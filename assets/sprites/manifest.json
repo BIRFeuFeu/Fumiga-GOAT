@@ -1023,5 +1023,89 @@
       "w": 64,
       "h": 64
     }
+  },
+  "props_arvores": {
+    "file": "assets/sprites/props_arvores.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 16
+  },
+  "props_arbustos": {
+    "file": "assets/sprites/props_arbustos.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 16
+  },
+  "props_pedras": {
+    "file": "assets/sprites/props_pedras.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 16
+  },
+  "props_pedras2": {
+    "file": "assets/sprites/props_pedras2.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8
+  },
+  "props_cristais": {
+    "file": "assets/sprites/props_cristais.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 16
+  },
+  "bg_cenario_1d97a87b": {
+    "file": "assets/sprites/bg_cenario_1d97a87b.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_55ec5e27": {
+    "file": "assets/sprites/bg_cenario_55ec5e27.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_75141bb4": {
+    "file": "assets/sprites/bg_cenario_75141bb4.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_98e29479": {
+    "file": "assets/sprites/bg_cenario_98e29479.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_9e1c3e3d": {
+    "file": "assets/sprites/bg_cenario_9e1c3e3d.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_ba16916c": {
+    "file": "assets/sprites/bg_cenario_ba16916c.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_e8fd81fa": {
+    "file": "assets/sprites/bg_cenario_e8fd81fa.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_ea9232e2": {
+    "file": "assets/sprites/bg_cenario_ea9232e2.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
+  },
+  "bg_cenario_f836ccd3": {
+    "file": "assets/sprites/bg_cenario_f836ccd3.png",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "frames": 1
   }
 }
