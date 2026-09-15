@@ -19,7 +19,16 @@ export const ANT_CLASSES = {
     spy:       { cost: 100,hp: 40,  speed: 70, damage: 0,  armor: 0,  range: 1, sprite: 'ant_spy' },
     healer:    { cost: 60, hp: 45,  speed: 55, damage: 0,  armor: 2,  range: 2, sprite: 'ant_healer' },
     digger:    { cost: 45, hp: 60,  speed: 50, damage: 4,  armor: 6,  range: 0, sprite: 'ant_digger' },
-    giant:     { cost: 120,hp: 320, speed: 28, damage: 40, armor: 20, range: 1, sprite: 'ant_giant', scale: 2.2 } // [M-05] 150→120, 900→320, 14→28, scale 10→2.2
+    giant:     { cost: 120,hp: 320, speed: 28, damage: 40, armor: 20, range: 1, sprite: 'ant_giant', scale: 2.2 }, // [M-05] 150→120, 900→320, 14→28, scale 10→2.2
+    // novas formigas recortadas de formigas/gen-*.png (768→32x32, 8f)
+    ant_new_1: { cost: 35, hp: 50, speed: 60, damage: 10, armor: 4, range: 1, sprite: 'ant_new_1' },
+    ant_new_2: { cost: 35, hp: 50, speed: 60, damage: 10, armor: 4, range: 1, sprite: 'ant_new_2' },
+    ant_new_3: { cost: 45, hp: 70, speed: 55, damage: 12, armor: 6, range: 1, sprite: 'ant_new_3' },
+    ant_new_4: { cost: 45, hp: 70, speed: 55, damage: 12, armor: 6, range: 1, sprite: 'ant_new_4' },
+    ant_new_5: { cost: 55, hp: 90, speed: 50, damage: 14, armor: 8, range: 1, sprite: 'ant_new_5' },
+    ant_new_6: { cost: 55, hp: 90, speed: 50, damage: 14, armor: 8, range: 1, sprite: 'ant_new_6' },
+    ant_new_7: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_7', scale: 1.4 },
+    ant_new_8: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_8', scale: 1.4 },
 };
 
 /** Stats base dos inimigos (escalados por dificuldade do bioma). */
@@ -32,7 +41,8 @@ export const ENEMY_TYPES = {
     termite:        { hp: 34, speed: 48, damage: 8,  armor: 3,  sprite: 'enemy_termite', biomass: 5 }, // [M-10] 6→8, 7→5
     plant:          { hp: 55, speed: 22, damage: 8,  armor: 5,  sprite: 'enemy_plant', biomass: 9 },
     ant:            { hp: 44, speed: 56, damage: 7,  armor: 3,  sprite: 'ant_enemy', biomass: 8 },
-    spiderling:     { hp: 16, speed: 66, damage: 3,  armor: 0,  sprite: 'enemy_spiderling', biomass: 3 }
+    spiderling:     { hp: 16, speed: 66, damage: 3,  armor: 0,  sprite: 'enemy_spiderling', biomass: 3 },
+    boar:           { hp: 85, speed: 38, damage: 13, armor: 6,  sprite: 'enemy_boar', biomass: 12 }, // novo de animais/Boar
 };
 
 /** Chefes (arquetipos disponíveis no beta). */

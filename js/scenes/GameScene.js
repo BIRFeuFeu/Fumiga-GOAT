@@ -333,8 +333,14 @@ export class GameScene extends Phaser.Scene {
             case 'healer': a = new HealerAnt(this, x, y, cfg); break;
             case 'digger': a = new DiggerAnt(this, x, y, cfg); break;
             case 'giant': a = new GiantAnt(this, x, y, cfg); break;
+            case 'ant_new_1': case 'ant_new_2': a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
+            case 'ant_new_3': case 'ant_new_4': a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
+            case 'ant_new_5': case 'ant_new_6': a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
+            case 'ant_new_7': case 'ant_new_8': a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
             default: a = new WorkerAnt(this, x, y, cfg);
         }
+        // aplica escala se houver
+        if(def.scale) try{ a.setScale(def.scale); }catch{}
         this.ants.add(a);
         this.audio.play('spawn');
         return a;

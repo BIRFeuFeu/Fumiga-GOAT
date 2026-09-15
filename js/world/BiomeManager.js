@@ -7,11 +7,11 @@
  * ---------------------------------------------------------------------------
  */
 export const BIOMES = {
-    bosque_umido: { name: 'Bosque Úmido', stage: 1, terrain: { rock: 0.05, hazard: 0.04 }, effect: 'none', enemies: ['centipede', 'beetle'], boss: 'wolf_spider', light: '#7ad26a', fog: '#0d1408' },
-    prado_fogo: { name: 'Prado de Fogo', stage: 1, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'burn', enemies: ['ant', 'beetle'], boss: 'bombardier', light: '#ff7a2a', fog: '#180a04' },
-    deserto_escaldante: { name: 'Deserto Escaldante', stage: 1, terrain: { rock: 0.08, hazard: 0.12 }, effect: 'sand', enemies: ['scorpion', 'termite'], boss: 'bombardier', light: '#ffd07a', fog: '#181004' },
+    bosque_umido: { name: 'Bosque Úmido', stage: 1, terrain: { rock: 0.05, hazard: 0.04 }, effect: 'none', enemies: ['boar', 'centipede', 'beetle'], boss: 'wolf_spider', light: '#7ad26a', fog: '#0d1408' },
+    prado_fogo: { name: 'Prado de Fogo', stage: 1, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'burn', enemies: ['ant', 'beetle', 'boar'], boss: 'bombardier', light: '#ff7a2a', fog: '#180a04' },
+    deserto_escaldante: { name: 'Deserto Escaldante', stage: 1, terrain: { rock: 0.08, hazard: 0.12 }, effect: 'sand', enemies: ['scorpion', 'termite', 'boar'], boss: 'bombardier', light: '#ffd07a', fog: '#181004' },
     pantano_toxico: { name: 'Pântano Tóxico', stage: 1, terrain: { rock: 0.05, hazard: 0.14 }, effect: 'poison', enemies: ['fly', 'centipede'], boss: 'putrid_centipede', light: '#9dff3c', fog: '#0a1204' },
-    cemiterio_troncos: { name: 'Cemitério de Troncos', stage: 1, terrain: { rock: 0.14, hazard: 0.06 }, effect: 'hardrock', enemies: ['termite', 'beetle'], boss: 'wolf_spider', light: '#c8a05a', fog: '#120c06' },
+    cemiterio_troncos: { name: 'Cemitério de Troncos', stage: 1, terrain: { rock: 0.14, hazard: 0.06 }, effect: 'hardrock', enemies: ['boar', 'termite', 'beetle'], boss: 'wolf_spider', light: '#c8a05a', fog: '#120c06' },
 
     floresta_fungos: { name: 'Floresta de Fungos', stage: 2, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'zombie', enemies: ['fly', 'ant', 'centipede'], boss: 'putrid_centipede', light: '#b44ad2', fog: '#120618' },
     cavernas_cristal: { name: 'Cavernas de Cristal', stage: 2, terrain: { rock: 0.22, hazard: 0.08 }, effect: 'hardrock', enemies: ['spiderling', 'scorpion'], boss: 'bombardier', light: '#7ad2ff', fog: '#041018' },

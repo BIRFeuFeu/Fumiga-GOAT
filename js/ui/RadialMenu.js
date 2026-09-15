@@ -40,6 +40,11 @@ export class RadialMenu {
             if (gm.hasUnlock('unlock_digger')) classes.push('digger');
             for (const c of classes) opts.push({ id: 'spawn:' + c, label: c.toUpperCase(), icon: 'ant' });
             if (gm.hasUnlock('unlock_giant')) opts.push({ id: 'spawn:giant', label: 'GIGANTE', icon: 'hp' });
+            // novas formigas recortadas (sempre visíveis para teste, custo 35-80)
+            if (gm.hasUnlock('unlock_giant') || true) { // mostra 2 novas como demo
+                opts.push({ id: 'spawn:ant_new_1', label: 'NOVA1', icon: 'ant' });
+                opts.push({ id: 'spawn:ant_new_3', label: 'NOVA3', icon: 'ant' });
+            }
         } else if (v === 0) {
             opts.push({ id: 'dig', label: 'CAVAR', icon: 'dig' });
         } else if (v === 1) {
