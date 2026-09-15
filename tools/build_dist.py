@@ -75,7 +75,22 @@ def read(rel):
 def strip_module_syntax(src, rel):
     src = EXPORT_DECL_RE.sub(r"\1", src)
     src = EXPORT_BRACE_RE.sub("", src)
+    # Preserva aliases `import { X as Y }` → `const Y = X;` (topo-ordenado já garante X definido)
+    # Detecta imports nomeados com `as` antes de removê-los.
+    alias_re = re.compile(r"^\s*import\s*\{([^}]+)\}\s*from\s*['\"][^'\"]+['\"]\s*;?\s*$", re.M)
+    aliases = []
+    for m in alias_re.finditer(src):
+        inner = m.group(1)
+        for part in inner.split(','):
+            part = part.strip()
+            if ' as ' in part:
+                orig, alias = [p.strip() for p in part.split(' as ', 1)]
+                if orig != alias:
+                    aliases.append(f"const {alias} = {orig};")
     src = IMPORT_RE.sub("", src)  # imports relativos e globais somem (topo-ordenados)
+    if aliases:
+        # Injeta aliases logo no topo do módulo (após remoção, mas antes do código)
+        src = "\n".join(aliases) + "\n" + src
 
     def dyn(m):
         target = resolve(rel, m.group(1))
@@ -133,13 +148,15 @@ __CSS__
             show('[PROMISE] ' + (r && (r.stack || r.message) || r));
         });
         // Watchdog: se a engine não subiu, diz na tela (não fica preto sem pistas)
+        // Aumentado para 30s para dispositivos lentos (1.5MB bundle + 56 assets)
         setTimeout(function () {
             if (!window.__FUMIGA__) {
-                show('[WATCHDOG] A engine não inicializou em 15s. ' +
+                show('[WATCHDOG] A engine não inicializou em 30s. ' +
                      'Se o erro acima estiver vazio, o carregamento de /assets/* ' +
-                     'pode estar bloqueado pela rede.');
+                     'pode estar bloqueado pela rede ou o dispositivo está lento. ' +
+                     'Tente recarregar ou limpar o cache. (build ' + new Date().toISOString().slice(0,10) + ')');
             }
-        }, 15000);
+        }, 30000);
     })();
     </script>
 
@@ -177,6 +194,24 @@ def detect_collisions(order):
                          f"Renomeie em um dos módulos (padrão: sufixo descritivo).")
 
 
+def _minify_js(code):
+    """Minificação segura: remove apenas comentários de bloco e linhas vazias, preserva semântica."""
+    # Remove comentários de bloco
+    code = re.sub(r'/\*.*?\*/', '', code, flags=re.S)
+    # Remove linhas que são só comentário // (preserva // em código)
+    lines = []
+    for line in code.split('\n'):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith('//'):
+            continue
+        # preserva banners de módulo removidos já
+        lines.append(line.rstrip())
+    # Junta preservando quebras (menos agressivo que antes — evita ASI bugs)
+    minified = '\n'.join(lines)
+    return minified
+
 def main():
     order = collect(ENTRY)
     detect_collisions(order)
@@ -184,8 +219,9 @@ def main():
     parts = []
     for rel in order:
         code = strip_module_syntax(read(rel), rel)
-        banner = f"\n/* ======== {rel} ======== */\n"
-        parts.append(banner + code.strip('\n') + "\n")
+        # Minifica cada módulo (mantém IIFE wrapper legível)
+        code = _minify_js(code)
+        parts.append(code + "\n")
     bundle = ''.join(parts)
 
     # Sanidade: nada de sintaxe de módulo pode sobrar
@@ -207,6 +243,16 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(OUT_FILE, 'w', encoding='utf-8') as fh:
         fh.write(html)
+    # Gera .gz para serving otimizado
+    try:
+        import gzip
+        gz_path = OUT_FILE + '.gz'
+        with open(OUT_FILE, 'rb') as f_in, gzip.open(gz_path, 'wb', compresslevel=9) as f_out:
+            f_out.write(f_in.read())
+        gz_kb = os.path.getsize(gz_path) // 1024
+        print(f"[FUMIGA build] dist/index.html.gz gerado: {gz_kb} KB (gzip)")
+    except Exception as e:
+        print(f"[FUMIGA build] gzip falhou: {e}")
 
     kb = os.path.getsize(OUT_FILE) // 1024
     print(f"[FUMIGA build] dist/index.html gerado: {kb} KB, "

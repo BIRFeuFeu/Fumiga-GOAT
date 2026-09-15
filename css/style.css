@@ -171,6 +171,13 @@ body.queen-hit #damage-flash {
     z-index: 99;
 }
 
+/* Anel tático: pulso sutil ao segurar [J-02] */
+@keyframes tacticalRing {
+    0% { transform: scale(0.85); opacity: 0.9; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0.9; }
+}
+
 /* Acessibilidade: respeita usuários que pedem menos movimento */
 @media (prefers-reduced-motion: reduce) {
     body.tactical-pause #tactical-vignette { transition: none; }

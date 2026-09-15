@@ -5,12 +5,27 @@
  * emissão para variação orgânica. BGM com crossfade entre faixas.
  * ---------------------------------------------------------------------------
  */
+import { GameManager } from '../core/GameManager.js';
 export class AudioManager {
     constructor(scene) {
         this.scene = scene;
         this.active = new Map(); // key -> timestamps
         this.MAX_SAME = 3;
         this.bgmKey = null;
+        // [D-08] volume persistido
+        try {
+            const v = GameManager.save.volume || { bgm: 0.6, sfx: 0.8, mute: false };
+            this.bgmVolume = v.bgm ?? 0.6;
+            this.sfxVolume = v.sfx ?? 0.8;
+            this.muted = v.mute ?? false;
+            if (scene.sound) scene.sound.mute = this.muted;
+        } catch { this.bgmVolume = 0.6; this.sfxVolume = 0.8; this.muted = false; }
+    }
+    setVolume(type, val) {
+        if (type === 'bgm') this.bgmVolume = val;
+        if (type === 'sfx') this.sfxVolume = val;
+        if (type === 'mute') { this.muted = val; try{ this.scene.sound.mute = val; }catch{} }
+        try { GameManager.save.volume = { bgm: this.bgmVolume, sfx: this.sfxVolume, mute: this.muted }; GameManager.persist(); } catch {}
     }
 
     play(key, { volume = 0.8 } = {}) {

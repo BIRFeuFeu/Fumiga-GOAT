@@ -55,9 +55,30 @@ export class EnemyBase extends EntityBase {
             }
         }
 
-        // desloca até a Rainha
+        // desloca até a Rainha — voador [G-03]
         if (this.flying) {
-            this.chase(g.queenPx, dt);
+            const tile = this.tile();
+            const overSolid = g.grid.get(tile.x, tile.y) === 0;
+            const overRock = g.grid.get(tile.x, tile.y) === 3;
+            if (overRock) {
+                // não atravessa ROCK [G-03]
+                this.setAlpha(0.5);
+                // tenta contornar
+                const near = g.grid.nearestWalkable(tile.x, tile.y, 3);
+                if (near) this.chase({ x: near.x*16+8, y: near.y*16+8 }, dt*0.7);
+                return;
+            }
+            this.setAlpha(overSolid ? 0.5 : 1);
+            // sombra no chão quando sobre terra
+            if (overSolid && this.scene.add) {
+                // shadow tint já via alpha
+            }
+            const speedMult = overSolid ? 0.7 : 1;
+            const dx = g.queenPx.x - this.x, dy = g.queenPx.y - this.y;
+            const d = Math.hypot(dx, dy) || 1;
+            this.x += (dx/d) * this.moveSpeed * speedMult * this.speedMultiplier() * this.scene.getTimeScale() * dt;
+            this.y += (dy/d) * this.moveSpeed * speedMult * this.speedMultiplier() * this.scene.getTimeScale() * dt;
+            this.setFlipX(dx < 0);
             return;
         }
         this.repathTimer -= dt;
@@ -126,31 +147,48 @@ export class EnemyBase extends EntityBase {
         if (this.scene.anims.exists(this.texture.key + '_attack')) this.play(this.texture.key + '_attack', true);
     }
 
-    /** Ataques especiais dos chefões. */
+    /** Ataques especiais dos chefões. [Boss-01] telegrafo 0.8s + enrage <30% */
     bossSpecial() {
         const g = this.scene.gameRef;
-        switch (this.bossKind) {
-            case 'wolf_spider':
-                // invoca filhotes
-                for (let i = 0; i < 3; i++) this.scene.spawnEnemy('spiderling', this.x + (Math.random() * 40 - 20), this.y + 20);
-                break;
-            case 'bombardier':
-                // explosão AoE
-                this.scene.aoe(this.x, this.y, TILE * 4, 20, 'Enemy');
-                this.scene.shake(120);
-                break;
-            case 'putrid_centipede':
-                // sopro tóxico + invade túneis
-                this.scene.aoe(this.x, this.y, TILE * 3, 12, 'Enemy', null, 'poison');
-                this.scene.spawnEnemy('spiderling', g.queenPx.x + 20, g.queenPx.y);
-                break;
-            case 'first_queen':
-                // feromônios contra o jogador + invoca genes
-                this.scene.aoe(this.x, this.y, TILE * 5, 16, 'Enemy');
-                this.scene.spawnEnemy('ant', this.x - 30, this.y);
-                this.scene.spawnEnemy('ant', this.x + 30, this.y);
-                break;
+        // telegrafo vermelho 0.8s
+        try{
+            const ring = this.scene.add.graphics().setDepth(5);
+            ring.lineStyle(2,0xff3b30,0.9);
+            ring.strokeCircle(this.x, this.y, 10);
+            this.scene.tweens.add({targets:ring, scale:2.5, alpha:0, duration:800, onComplete:()=>ring.destroy()});
+        }catch{}
+        // enrage <30% HP: cooldown 50% + tint
+        if(this.currentHp < this.maxHp*0.3){
+            this.specialTimer *= 0.5;
+            this.setTint(0xff3b30);
         }
+        // delay real do dano para dar tempo do telegrafo
+        this.scene.time.delayedCall(800, ()=>{
+            if(this.dead) return;
+            switch (this.bossKind) {
+                case 'wolf_spider':
+                    for (let i = 0; i < 5; i++) { // [Boss-01] 3→5
+                        const near = g.grid.nearestWalkable(Math.floor(this.x/16), Math.floor(this.y/16), 3) || {x:Math.floor(this.x/16), y:Math.floor(this.y/16)};
+                        this.scene.spawnEnemy('spiderling', (near.x+0.5)*16, (near.y+0.5)*16);
+                    }
+                    break;
+                case 'bombardier':
+                    this.scene.aoe(this.x, this.y, TILE * 4, 20, 'Enemy');
+                    this.scene.time.delayedCall(200, ()=> this.scene.aoe(this.x, this.y, TILE * 4, 20, 'Enemy'));
+                    this.scene.shake(120);
+                    break;
+                case 'putrid_centipede':
+                    this.scene.aoe(this.x, this.y, TILE * 3, 12, 'Enemy', null, 'poison');
+                    const near = g.grid.nearestWalkable(Math.floor(g.queenPx.x/16), Math.floor(g.queenPx.y/16), 2) || g.queenTile;
+                    this.scene.spawnEnemy('spiderling', (near.x+0.5)*16, (near.y+0.5)*16);
+                    break;
+                case 'first_queen':
+                    this.scene.aoe(this.x, this.y, TILE * 5, 16, 'Enemy');
+                    this.scene.spawnEnemy('ant', this.x - 30, this.y);
+                    this.scene.spawnEnemy('ant', this.x + 30, this.y);
+                    break;
+            }
+        });
     }
 
     die(source) {

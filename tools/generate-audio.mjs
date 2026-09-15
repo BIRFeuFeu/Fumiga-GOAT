@@ -15,6 +15,7 @@ import { writeWAV } from './pixlib.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'assets', 'audio');
 const SR = 22050;
+const SR_BGM = 11025; // BGM otimizado: metade da taxa = metade do peso
 
 /* ---------- primitivas de síntese ---------- */
 function makeBuffer(seconds) {
@@ -167,69 +168,88 @@ const NOTE = {
     C3: 130.8, D3: 146.8, E3: 164.8, G3: 196, A3: 220,
     C4: 261.6, D4: 293.7, E4: 329.6, G4: 392, A4: 440, C5: 523.3
 };
-function makeBGM({ bpm = 96, bars = 8, bass = [], lead = [], drums = true, mood = 'dark' }) {
+function makeBGM({ bpm = 96, bars = 4, bass = [], lead = [], drums = true, mood = 'dark', sr = SR_BGM }) {
     const beat = 60 / bpm;
     const total = bars * 4 * beat;
-    const buf = makeBuffer(total + 0.2);
+    // buffer em SR_BGM para BGM (metade do peso)
+    const len = Math.floor((total + 0.2) * sr);
+    const buf = new Float32Array(len).fill(0);
     const t0 = 0.05;
-    // baixo
-    for (let i = 0; i < bass.length; i++) {
-        const n = bass[i];
-        if (!n) continue;
-        const t = t0 + (i / bass.length) * total;
-        tone(buf, t, beat * (total / bass.length / beat) * 0.9, NOTE[n], { type: 'square', vol: 0.32 });
-    }
-    // lead
-    for (let i = 0; i < lead.length; i++) {
-        const n = lead[i];
-        if (!n) continue;
-        const t = t0 + (i / lead.length) * total;
-        tone(buf, t, (total / lead.length) * 0.85, NOTE[n], { type: mood === 'dark' ? 'saw' : 'tri', vol: 0.18 });
-    }
-    // percussão (kick + hat de ruído)
-    if (drums) {
-        for (let bIdx = 0; bIdx < bars * 4; bIdx++) {
-            const t = t0 + bIdx * beat;
-            tone(buf, t, 0.12, 100, { type: 'square', vol: 0.4, slide: 40 });
-            noiseHit(buf, t + beat / 2, 0.05, 0.12, 4);
+    // helpers locais que escrevem em `buf` com taxa `sr`
+    function toneB(t, dur, freq, opts = {}) {
+        const shape = osc(opts.type || 'square');
+        const vol = opts.vol ?? 0.5;
+        const slide = opts.slide ?? null;
+        const start = Math.floor(t * sr);
+        const n = Math.floor(dur * sr);
+        let ph = 0;
+        for (let i = 0; i < n && start + i < buf.length; i++) {
+            const p = i / n;
+            const f = slide ? freq + (slide - freq) * p : freq;
+            ph += f / sr;
+            const e = (() => {
+                const tt = (start + i - Math.floor(t*sr)) / (dur*sr);
+                if (tt < 0 || tt > 1) return 0;
+                const a = Math.min(1, (tt*dur)/0.005);
+                const r = Math.min(1, (1-tt)/0.02);
+                return Math.max(0, Math.min(a,r));
+            })();
+            buf[start + i] += shape(ph) * vol * e;
         }
     }
+    function hitB(t, dur, vol=0.12){
+        const start=Math.floor(t*sr); const n=Math.floor(dur*sr);
+        for(let i=0;i<n && start+i<buf.length;i++) buf[start+i]+= (Math.random()*2-1)*(1-i/n)*vol;
+    }
+    for (let i = 0; i < bass.length; i++) {
+        const n = bass[i]; if (!n) continue;
+        const t = t0 + (i / bass.length) * total;
+        toneB(t, beat*0.9, NOTE[n], { type: 'square', vol: 0.32 });
+    }
+    for (let i = 0; i < lead.length; i++) {
+        const n = lead[i]; if (!n) continue;
+        const t = t0 + (i / lead.length) * total;
+        toneB(t, (total/lead.length)*0.85, NOTE[n], { type: mood==='dark'?'saw':'tri', vol: 0.18 });
+    }
+    if (drums) {
+        for (let bIdx=0;bIdx<bars*4;bIdx++){ const t=t0+bIdx*beat; toneB(t,0.12,100,{type:'square',vol:0.4,slide:40}); hitB(t+beat/2,0.05,0.12); }
+    }
+    // guarda taxa para writeWAV
+    buf.sampleRate = sr;
     return buf;
 }
 
 console.log('[gen:audio] sintetizando...');
 for (const [name, fn] of Object.entries(SFX)) {
-    writeWAV(path.join(OUT, `sfx_${name}.wav`), fn());
+    writeWAV(path.join(OUT, `sfx_${name}.wav`), fn(), SR);
 }
+function writeBGM(file, buf){ writeWAV(file, buf, buf.sampleRate||SR_BGM); }
 
-writeWAV(
+writeBGM(
     path.join(OUT, 'bgm_underground.wav'),
     makeBGM({
-        bpm: 88,
-        bars: 8,
+        bpm: 88, bars: 4,
         bass: ['C2', null, 'C2', null, 'A2', null, 'A2', 'G2', 'F2', null, 'F2', null, 'G2', null, 'G2', 'B2'],
         lead: [null, 'C4', null, 'E4', null, 'D4', null, null, null, 'A3', null, 'C4', null, 'G3', null, null],
-        mood: 'dark'
+        mood: 'dark', sr: SR_BGM
     })
 );
-writeWAV(
+writeBGM(
     path.join(OUT, 'bgm_surface.wav'),
     makeBGM({
-        bpm: 108,
-        bars: 8,
+        bpm: 108, bars: 4,
         bass: ['C3', null, 'G2', null, 'A2', null, 'F2', null, 'C3', null, 'G2', null, 'E2', null, 'G2', 'A2'],
         lead: ['C4', null, 'E4', 'G4', null, 'A4', null, 'G4', 'E4', null, 'D4', 'E4', null, 'C4', null, null],
-        mood: 'bright'
+        mood: 'bright', sr: SR_BGM
     })
 );
-writeWAV(
+writeBGM(
     path.join(OUT, 'bgm_boss.wav'),
     makeBGM({
-        bpm: 132,
-        bars: 8,
-        bass: ['A2', 'A2', null, 'A2', 'G2', null, 'F2', 'F2', 'A2', 'A2', null, 'A2', 'B2', null, 'C3', null],
-        lead: [null, 'A4', null, 'C5', null, 'A4', 'G4', null, null, 'F4', null, 'A4', null, 'E4', null, null],
-        mood: 'dark'
+        bpm: 132, bars: 4,
+        bass: ['A2','A2',null,'A2','G2',null,'F2','F2','A2','A2',null,'A2','B2',null,'C3',null],
+        lead: [null,'A4',null,'C5',null,'A4','G4',null,null,'F4',null,'A4',null,'E4',null,null],
+        mood: 'dark', sr: SR_BGM
     })
 );
-console.log('[gen:audio] OK — assets/audio/');
+console.log('[gen:audio] OK — assets/audio/ (BGM 11025Hz 4bars otimizado)');

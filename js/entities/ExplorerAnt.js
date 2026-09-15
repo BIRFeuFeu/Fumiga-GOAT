@@ -33,9 +33,9 @@ export class ExplorerAnt extends AntBase {
 
         // revela névoa + marca recursos
         this.revealTimer += this.scene.gameDelta / 1000;
-        if (this.revealTimer > 0.25) {
+        if (this.revealTimer > 0.2) { // [M-02] 0.25→0.2
             this.revealTimer = 0;
-            this.scene.revealFog(this.tile().x, this.tile().y, 4);
+            this.scene.revealFog(this.tile().x, this.tile().y, 5); // [J-06b] raio 5
             this.scene.markResourcesNear(this.tile().x, this.tile().y, 3);
         }
         return 'success';

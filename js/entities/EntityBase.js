@@ -67,7 +67,16 @@ export class EntityBase extends Phaser.Physics.Arcade.Sprite {
         if (this.dead) return 0;
         // Casco de Cristal: imune a fogo/ácido
         if ((type === 'fire' || type === 'acid') && this.scene.gameRef && this.scene.gameRef.flag('crystal')) return 0;
-        let final = Math.max(1, amount * (1 - this.armor / 100));
+        // [M-08] defesa aplica armor: só para Player (formigas)
+        let effArmor = this.armor || 0;
+        try {
+            if (this.faction === 'Player' && this.scene && this.scene.gameRef && this.scene.gameRef.rooms) {
+                effArmor += this.scene.gameRef.rooms.defenseArmor();
+            }
+            // AntBase effectiveArmor override
+            if (typeof this.effectiveArmor === 'function') effArmor = this.effectiveArmor();
+        } catch {}
+        let final = Math.max(1, amount * (1 - effArmor / 100));
         this.currentHp -= final;
 
         // feedback agressivo (Estética §4): flash branco/vermelho
@@ -112,6 +121,20 @@ export class EntityBase extends Phaser.Physics.Arcade.Sprite {
 
     /** Sincroniza o corpo Arcade (usado p/ overlaps de armadilha). */
     syncBody() {
-        if (this.body) this.body.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+        try {
+            if (!this.body) return;
+            // Phaser 3.90: Body não tem .set, usa position.set ou reset
+            if (this.body.position && this.body.position.set) {
+                this.body.position.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+            } else if (typeof this.body.set === 'function') {
+                this.body.set(this.x - this.body.width / 2, this.y - this.body.height / 2);
+            } else if (typeof this.body.reset === 'function') {
+                this.body.reset(this.x, this.y);
+            } else {
+                // fallback direto
+                this.body.x = this.x - this.body.width / 2;
+                this.body.y = this.y - this.body.height / 2;
+            }
+        } catch {}
     }
 }

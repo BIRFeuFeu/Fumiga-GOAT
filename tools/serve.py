@@ -49,12 +49,36 @@ class Handler(SimpleHTTPRequestHandler):
             return MIME_EXTRA[ext]
         return super().guess_type(path)
 
-    # --- CORS + no-cache em todas as respostas (embedding em iframe do preview
-    #     exige ausência de X-Frame-Options/CSP — nunca adicionar aqui).
+    # --- CORS + cache otimizado (preview iframe sem X-Frame) + gzip
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 'no-cache')
+        # Cache: html nunca, assets imutáveis 1 ano
+        if self.path.endswith(('.png', '.wav', '.ogg', '.json', '.xml')):
+            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
+        else:
+            self.send_header('Cache-Control', 'no-cache')
+        # Gzip negociado em do_GET/do_HEAD
         super().end_headers()
+
+    def _serve_gzip(self, fs_path):
+        """Se cliente aceita gzip e existe .gz, serve com Content-Encoding."""
+        accept = self.headers.get('Accept-Encoding', '')
+        if 'gzip' not in accept:
+            return False
+        gz_path = fs_path + '.gz'
+        if not os.path.isfile(gz_path):
+            return False
+        # serve .gz manualmente para manter headers corretos
+        ctype = self.guess_type(fs_path)
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Encoding', 'gzip')
+        self.send_header('Content-Length', str(os.path.getsize(gz_path)))
+        self.end_headers()
+        if self.command == 'GET':
+            with open(gz_path, 'rb') as f:
+                self.wfile.write(f.read())
+        return True
 
     # --- Health-check p/ proxies da plataforma
     def do_GET(self):
@@ -68,11 +92,30 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path == '/':
-            # Preview serve o BUNDLE de arquivo único (dist/index.html).
-            # Sem bundle (build falhou), cai para o dev (index.html + ES modules).
             if os.path.isfile(DIST_INDEX):
                 self.path = '/dist/index.html'
+        # tenta gzip antes do handler padrão
+        fs_path = self.translate_path(self.path.split('?')[0])
+        if os.path.isfile(fs_path) and self._serve_gzip(fs_path):
+            return
         super().do_GET()
+
+    def do_HEAD(self):
+        path = self.path.split('?')[0]
+        if path == '/healthz':
+            body = b'ok\n'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            return
+        if path == '/':
+            if os.path.isfile(DIST_INDEX):
+                self.path = '/dist/index.html'
+        fs_path = self.translate_path(self.path.split('?')[0])
+        if os.path.isfile(fs_path) and self._serve_gzip(fs_path):
+            return
+        super().do_HEAD()
 
     # --- CORS preflight
     def do_OPTIONS(self):

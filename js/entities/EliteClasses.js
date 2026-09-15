@@ -29,7 +29,7 @@ export class SniperAnt extends AntBase {
         const d = this.distTo(e);
         if (d < TILE * 1.4) {
             // kiting: recua
-            const away = { x: this.x + (this.x - e.x), y: this.y + (this.y - e.y) };
+            const dx = this.x - e.x, dy = this.y - e.y; const d=Math.hypot(dx,dy)||1; const away = { x: this.x + (dx/d)*80, y: this.y + (dy/d)*80 }; // [M-03] norm*80
             this.chase(away, this.scene.gameDelta / 1000);
             return 'running';
         }
@@ -69,12 +69,13 @@ export class SpyAnt extends AntBase {
 export class GiantAnt extends AntBase {
     constructor(scene, x, y, cfg) {
         super(scene, x, y, 'ant_giant', cfg, 'giant');
-        this.setScale(10); // TDD §4.2: colossal
-        this.moveSpeed *= 0.2; // -80% velocidade
+        this.setScale(2.2); // [M-05] 10→2.2
+        this.moveSpeed *= 0.5; // [M-05] -50% (era -80%)
         this.aggroRadius = 8;
         this.canFight = true;
         this.range = 1;
         this.setDepth(4);
+        try { this.setSize(18, 18); this.body.setSize(18,18); } catch {} // [M-05] hitbox 18
     }
     dealDamageTo(e) {
         const dmg = this.baseDamage * this.scene.gameRef.gm.damage();
@@ -91,17 +92,31 @@ export class HealerAnt extends AntBase {
         this.fleeRadius = 6;
         this.canFight = false;
         this.healTimer = 0;
+        this.charges = 3; // [M-06] 3 cargas
+        this.recharge = 0;
+        this.maxCharges = 3;
     }
     doIdle(ctx) {
+        // recarga 4s cada
+        if(this.charges < this.maxCharges){
+            this.recharge += this.scene.gameDelta/1000;
+            if(this.recharge >= 4){ this.recharge=0; this.charges++; }
+        }
         const ward = this.scene.findNearestWoundedAlly(this);
         if (ward) {
             this.chase(ward, this.scene.gameDelta / 1000);
             if (this.distTo(ward) < TILE * 1.5) {
                 this.healTimer += this.scene.gameDelta / 1000;
-                if (this.healTimer >= 0.5) {
+                if (this.healTimer >= 0.5 && this.charges>0) {
                     this.healTimer = 0;
-                    ward.currentHp = Math.min(ward.maxHp, ward.currentHp + 8);
+                    this.charges--;
+                    ward.currentHp = Math.min(ward.maxHp, ward.currentHp + 10); // [M-06] 8→10
                     this.scene.events.emit('heal', ward);
+                    // aura verde
+                    try{ this.setTint(0x5ad25a); this.scene.time.delayedCall(200,()=>this.clearTint()); }catch{}
+                } else if(this.charges<=0){
+                    // sem mana foge
+                    this.fleeFrom(ctx);
                 }
             }
         }

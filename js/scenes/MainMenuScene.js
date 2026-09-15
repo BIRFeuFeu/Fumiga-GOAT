@@ -10,7 +10,13 @@
  */
 import { GameManager } from '../core/GameManager.js';
 
-const ITEMS = ['INICIAR COLONIA', 'ARVORE REAL', 'SOM', 'CREDITOS'];
+const ITEMS = [
+    { id: 'play', label: 'Jogar' },
+    { id: 'options', label: 'Opções' },
+    { id: 'patch', label: 'Notas da Atualização' },
+    { id: 'dlc', label: 'Conteúdo Extra', color: 0xffc832 },
+    { id: 'quit', label: 'Sair' },
+];
 
 export class MainMenuScene extends Phaser.Scene {
     constructor() {
@@ -18,57 +24,167 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     create() {
+        // helper seguro headless (font pode não ter decodificado)
+        const _safeBT = (x, y, txt, size, tint, alpha=1, origin=0.5) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(origin);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(origin);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+        const _safeBTLeft = (x, y, txt, size, tint, alpha=1) => {
+            try {
+                if (this.cache.bitmapFont.exists('fumiga')) {
+                    const t = this.add.bitmapText(x, y, 'fumiga', txt, size).setOrigin(0, 0.5);
+                    if (tint!==undefined) t.setTint(tint);
+                    if (alpha!==1) t.setAlpha(alpha);
+                    return t;
+                }
+            } catch {}
+            const col = tint!==undefined ? '#' + tint.toString(16).padStart(6,'0') : '#ffffff';
+            const t2 = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: size+'px', color: col }).setOrigin(0, 0.5);
+            if (alpha!==1) t2.setAlpha(alpha);
+            return t2;
+        };
+
+        // monkey-patch: tenta bitmap, cai para text silenciosamente
+        const _origBT = this.add.bitmapText.bind(this.add);
+        this.add.bitmapText = (x, y, font, txt, size, ...rest) => {
+            try {
+                if (font==='fumiga' && this.cache.bitmapFont.exists('fumiga')) return _origBT(x, y, font, txt, size, ...rest);
+            } catch {}
+            // fallback
+            const t = this.add.text(x, y, txt, { fontFamily: 'monospace', fontSize: (size||16)+'px', color: '#ffffff' });
+            // mimic bitmapText API (setTint/setOrigin/setAlpha no-ops)
+            t.setTint = (c)=>{ t.setColor('#'+c.toString(16).padStart(6,'0')); return t; };
+            if (rest.length===0) return t;
+            return t;
+        };
+
         const W = this.scale.width;
         const H = this.scale.height;
         this.sel = 0;
         this._muted = this.sound.mute;
 
+        // ---------- FUNDO — Réplica Tela_menu.jpg: castelo + água + barco + nuvens — sprites reais ----------
         this.cameras.main.setBackgroundColor('#0b0705');
-
-        // ---------- fundo: silhueta + brasas (eco da tela de título) ----------
-        const soil = this.add.graphics();
-        soil.fillStyle(0x120c07, 1);
-        soil.fillTriangle(-40, H, W * 0.3, H * 0.86, W * 0.62, H);
-        soil.fillStyle(0x0e0905, 1);
-        soil.fillRect(0, H - 22, W, 22);
-        for (let i = 0; i < 18; i++) {
+        const bg = this.add.graphics();
+        bg.fillStyle(0x1a0a2a, 1).fillRect(0, 0, W, H);
+        bg.fillStyle(0xff7a2a, 0.85).fillRect(0, H * 0.52, W, H * 0.18);
+        bg.fillStyle(0xffc83a, 0.9).fillRect(0, H * 0.70, W, H * 0.12);
+        if (this.textures.exists('bg_castle')) {
+            const sc = (W * 0.64) / 128;
+            this.add.image(W * 0.72, H * 0.52, 'bg_castle').setScale(sc, sc).setAlpha(0.95);
+        } else {
+            const castle = this.add.graphics();
+            castle.fillStyle(0x1a0a2a, 1);
+            castle.fillTriangle(W * 0.42, H * 0.82, W * 0.78, H * 0.18, W * 1.05, H * 0.82);
+            castle.fillRect(W * 0.58, H * 0.28, 14, 88);
+            castle.fillRect(W * 0.72, H * 0.20, 18, 108);
+            castle.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+        }
+        if (this.textures.exists('bg_water')) {
+            this.add.image(W * 0.5, H * 0.91, 'bg_water').setDisplaySize(W, H * 0.18);
+        } else {
+            const w2 = this.add.graphics();
+            w2.fillStyle(0xffb82a, 1).fillRect(0, H * 0.82, W, H * 0.18);
+        }
+        if (this.textures.exists('bg_boat')) {
+            this.add.image(W * 0.80, H * 0.80, 'bg_boat').setScale(1.2);
+        } else {
+            const boat = this.add.graphics();
+            boat.fillStyle(0x1a0a1a, 1).fillTriangle(W * 0.78, H * 0.80, W * 0.80, H * 0.76, W * 0.82, H * 0.80);
+            boat.fillRect(W * 0.79, H * 0.80, 10, 5);
+        }
+        if (this.textures.exists('bg_birds')) {
+            this.add.image(W * 0.52, H * 0.22, 'bg_birds').setScale(1.6).setAlpha(0.9);
+        } else {
+            for (let i = 0; i < 6; i++) {
+                const bx = W * 0.42 + i * 10;
+                const by = H * 0.22 + (i % 2 ? 5 : -3);
+                const bird = this.add.graphics();
+                bird.fillStyle(0x1a0a1a, 1).fillTriangle(bx, by, bx + 4, by - 3, bx + 8, by);
+            }
+        }
+        // brilho horizonte — já coberto por bg_water reflexo; fallback
+        if (!this.textures.exists('bg_water')) {
+            const glow = this.add.graphics();
+            glow.fillStyle(0xffffff, 0.10).fillRect(W * 0.42, H * 0.78, W * 0.38, 10);
+        }
+        // brasas sutis
+        for (let i = 0; i < 12; i++) {
             const x = Phaser.Math.Between(8, W - 8);
-            const y = Phaser.Math.Between(H * 0.4, H);
-            const p = this.add.image(x, y, 'particle')
-                .setTint(i % 3 ? 0xff9c40 : 0xc8ff5a)
-                .setAlpha(0).setScale(Phaser.Math.FloatBetween(0.5, 1.2));
-            this.tweens.add({
-                targets: p,
-                y: y - Phaser.Math.Between(40, 120),
-                alpha: { from: 0, to: Phaser.Math.FloatBetween(0.25, 0.7) },
-                duration: Phaser.Math.Between(2400, 4600),
-                yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 2200), ease: 'Sine.easeInOut'
-            });
+            const y = Phaser.Math.Between(H * 0.50, H * 0.82);
+            const p = this.add.image(x, y, 'particle').setTint(0xff9c40).setAlpha(0).setScale(0.5);
+            this.tweens.add({ targets: p, y: y - Phaser.Math.Between(30, 70), alpha: { from: 0, to: 0.35 }, duration: Phaser.Math.Between(2600, 4200), yoyo: true, repeat: -1, delay: Phaser.Math.Between(0, 2000) });
         }
 
-        // ---------- topo: logo pequeno + Geleia Real ----------
-        this.add.bitmapText(16, 18, 'fumiga', 'FUMIGA', 16).setTint(0xc8ff5a);
-        this.add.bitmapText(17, 19, 'fumiga', 'FUMIGA', 16).setTint(0x2c3a10).setDepth(-1);
-        this.add.bitmapText(16, 40, 'fumiga', 'BETA', 8).setTint(0x6d5a41);
+        // ---------- topo: logo + DLC à esquerda ----------
+        this.add.bitmapText(16, 18, 'fumiga', 'FUMIGA', 16).setTint(0x7affff);
+        this.add.bitmapText(17, 19, 'fumiga', 'FUMIGA', 16).setTint(0x000000).setAlpha(0.45).setDepth(-1);
+        this.add.bitmapText(16, 36, 'fumiga', 'BETA  v0.1.0', 7).setTint(0x6d5a41);
+        // banner DLC esquerda (como Return to Castlevania)
+        const dlcX = 16, dlcY = 52, dlcW = 148, dlcH = 36;
+        const dlcBg = this.add.graphics();
+        dlcBg.fillStyle(0x1a0f2a, 0.95).fillRect(dlcX, dlcY, dlcW, dlcH);
+        dlcBg.lineStyle(1, 0x3a1a4a, 1).strokeRect(dlcX, dlcY, dlcW, dlcH);
+        this.add.bitmapText(dlcX + 5, dlcY + 5, 'fumiga', 'CANION DE GELEIA', 6).setTint(0xffc832);
+        this.add.bitmapText(dlcX + 5, dlcY + 14, 'fumiga', 'NOVO BIOMA', 6).setTint(0xe8d9b5);
+        this.add.bitmapText(dlcX + 5, dlcY + 22, 'fumiga', '3x GELEIA', 6).setTint(0x8a9ab0);
+        if (this.textures.exists('tiles_canyon_geleia')) {
+            try { this.add.image(dlcX + dlcW - 18, dlcY + 18, 'tiles_canyon_geleia').setDisplaySize(28, 28).setOrigin(0.5); } catch {}
+        }
 
         this.jellyText = this.add.bitmapText(W - 26, 18, 'fumiga', '0', 12).setOrigin(1, 0).setTint(0xffc832);
         this.add.image(W - 14, 24, 'ui_icons', this._icon('jelly')).setScale(1.2);
 
-        // ---------- menu (texto puro, estilo DC) ----------
-        this.rows = [];
-        let y = Math.floor(H * 0.42);
-        for (const label of ITEMS) {
-            const item = this.add.bitmapText(34, y, 'fumiga', this._label(label), 12).setTint(0xe8d9b5);
-            item.setInteractive({ useHandCursor: true });
-            item.on('pointerover', () => this._select(ITEMS.indexOf(label)));
-            item.on('pointerdown', () => { this._select(ITEMS.indexOf(label)); this._activate(); });
-            this.rows.push(item);
-            y += 20;
+        // ---------- card DLC sup. direito — Réplica Tela_menu.jpg ----------
+        const cardW = Math.min(168, W * 0.45), cardH = 110, cardX = W - cardW - 12, cardY = 52;
+        const card = this.add.graphics();
+        card.fillStyle(0x0f1e3a, 1).fillRect(cardX, cardY, cardW, cardH);
+        card.lineStyle(1, 0x2a4a7a, 1).strokeRect(cardX, cardY, cardW, cardH);
+        this.add.bitmapText(cardX + 6, cardY + 6, 'fumiga', 'FUMIGA: Cânion', 6).setTint(0xffffff);
+        this.add.bitmapText(cardX + 6, cardY + 13, 'fumiga', 'de Geleia DLC!', 6).setTint(0xffffff);
+        this.add.bitmapText(cardX + 6, cardY + 20, 'fumiga', 'DLC LANÇADO!', 6).setTint(0xffc83a);
+        if (this.textures.exists('tiles_canyon_geleia')) {
+            try { this.add.image(cardX + cardW/2, cardY + 40, 'tiles_canyon_geleia').setDisplaySize(cardW - 12, 32).setOrigin(0.5); } catch {}
+        } else {
+            const ph = this.add.graphics();
+            ph.fillStyle(0xffc83a, 1).fillRect(cardX + 6, cardY + 30, cardW - 12, 32);
         }
-        this.cursor = this.add.bitmapText(20, 0, 'fumiga', '>', 12).setTint(0xffc832);
-        this.tweens.add({ targets: this.cursor, x: { from: 20, to: 24 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.add.bitmapText(cardX + 6, cardY + 70, 'fumiga', 'Explore o Cânion', 6).setTint(0xa0a8b8);
+        this.add.bitmapText(cardX + 6, cardY + 78, 'fumiga', 'dourado e colete', 6).setTint(0xa0a8b8);
+        this.add.bitmapText(cardX + 6, cardY + 86, 'fumiga', 'geleia rara!', 6).setTint(0xa0a8b8);
+        this.add.bitmapText(cardX + 6, cardY + 94, 'fumiga', 'Boss inédito.', 6).setTint(0xa0a8b8);
 
-        // teclado (desktop): setas + enter, como em Dead Cells
+        // ---------- menu esquerdo — Réplica 1:1 com barra azul atrás da seleção ----------
+        this.rows = [];
+        this.highlights = [];
+        let y = Math.floor(H * 0.34);
+        for (let i = 0; i < ITEMS.length; i++) {
+            const it = ITEMS[i];
+            const hl = this.add.graphics();
+            hl.fillStyle(0x2a7aff, 0.18).fillRect(12, y - 2, 164, 16);
+            hl.lineStyle(2, 0x3c9aff, 0.95).strokeRect(12, y - 2, 164, 16);
+            hl.setVisible(false);
+            this.highlights.push(hl);
+            const col = it.color ?? 0xe8d9b5;
+            const item = this.add.bitmapText(20, y, 'fumiga', it.label, 9).setTint(col);
+            item.setInteractive({ useHandCursor: true });
+            item.on('pointerover', () => this._select(i));
+            item.on('pointerdown', () => { this._select(i); this._activate(); });
+            this.rows.push(item);
+            y += 18;
+        }
+
+        // teclado
         const kb = this.input.keyboard;
         if (kb) {
             kb.on('keydown-DOWN', () => this._select((this.sel + 1) % ITEMS.length));
@@ -79,13 +195,12 @@ export class MainMenuScene extends Phaser.Scene {
             kb.on('keydown-SPACE', () => this._activate());
         }
 
-        // rodapé
-        this.add.bitmapText(8, H - 12, 'fumiga', 'V0.1.0 BETA', 8).setTint(0x6d5a41);
-        this.add.bitmapText(W - 8, H - 12, 'fumiga', 'MENU RADIAL: SEGURE PARADO NO JOGO', 8).setOrigin(1, 0).setTint(0x4a3520);
+        // rodapé — versão + hint controle vermelho (como Tela_menu.jpg)
+        this.add.bitmapText(8, H - 22, 'fumiga', 'v0.1.0 (2026-09-13)', 6).setTint(0x6d5a41);
+        this.add.bitmapText(W/2, H - 12, 'fumiga', 'Recomendamos jogar com controle!', 6).setOrigin(0.5).setTint(0xc83a2a);
 
         this._select(0);
 
-        // metaprogresso (async, à prova de storage bloqueado)
         GameManager.init().then(() => this._refreshJelly()).catch(() => {});
         this.cameras.main.fadeIn(300, 11, 7, 5);
     }
@@ -93,8 +208,8 @@ export class MainMenuScene extends Phaser.Scene {
     /* ---------- infraestrutura do menu ---------- */
 
     _icon(name) {
-        const m = this.cache.json.get('manifest');
-        return m.ui_icons.tiles[name] ?? 0;
+        const m = this.cache.json.get('manifest') || {};
+        return m?.ui_icons?.tiles?.[name] ?? 0;
     }
 
     _label(item) {
@@ -105,28 +220,38 @@ export class MainMenuScene extends Phaser.Scene {
     _select(i) {
         this.sel = i;
         this.rows.forEach((row, j) => {
-            row.setY(Math.floor(this.scale.height * 0.42) + j * 20);
-            row.setTint(j === i ? 0xffc832 : 0xe8d9b5);
+            const hl = this.highlights[j];
+            if (hl) hl.setVisible(j === i);
+            if (j === i) row.setTint(0xffffff);
+            else {
+                const it = ITEMS[j];
+                row.setTint(it.color ?? 0xe8d9b5);
+            }
         });
-        this.cursor.setY(this.rows[i].y);
     }
 
     _activate() {
-        const item = ITEMS[this.sel];
+        const it = ITEMS[this.sel];
         this.audioClick();
-        if (item === 'INICIAR COLONIA') {
-            this.cameras.main.fadeOut(260, 11, 7, 5);
+        if (it.id === 'play') {
+            // Via pós-menu (ordem: Menu > Pós-menu > Jogo) — sempre via Carregamento
+            this.cameras.main.fadeOut(200, 11, 7, 5);
             this.cameras.main.once('camerafadeoutcomplete', () =>
-                this.scene.start('LoadingScene', { biome: 'bosque_umido' }));
-        } else if (item === 'ARVORE REAL') {
-            this.cameras.main.fadeOut(260, 11, 7, 5);
-            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('SkillTreeScene'));
-        } else if (item === 'SOM') {
+                this.scene.start('CarregamentoScene', { next: 'PosMenuScene', duration: 600 }));
+        } else if (it.id === 'options') {
+            // Som por enquanto
             this._muted = !this._muted;
             this.sound.mute = this._muted;
-            this.rows[this.sel].setText(this._label('SOM'));
-        } else if (item === 'CREDITOS') {
+            const t = this.add.bitmapText(this.scale.width/2, this.scale.height - 32, 'fumiga', 'SOM: ' + (this._muted ? 'DESLIGADO' : 'LIGADO'), 8).setOrigin(0.5).setTint(0xffc832);
+            this.time.delayedCall(1200, () => t.destroy());
+        } else if (it.id === 'patch') {
             this._credits();
+        } else if (it.id === 'dlc') {
+            this.cameras.main.fadeOut(200, 11, 7, 5);
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('CarregamentoScene', { next: 'SkillTreeScene', duration: 500 }));
+        } else if (it.id === 'quit') {
+            const t = this.add.bitmapText(this.scale.width/2, this.scale.height/2, 'fumiga', 'ATÉ LOGO!', 12).setOrigin(0.5).setTint(0xe8d9b5);
+            this.time.delayedCall(800, () => t.destroy());
         }
     }
 

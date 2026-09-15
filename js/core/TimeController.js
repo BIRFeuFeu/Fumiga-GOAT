@@ -15,17 +15,26 @@ export class TimeController {
         this.longPressTimer = null;
         this.pointerStartX = 0;
         this.pointerStartY = 0;
+        this.startTime = 0;
+        this.heldMs = 0;
     }
 
     onPointerDown(pointer) {
         this.pointerStartX = pointer.x;
         this.pointerStartY = pointer.y;
+        this.startTime = Date.now();
+        this.heldMs = 0;
         this.cancelLongPress();
         this.longPressTimer = this.scene.time.delayedCall(300, () => this.triggerTacticalPause(pointer));
     }
 
-    /** Chamado quando o dedo se move além do delta -> vira Pan, não pausa. */
+    /** Só cancela pausa se delta>14 e held>80ms [J-01] */
     movedBeyond(delta = 10) {
+        const held = Date.now() - this.startTime;
+        this.heldMs = held;
+        // jitter <14px nunca cancela; <80ms também não (histerese)
+        if (delta < 14) return;
+        if (held < 80) return;
         this.cancelLongPress();
     }
 
@@ -42,6 +51,7 @@ export class TimeController {
         this.scene.time.timeScale = 0.1; // câmera lenta extrema
         this.scene.physics.world.timeScale = 10; // compensação física
         if (typeof document !== 'undefined') document.body.classList.add('tactical-pause');
+        try { if (navigator.vibrate) navigator.vibrate(20); } catch {}
         this.scene.events.emit('tacticalPause', pointer);
         this.scene.game.events.emit('tacticalPause', pointer);
         this.scene.openRadial && this.scene.openRadial(pointer);
