@@ -29,6 +29,14 @@ export const ANT_CLASSES = {
     ant_new_6: { cost: 55, hp: 90, speed: 50, damage: 14, armor: 8, range: 1, sprite: 'ant_new_6' },
     ant_new_7: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_7', scale: 1.4 },
     ant_new_8: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_8', scale: 1.4 },
+    ant_new_9: { cost: 35, hp: 50, speed: 62, damage: 10, armor: 4, range: 1, sprite: 'ant_new_9' },
+    ant_new_10:{ cost: 35, hp: 50, speed: 62, damage: 10, armor: 4, range: 1, sprite: 'ant_new_10' },
+    ant_new_11:{ cost: 45, hp: 70, speed: 57, damage: 12, armor: 6, range: 1, sprite: 'ant_new_11' },
+    ant_new_12:{ cost: 45, hp: 70, speed: 57, damage: 12, armor: 6, range: 1, sprite: 'ant_new_12' },
+    ant_new_13:{ cost: 55, hp: 90, speed: 52, damage: 14, armor: 8, range: 1, sprite: 'ant_new_13' },
+    ant_new_14:{ cost: 55, hp: 90, speed: 52, damage: 14, armor: 8, range: 1, sprite: 'ant_new_14' },
+    ant_new_15:{ cost: 80, hp: 140, speed: 47, damage: 18, armor: 10, range: 1, sprite: 'ant_new_15', scale: 1.4 },
+    ant_new_16:{ cost: 80, hp: 140, speed: 47, damage: 18, armor: 10, range: 1, sprite: 'ant_new_16', scale: 1.4 },
 };
 
 /** Stats base dos inimigos (escalados por dificuldade do bioma). */
@@ -42,7 +50,10 @@ export const ENEMY_TYPES = {
     plant:          { hp: 55, speed: 22, damage: 8,  armor: 5,  sprite: 'enemy_plant', biomass: 9 },
     ant:            { hp: 44, speed: 56, damage: 7,  armor: 3,  sprite: 'ant_enemy', biomass: 8 },
     spiderling:     { hp: 16, speed: 66, damage: 3,  armor: 0,  sprite: 'enemy_spiderling', biomass: 3 },
-    boar:           { hp: 85, speed: 38, damage: 13, armor: 6,  sprite: 'enemy_boar', biomass: 12 }, // novo de animais/Boar
+    boar:           { hp: 85, speed: 38, damage: 13, armor: 6,  sprite: 'enemy_boar', biomass: 12 }, // de animais/Boar
+    fox:            { hp: 45, speed: 70, damage: 9,  armor: 2,  sprite: 'enemy_fox', biomass: 9 }, // de animais/Fox
+    deer:           { hp: 60, speed: 55, damage: 7,  armor: 3,  sprite: 'enemy_deer', biomass: 8 }, // de animais/Deer
+    hare:           { hp: 30, speed: 78, damage: 5,  armor: 1,  sprite: 'enemy_hare', biomass: 6 }, // de animais/Hare
 };
 
 /** Chefes (arquetipos disponíveis no beta). */

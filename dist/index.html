@@ -602,11 +602,11 @@ class ApresentacaoScene extends Phaser.Scene {
     }
 }
 const BIOMES = {
-    bosque_umido: { name: 'Bosque Úmido', stage: 1, terrain: { rock: 0.05, hazard: 0.04 }, effect: 'none', enemies: ['centipede', 'beetle'], boss: 'wolf_spider', light: '#7ad26a', fog: '#0d1408' },
-    prado_fogo: { name: 'Prado de Fogo', stage: 1, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'burn', enemies: ['ant', 'beetle'], boss: 'bombardier', light: '#ff7a2a', fog: '#180a04' },
-    deserto_escaldante: { name: 'Deserto Escaldante', stage: 1, terrain: { rock: 0.08, hazard: 0.12 }, effect: 'sand', enemies: ['scorpion', 'termite'], boss: 'bombardier', light: '#ffd07a', fog: '#181004' },
-    pantano_toxico: { name: 'Pântano Tóxico', stage: 1, terrain: { rock: 0.05, hazard: 0.14 }, effect: 'poison', enemies: ['fly', 'centipede'], boss: 'putrid_centipede', light: '#9dff3c', fog: '#0a1204' },
-    cemiterio_troncos: { name: 'Cemitério de Troncos', stage: 1, terrain: { rock: 0.14, hazard: 0.06 }, effect: 'hardrock', enemies: ['termite', 'beetle'], boss: 'wolf_spider', light: '#c8a05a', fog: '#120c06' },
+    bosque_umido: { name: 'Bosque Úmido', stage: 1, terrain: { rock: 0.05, hazard: 0.04 }, effect: 'none', enemies: ['boar', 'centipede', 'beetle', 'deer', 'hare'], boss: 'wolf_spider', light: '#7ad26a', fog: '#0d1408' },
+    prado_fogo: { name: 'Prado de Fogo', stage: 1, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'burn', enemies: ['ant', 'beetle', 'boar', 'fox'], boss: 'bombardier', light: '#ff7a2a', fog: '#180a04' },
+    deserto_escaldante: { name: 'Deserto Escaldante', stage: 1, terrain: { rock: 0.08, hazard: 0.12 }, effect: 'sand', enemies: ['scorpion', 'termite', 'boar', 'hare'], boss: 'bombardier', light: '#ffd07a', fog: '#181004' },
+    pantano_toxico: { name: 'Pântano Tóxico', stage: 1, terrain: { rock: 0.05, hazard: 0.14 }, effect: 'poison', enemies: ['fly', 'centipede', 'boar'], boss: 'putrid_centipede', light: '#9dff3c', fog: '#0a1204' },
+    cemiterio_troncos: { name: 'Cemitério de Troncos', stage: 1, terrain: { rock: 0.14, hazard: 0.06 }, effect: 'hardrock', enemies: ['boar', 'termite', 'beetle', 'fox'], boss: 'wolf_spider', light: '#c8a05a', fog: '#120c06' },
     floresta_fungos: { name: 'Floresta de Fungos', stage: 2, terrain: { rock: 0.06, hazard: 0.1 }, effect: 'zombie', enemies: ['fly', 'ant', 'centipede'], boss: 'putrid_centipede', light: '#b44ad2', fog: '#120618' },
     cavernas_cristal: { name: 'Cavernas de Cristal', stage: 2, terrain: { rock: 0.22, hazard: 0.08 }, effect: 'hardrock', enemies: ['spiderling', 'scorpion'], boss: 'bombardier', light: '#7ad2ff', fog: '#041018' },
     tundra_congelada: { name: 'Tundra Congelada', stage: 2, terrain: { rock: 0.08, hazard: 0.1 }, effect: 'slow', enemies: ['moth', 'fly'], boss: 'wolf_spider', light: '#dff2ff', fog: '#081018' },
@@ -2369,7 +2369,23 @@ const ANT_CLASSES = {
     spy:       { cost: 100,hp: 40,  speed: 70, damage: 0,  armor: 0,  range: 1, sprite: 'ant_spy' },
     healer:    { cost: 60, hp: 45,  speed: 55, damage: 0,  armor: 2,  range: 2, sprite: 'ant_healer' },
     digger:    { cost: 45, hp: 60,  speed: 50, damage: 4,  armor: 6,  range: 0, sprite: 'ant_digger' },
-    giant:     { cost: 120,hp: 320, speed: 28, damage: 40, armor: 20, range: 1, sprite: 'ant_giant', scale: 2.2 } // [M-05] 150→120, 900→320, 14→28, scale 10→2.2
+    giant:     { cost: 120,hp: 320, speed: 28, damage: 40, armor: 20, range: 1, sprite: 'ant_giant', scale: 2.2 }, // [M-05] 150→120, 900→320, 14→28, scale 10→2.2
+    ant_new_1: { cost: 35, hp: 50, speed: 60, damage: 10, armor: 4, range: 1, sprite: 'ant_new_1' },
+    ant_new_2: { cost: 35, hp: 50, speed: 60, damage: 10, armor: 4, range: 1, sprite: 'ant_new_2' },
+    ant_new_3: { cost: 45, hp: 70, speed: 55, damage: 12, armor: 6, range: 1, sprite: 'ant_new_3' },
+    ant_new_4: { cost: 45, hp: 70, speed: 55, damage: 12, armor: 6, range: 1, sprite: 'ant_new_4' },
+    ant_new_5: { cost: 55, hp: 90, speed: 50, damage: 14, armor: 8, range: 1, sprite: 'ant_new_5' },
+    ant_new_6: { cost: 55, hp: 90, speed: 50, damage: 14, armor: 8, range: 1, sprite: 'ant_new_6' },
+    ant_new_7: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_7', scale: 1.4 },
+    ant_new_8: { cost: 80, hp: 140, speed: 45, damage: 18, armor: 10, range: 1, sprite: 'ant_new_8', scale: 1.4 },
+    ant_new_9: { cost: 35, hp: 50, speed: 62, damage: 10, armor: 4, range: 1, sprite: 'ant_new_9' },
+    ant_new_10:{ cost: 35, hp: 50, speed: 62, damage: 10, armor: 4, range: 1, sprite: 'ant_new_10' },
+    ant_new_11:{ cost: 45, hp: 70, speed: 57, damage: 12, armor: 6, range: 1, sprite: 'ant_new_11' },
+    ant_new_12:{ cost: 45, hp: 70, speed: 57, damage: 12, armor: 6, range: 1, sprite: 'ant_new_12' },
+    ant_new_13:{ cost: 55, hp: 90, speed: 52, damage: 14, armor: 8, range: 1, sprite: 'ant_new_13' },
+    ant_new_14:{ cost: 55, hp: 90, speed: 52, damage: 14, armor: 8, range: 1, sprite: 'ant_new_14' },
+    ant_new_15:{ cost: 80, hp: 140, speed: 47, damage: 18, armor: 10, range: 1, sprite: 'ant_new_15', scale: 1.4 },
+    ant_new_16:{ cost: 80, hp: 140, speed: 47, damage: 18, armor: 10, range: 1, sprite: 'ant_new_16', scale: 1.4 },
 };
 const ENEMY_TYPES = {
     centipede:      { hp: 40, speed: 40, damage: 6,  armor: 2,  sprite: 'enemy_centipede', biomass: 8 },
@@ -2380,7 +2396,11 @@ const ENEMY_TYPES = {
     termite:        { hp: 34, speed: 48, damage: 8,  armor: 3,  sprite: 'enemy_termite', biomass: 5 }, // [M-10] 6→8, 7→5
     plant:          { hp: 55, speed: 22, damage: 8,  armor: 5,  sprite: 'enemy_plant', biomass: 9 },
     ant:            { hp: 44, speed: 56, damage: 7,  armor: 3,  sprite: 'ant_enemy', biomass: 8 },
-    spiderling:     { hp: 16, speed: 66, damage: 3,  armor: 0,  sprite: 'enemy_spiderling', biomass: 3 }
+    spiderling:     { hp: 16, speed: 66, damage: 3,  armor: 0,  sprite: 'enemy_spiderling', biomass: 3 },
+    boar:           { hp: 85, speed: 38, damage: 13, armor: 6,  sprite: 'enemy_boar', biomass: 12 }, // de animais/Boar
+    fox:            { hp: 45, speed: 70, damage: 9,  armor: 2,  sprite: 'enemy_fox', biomass: 9 }, // de animais/Fox
+    deer:           { hp: 60, speed: 55, damage: 7,  armor: 3,  sprite: 'enemy_deer', biomass: 8 }, // de animais/Deer
+    hare:           { hp: 30, speed: 78, damage: 5,  armor: 1,  sprite: 'enemy_hare', biomass: 6 }, // de animais/Hare
 };
 const BOSS_TYPES = {
     wolf_spider:       { hp: 500, speed: 46, damage: 14, armor: 6,  sprite: 'boss_wolf_spider', jelly: 60,  name: 'Aranha-Lobo Matriarca' },
@@ -3154,6 +3174,10 @@ class RadialMenu {
             if (gm.hasUnlock('unlock_digger')) classes.push('digger');
             for (const c of classes) opts.push({ id: 'spawn:' + c, label: c.toUpperCase(), icon: 'ant' });
             if (gm.hasUnlock('unlock_giant')) opts.push({ id: 'spawn:giant', label: 'GIGANTE', icon: 'hp' });
+            if (gm.hasUnlock('unlock_giant') || true) { // mostra 2 novas como demo
+                opts.push({ id: 'spawn:ant_new_1', label: 'NOVA1', icon: 'ant' });
+                opts.push({ id: 'spawn:ant_new_3', label: 'NOVA3', icon: 'ant' });
+            }
         } else if (v === 0) {
             opts.push({ id: 'dig', label: 'CAVAR', icon: 'dig' });
         } else if (v === 1) {
@@ -4352,6 +4376,7 @@ class GameScene extends Phaser.Scene {
         this.mapRT = this.add.renderTexture(0, 0, 64 * TILE, 64 * TILE).setOrigin(0);
         this.propLayer = this.add.container(0, 0);
         this.redrawAll();
+        try { this._spawnDecor(); } catch(e){ console.warn('[decor]', e); }
         this.fog = this.add.renderTexture(0, 0, 64 * TILE, 64 * TILE).setOrigin(0);
         this._initFog();
         this.queen = new Queen(this, this.gameRef.queenPx.x, this.gameRef.queenPx.y, { hp: 400 * GameManager.hpBuff });
@@ -4441,6 +4466,71 @@ class GameScene extends Phaser.Scene {
             try { this.mapRT.fill(x * TILE, y * TILE, TILE, TILE, 0x060409); } catch {}
         }
     }
+    _spawnDecor(){
+        const man = this.cache.json.get('manifest')||{};
+        const pick = (key) => {
+            const m = man[key];
+            if(!m || !this.textures.exists(key)) return null;
+            const f = Phaser.Math.Between(0, (m.frames||1)-1);
+            return {key, frame:f, w:m.frameWidth, h:m.frameHeight};
+        };
+        const decorSets = [
+            {key:'props_arvores', weight:0.15, scale:1}, // árvores grandes
+            {key:'props_arbustos', weight:0.25, scale:1},
+            {key:'props_pedras', weight:0.35, scale:0.9},
+            {key:'props_pedras2', weight:0.15, scale:0.9},
+            {key:'props_cristais', weight:0.1, scale:1},
+        ];
+        const tryPlace = (x,y)=>{
+            const r = Math.random();
+            let acc=0, chosen=null;
+            for(const s of decorSets){
+                acc+=s.weight;
+                if(r<acc){ chosen=s; break; }
+            }
+            if(!chosen) chosen=decorSets[2];
+            const p = pick(chosen.key);
+            if(!p) return;
+            if(Math.hypot(x - this.map.anthillPos.x, y - this.map.anthillPos.y) < 3) return;
+            if(Math.hypot(x - this.map.rivalNest.x, y - this.map.rivalNest.y) < 4) return;
+            if(this.grid.get(x,y)===T.ROCK) return;
+            const img = this.add.image(x*TILE+8, y*TILE+8, p.key, p.frame);
+            img.setOrigin(0.5, 0.8); // base no chão
+            img.setDepth(y); // y-sort
+            img.setScale(chosen.scale);
+            img.setTint(0xffffff);
+            this.propLayer.add(img);
+        };
+        for(let i=0;i<40;i++){
+            const x = Phaser.Math.Between(1,62);
+            const y = Phaser.Math.Between(this.map.skyRows, this.map.surfaceRow-1);
+            if(this.grid.get(x,y)===T.SURFACE) tryPlace(x,y);
+        }
+        for(let i=0;i<15;i++){
+            const x = Phaser.Math.Between(4,60);
+            const y = Phaser.Math.Between(this.map.surfaceRow+2, 62);
+            if(this.grid.get(x,y)===T.SOLID || this.grid.get(x,y)===T.WALK) {
+                const p = pick(Math.random()<0.5?'props_pedras':'props_cristais');
+                if(!p) continue;
+                const img = this.add.image(x*TILE+8, y*TILE+8, p.key, p.frame);
+                img.setOrigin(0.5,0.5);
+                img.setAlpha(0.85);
+                img.setDepth(y);
+                this.propLayer.add(img);
+            }
+        }
+        try{
+            const bgs = Object.keys(man).filter(k=>k.startsWith('bg_cenario_') && this.textures.exists(k));
+            for(let i=0;i<Math.min(2,bgs.length);i++){
+                const k = Phaser.Math.RND.pick(bgs);
+                const img = this.add.image(Phaser.Math.Between(100, 900), Phaser.Math.Between(20, 80), k);
+                img.setScrollFactor(0.3,0.3);
+                img.setDepth(-10);
+                img.setAlpha(0.6);
+                img.setScale(0.5);
+            }
+        }catch{}
+    }
     _initFog() {
         this.fog.fill(0, 0, 64 * TILE, 64 * TILE, 0x000000, 0.55);
         if (!this.textures.exists('fogbrush')) {
@@ -4465,19 +4555,32 @@ class GameScene extends Phaser.Scene {
         const def = ANT_CLASSES[cls];
         const cfg = { hp: def.hp * GameManager.hpMult(), speed: def.speed * GameManager.speed(), damage: def.damage * GameManager.damage(), armor: def.armor + GameManager.armor() };
         let a;
-        switch (cls) {
-            case 'worker': a = new WorkerAnt(this, x, y, cfg); break;
-            case 'collector': a = new CollectorAnt(this, x, y, cfg); break;
-            case 'soldier': a = new SoldierAnt(this, x, y, cfg); break;
-            case 'guardian': a = new GuardianAnt(this, x, y, cfg); break;
-            case 'scout': a = new ExplorerAnt(this, x, y, cfg); break;
-            case 'sniper': a = new SniperAnt(this, x, y, cfg); break;
-            case 'spy': a = new SpyAnt(this, x, y, cfg); break;
-            case 'healer': a = new HealerAnt(this, x, y, cfg); break;
-            case 'digger': a = new DiggerAnt(this, x, y, cfg); break;
-            case 'giant': a = new GiantAnt(this, x, y, cfg); break;
-            default: a = new WorkerAnt(this, x, y, cfg);
+        if (cls.startsWith('ant_new_')) {
+            const n = parseInt(cls.split('_')[2]||'1',10);
+            if (n <= 2) { a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 4) { a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 6) { a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 8) { a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 10) { a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 12) { a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 14) { a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else { a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+        } else {
+            switch (cls) {
+                case 'worker': a = new WorkerAnt(this, x, y, cfg); break;
+                case 'collector': a = new CollectorAnt(this, x, y, cfg); break;
+                case 'soldier': a = new SoldierAnt(this, x, y, cfg); break;
+                case 'guardian': a = new GuardianAnt(this, x, y, cfg); break;
+                case 'scout': a = new ExplorerAnt(this, x, y, cfg); break;
+                case 'sniper': a = new SniperAnt(this, x, y, cfg); break;
+                case 'spy': a = new SpyAnt(this, x, y, cfg); break;
+                case 'healer': a = new HealerAnt(this, x, y, cfg); break;
+                case 'digger': a = new DiggerAnt(this, x, y, cfg); break;
+                case 'giant': a = new GiantAnt(this, x, y, cfg); break;
+                default: a = new WorkerAnt(this, x, y, cfg);
+            }
         }
+        if(def.scale) try{ a.setScale(def.scale); }catch{}
         this.ants.add(a);
         this.audio.play('spawn');
         return a;

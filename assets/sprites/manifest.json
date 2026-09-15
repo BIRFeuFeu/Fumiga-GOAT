@@ -1307,5 +1307,223 @@
         3
       ]
     }
+  },
+  "ant_new_9": {
+    "file": "assets/sprites/ant_new_9.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_10": {
+    "file": "assets/sprites/ant_new_10.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_11": {
+    "file": "assets/sprites/ant_new_11.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_12": {
+    "file": "assets/sprites/ant_new_12.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_13": {
+    "file": "assets/sprites/ant_new_13.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_14": {
+    "file": "assets/sprites/ant_new_14.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_15": {
+    "file": "assets/sprites/ant_new_15.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "ant_new_16": {
+    "file": "assets/sprites/ant_new_16.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 8,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idle": [
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7
+      ]
+    }
+  },
+  "enemy_fox": {
+    "file": "assets/sprites/enemy_fox.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "enemy_deer": {
+    "file": "assets/sprites/enemy_deer.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "enemy_hare": {
+    "file": "assets/sprites/enemy_hare.png",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frames": 4,
+    "anims": {
+      "walk": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
   }
 }

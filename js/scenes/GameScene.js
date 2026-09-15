@@ -322,22 +322,30 @@ export class GameScene extends Phaser.Scene {
         const def = ANT_CLASSES[cls];
         const cfg = { hp: def.hp * GameManager.hpMult(), speed: def.speed * GameManager.speed(), damage: def.damage * GameManager.damage(), armor: def.armor + GameManager.armor() };
         let a;
-        switch (cls) {
-            case 'worker': a = new WorkerAnt(this, x, y, cfg); break;
-            case 'collector': a = new CollectorAnt(this, x, y, cfg); break;
-            case 'soldier': a = new SoldierAnt(this, x, y, cfg); break;
-            case 'guardian': a = new GuardianAnt(this, x, y, cfg); break;
-            case 'scout': a = new ExplorerAnt(this, x, y, cfg); break;
-            case 'sniper': a = new SniperAnt(this, x, y, cfg); break;
-            case 'spy': a = new SpyAnt(this, x, y, cfg); break;
-            case 'healer': a = new HealerAnt(this, x, y, cfg); break;
-            case 'digger': a = new DiggerAnt(this, x, y, cfg); break;
-            case 'giant': a = new GiantAnt(this, x, y, cfg); break;
-            case 'ant_new_1': case 'ant_new_2': a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
-            case 'ant_new_3': case 'ant_new_4': a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
-            case 'ant_new_5': case 'ant_new_6': a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
-            case 'ant_new_7': case 'ant_new_8': a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); break;
-            default: a = new WorkerAnt(this, x, y, cfg);
+        if (cls.startsWith('ant_new_')) {
+            const n = parseInt(cls.split('_')[2]||'1',10);
+            if (n <= 2) { a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 4) { a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 6) { a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 8) { a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 10) { a = new SoldierAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 12) { a = new GuardianAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else if (n <= 14) { a = new HealerAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+            else { a = new GiantAnt(this, x, y, cfg); a.setTexture(def.sprite); }
+        } else {
+            switch (cls) {
+                case 'worker': a = new WorkerAnt(this, x, y, cfg); break;
+                case 'collector': a = new CollectorAnt(this, x, y, cfg); break;
+                case 'soldier': a = new SoldierAnt(this, x, y, cfg); break;
+                case 'guardian': a = new GuardianAnt(this, x, y, cfg); break;
+                case 'scout': a = new ExplorerAnt(this, x, y, cfg); break;
+                case 'sniper': a = new SniperAnt(this, x, y, cfg); break;
+                case 'spy': a = new SpyAnt(this, x, y, cfg); break;
+                case 'healer': a = new HealerAnt(this, x, y, cfg); break;
+                case 'digger': a = new DiggerAnt(this, x, y, cfg); break;
+                case 'giant': a = new GiantAnt(this, x, y, cfg); break;
+                default: a = new WorkerAnt(this, x, y, cfg);
+            }
         }
         // aplica escala se houver
         if(def.scale) try{ a.setScale(def.scale); }catch{}
