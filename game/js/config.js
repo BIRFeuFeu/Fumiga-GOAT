@@ -274,31 +274,31 @@ export const LEVEL_HP = 0.03, LEVEL_DMG = 0.03; // bônus por nível (composto)
 // ------------------------------------------------- construção dentro do ninho
 export const CHAMBERS = {
   nursery: {
-    id: "nursery", name: "BERÇÁRIO", icon: "i_egg", max: 3,
+    id: "nursery", name: "BERÇÁRIO", icon: "egg", max: 3,
     tip: "Ovos chocam mais rápido.",
     per: "+18% velocidade de choco por nível",
     costs: [{ food: 60, ess: 0 }, { food: 110, ess: 18 }, { food: 180, ess: 36 }],
   },
   pantry: {
-    id: "pantry", name: "DESPENSA", icon: "i_food", max: 3,
+    id: "pantry", name: "DESPENSA", icon: "food", max: 3,
     tip: "Depósitos de comida rendem mais.",
     per: "+15% comida por depósito por nível",
     costs: [{ food: 50, ess: 0 }, { food: 100, ess: 16 }, { food: 170, ess: 32 }],
   },
   barracks: {
-    id: "barracks", name: "QUARTEL", icon: "i_shield", max: 3,
+    id: "barracks", name: "QUARTEL", icon: "shield", max: 3,
     tip: "Lutadoras e atiradoras treinam músculos de guerra.",
     per: "+12% dano de classes de combate por nível",
     costs: [{ food: 70, ess: 10 }, { food: 130, ess: 26 }, { food: 200, ess: 48 }],
   },
   fungus: {
-    id: "fungus", name: "FUNGÁRIO", icon: "i_fungo", max: 3,
+    id: "fungus", name: "FUNGÁRIO", icon: "fungo", max: 3,
     tip: "Cultiva fungo: goteja comida com o tempo.",
     per: "+1 comida a cada 9s por nível",
     costs: [{ food: 55, ess: 8 }, { food: 105, ess: 20 }, { food: 175, ess: 40 }],
   },
   refinery: {
-    id: "refinery", name: "REFINARIA", icon: "i_essence", max: 3,
+    id: "refinery", name: "REFINARIA", icon: "essence", max: 3,
     tip: "Refina cristais: mais essência de tudo.",
     per: "+15% essência ganha por nível",
     costs: [{ food: 60, ess: 12 }, { food: 115, ess: 28 }, { food: 190, ess: 52 }],
