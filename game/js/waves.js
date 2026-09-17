@@ -41,7 +41,8 @@ export function isLastMap() { return director.mapIdx >= MAPS.length - 1; }
 
 export function skipPeace() {
   if (director.phase !== "calm") return 0;
-  const bonus = director.waveInMap === 0 && director.mapIdx === 0 ? 0 : SKIP_BONUS;
+  const bonus = director.waveInMap === 0 && director.mapIdx === 0
+    ? 0 : SKIP_BONUS + mods().skipBonus;
   director.timer = Math.min(director.timer, 0.01);
   if (bonus > 0) {
     const run = window.__run;
@@ -148,7 +149,7 @@ function endWave() {
   const m = mapDef();
   const reward = run.wave * 6;
   run.essencePool += reward;
-  run.xp += XP_WAVE_BASE + XP_WAVE_PER * run.wave;
+  run.xp += Math.round((XP_WAVE_BASE + XP_WAVE_PER * run.wave) * mods().xpGain);
   tutEvent("waveEnd");
   SFX.waveDone();
   if (run.wave > run.bestWaveThisRun) run.bestWaveThisRun = run.wave;

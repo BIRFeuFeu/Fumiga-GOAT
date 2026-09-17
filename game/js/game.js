@@ -80,7 +80,8 @@ function newRun() {
     seed,
     status: "running",       // running | won | lost | ended
     endT: 0, payoutDone: false, payout: null,
-    food: START.food, essencePool: 0,
+    // bônus de árvore: estoque inicial de comida/essência
+    food: START.food + m.startFood, essencePool: m.startEssence,
     level: 0, xp: 0, xpNext: xpForLevel(1),
     fungusT: 9,
     kills: 0, wave: 0, bestWaveThisRun: 0, mapsCleared: 0,
@@ -428,9 +429,8 @@ function updateRun(dt) {
   run.fungusT -= simDt;
   if (run.fungusT <= 0) {
     run.fungusT = 9;
-    if (run.chambers.fungus > 0) {
-      run.food += run.chambers.fungus;
-    }
+    const crop = run.chambers.fungus + metaBonus().fungusRate;
+    if (crop > 0) run.food += crop;
   }
 
   // XP -> sobe o nível da colônia

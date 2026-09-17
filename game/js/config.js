@@ -97,7 +97,9 @@ export const UNITS = {
     cost: 58, costGrow: 0.06, hatchTime: 4.6,
     hp: 84, dmg: 13, speed: 66, range: 96, atkCd: 1.6,
     projSpeed: 250, aoe: 56, burnDps: 7, burnDur: 3.2,
-    sprite: "bomber", role: "ranged",
+    // role "ranged" = posicionamento de atiradora; quem faz o projétil virar
+    // bomba é a flag abaixo (o teste por role deixava a bomba sem efeito).
+    bomb: true, sprite: "bomber", role: "ranged",
   },
   // A colosso. Vinte soldados de ponta a ponta (drawScale 4 sobre um assado
   // 5x maior = 20x exatos o frame da soldado), lenta, cara e única por
@@ -229,47 +231,100 @@ export const META_BRANCHES = {
   T: { name: "TRABALHO", color: "#ffb347" },
   G: { name: "GUERRA",   color: "#ff4d5a" },
   R: { name: "REAL",     color: "#c77dff" },
+  N: { name: "NINHO",    color: "#7fd6a0" },
 };
 
 export const META_NODES = [
   { id: "raiz", br: "R", icon: "crown", name: "COLÔNIA ANCESTRAL",
     desc: "O coração do formigueiro eterno.", cost: [0], requires: [], x: 0, y: 0 },
 
-  // TRABALHO (esquerda)
+  // ---------------------------------------------------------------- TRABALHO
+  // economia do mundo: comida, essência, carga e ritmo das operárias
   { id: "t_col", br: "T", icon: "food", name: "FORAGEM",
-    desc: "+15% de comida por pilha coletada.", cost: [25, 45, 70], requires: ["raiz"], x: -2, y: 0 },
+    desc: "+15% de comida por pilha coletada.", cost: [25, 45, 70], requires: ["raiz"], x: -2.1, y: 0 },
   { id: "t_vel", br: "T", icon: "bolt", name: "MARCHA RÁPIDA",
-    desc: "+10% de velocidade das operárias.", cost: [20, 35, 55], requires: ["t_col"], x: -3.2, y: -0.9 },
+    desc: "+10% de velocidade das operárias.", cost: [20, 35, 55], requires: ["t_col"], x: -3.3, y: -0.85 },
   { id: "t_carga", br: "T", icon: "scale", name: "BOLSAS PROFUNDAS",
-    desc: "Operárias carregam +1 de carga.", cost: [30, 50, 70], requires: ["t_col"], x: -3.2, y: 0.9 },
+    desc: "Operárias carregam +1 de carga.", cost: [30, 50, 70], requires: ["t_col"], x: -3.3, y: 0.85 },
   { id: "t_ini", br: "T", icon: "egg", name: "PROLE INICIAL",
-    desc: "Começa a expedição com +2 operárias.", cost: [40, 75], requires: ["t_vel"], x: -4.4, y: -1.5 },
+    desc: "Começa a expedição com +2 operárias.", cost: [40, 75], requires: ["t_vel"], x: -4.5, y: -1.7 },
   { id: "t_ambar", br: "T", icon: "wing_gem", name: "VEIOS DE ÂMBAR",
-    desc: "Cristais de essência rendem +2 por extração.", cost: [50, 85], requires: ["t_carga"], x: -4.4, y: 1.5 },
+    desc: "Cristais de essência rendem +2 por extração.", cost: [50, 85], requires: ["t_carga"], x: -4.5, y: 1.7 },
+  { id: "t_rap", br: "T", icon: "clover", name: "COLHEITA RÁPIDA",
+    desc: "+12% de velocidade de coleta em pilhas e veios.", cost: [35, 60, 95], requires: ["t_col"], x: -3.95, y: 0 },
+  { id: "t_rede", br: "T", icon: "sk_banner", name: "REDE DE TRILHAS",
+    desc: "+5% de velocidade para TODAS as formigas (fora do ninho).", cost: [40, 70, 110], requires: ["t_rap"], x: -5.4, y: 0 },
+  { id: "t_estoque", br: "T", icon: "lock", name: "ESTOQUE INICIAL",
+    desc: "Começa a expedição com +20 de comida.", cost: [30, 60], requires: ["t_ambar"], x: -5.6, y: 2.6 },
+  { id: "t_atalho", br: "T", icon: "hourglass", name: "ATALHO",
+    desc: "+5 de essência por invocar uma onda adiantada.", cost: [30, 55, 90], requires: ["t_rede"], x: -6.4, y: 0.9 },
 
-  // GUERRA (direita)
+  // ------------------------------------------------------------------ GUERRA
+  // dano, vida, cadência, alcance e as bombas da bombeira
   { id: "g_dan", br: "G", icon: "fire_sword", name: "MANDÍBULA DE GUERRA",
-    desc: "+10% de dano para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2, y: 0 },
+    desc: "+10% de dano para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.1, y: 0 },
+  { id: "g_cri", br: "G", icon: "sk_fury", name: "FÚRIA CEGA",
+    desc: "+4% de chance de crítico (dano x2).", cost: [45, 70, 100], requires: ["g_dan"], x: 3.2, y: 1.15 },
+  { id: "g_cad", br: "G", icon: "sk_time", name: "CADÊNCIA DE GUERRA",
+    desc: "+8% de velocidade de ataque.", cost: [40, 65, 95], requires: ["g_cri"], x: 4.3, y: 2.3 },
+  { id: "g_bomb", br: "G", icon: "sk_bomb", name: "PÓLVORA NEGRA",
+    desc: "+15% de raio da explosão da bombeira.", cost: [50, 85, 120], requires: ["g_cad"], x: 5.4, y: 3.45 },
   { id: "g_vid", br: "G", icon: "sk_heart", name: "CARAPAÇA DURA",
-    desc: "+12% de vida para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.9, y: -1.1 },
-  { id: "g_cri", br: "G", icon: "fist", name: "FÚRIA CEGA",
-    desc: "+4% de chance de crítico (dano x2).", cost: [45, 70, 100], requires: ["g_dan"], x: 3.4, y: 1.0 },
-  { id: "g_grd", br: "G", icon: "shield", name: "PATRULHA INICIAL",
-    desc: "Começa a expedição com +1 soldado.", cost: [50, 90], requires: ["g_dan"], x: 4.2, y: -0.5 },
+    desc: "+12% de vida para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.2, y: -1.4 },
+  { id: "g_arm", br: "G", icon: "shield", name: "CARAPAÇA BLINDADA",
+    desc: "-4% de dano recebido por todas as aliadas.", cost: [60, 100, 150], requires: ["g_vid"], x: 3.3, y: -2.5 },
+  { id: "g_esq", br: "G", icon: "sk_tornado", name: "ESQUIVA",
+    desc: "+5% de chance de esquivar por completo de um golpe.", cost: [45, 75, 110], requires: ["g_arm"], x: 4.4, y: -3.6 },
+  { id: "g_esp", br: "G", icon: "sk_acid", name: "ESPINHOS DE QUITINA",
+    desc: "Quem morde uma aliada leva 3 de dano por nível.", cost: [55, 90, 140], requires: ["g_esq"], x: 5.4, y: -4.5 },
+  { id: "g_grd", br: "G", icon: "spider", name: "PATRULHA INICIAL",
+    desc: "Começa a expedição com +1 soldado.", cost: [50, 90], requires: ["g_dan"], x: 3.3, y: -0.2 },
+  { id: "g_alc", br: "G", icon: "sk_slash", name: "MANDÍBULAS LONGAS",
+    desc: "+14 de alcance para as lutadoras.", cost: [35, 60, 90], requires: ["g_grd"], x: 4.4, y: -0.8 },
+  { id: "g_fogo", br: "G", icon: "ember", name: "BRASA CONTÍNUA",
+    desc: "+15% de dano de queimadura.", cost: [45, 75], requires: ["g_alc"], x: 5.5, y: -1.4 },
 
-  // REAL (topo / baixo)
+  // -------------------------------------------------------------------- REAL
+  // a rainha e o que a colônia é para sempre
   { id: "r_vida", br: "R", icon: "sk_heart", name: "SANGUE REAL",
-    desc: "Rainha: +15% de vida máxima.", cost: [25, 45, 65], requires: ["raiz"], x: 0, y: -1.6 },
+    desc: "Rainha: +15% de vida máxima.", cost: [25, 45, 65], requires: ["raiz"], x: 0, y: -1.5 },
   { id: "r_reg", br: "R", icon: "heal", name: "NÉCTAR REAL",
-    desc: "A rainha se alimenta 30% mais rápido.", cost: [25, 45, 65], requires: ["r_vida"], x: -0.9, y: -2.6 },
-  { id: "r_ovo", br: "R", icon: "hourglass", name: "ÍNCUBO",
-    desc: "Tempo de chocar -12%.", cost: [30, 50, 70], requires: ["r_vida"], x: 0.9, y: -2.6 },
+    desc: "A rainha se alimenta 30% mais rápido.", cost: [25, 45, 65], requires: ["r_vida"], x: -1.3, y: -2.4 },
+  { id: "r_ovo", br: "R", icon: "egg", name: "ÍNCUBO",
+    desc: "Tempo de chocar -12%.", cost: [30, 50, 70], requires: ["r_vida"], x: 1.3, y: -2.4 },
+  { id: "r_casca", br: "R", icon: "sk_frost", name: "CASCA DA RAINHA",
+    desc: "-8% de dano recebido pela rainha.", cost: [40, 70, 110], requires: ["r_reg"], x: -2.5, y: -3.3 },
+  { id: "r_xp", br: "R", icon: "clover", name: "SABEDORIA DA COLÔNIA",
+    desc: "+10% de XP ganho (nível da colônia sobe mais rápido).", cost: [45, 80, 120], requires: ["r_ovo"], x: -0.1, y: -3.6 },
+  { id: "r_regen", br: "R", icon: "potion", name: "VITALIDADE REAL",
+    desc: "A rainha regenera 1,5 de vida por segundo.", cost: [40, 70, 110], requires: ["r_ovo"], x: 1.4, y: -3.6 },
+  { id: "r_essin", br: "R", icon: "essence", name: "ESSÊNCIA ANCESTRAL",
+    desc: "Começa a expedição com +20 de essência.", cost: [30, 55, 90], requires: ["r_casca"], x: -2.5, y: -4.6 },
   { id: "r_pop", br: "R", icon: "spider", name: "SUPERORGANISMO",
-    desc: "+4 de população máxima.", cost: [35, 55, 80, 110], requires: ["raiz"], x: 0, y: 1.6 },
+    desc: "+4 de população máxima.", cost: [35, 55, 80, 110], requires: ["raiz"], x: -1.35, y: -0.95 },
   { id: "r_ess", br: "R", icon: "sun", name: "ALMA DA COLÔNIA",
-    desc: "+15% de toda essência ganha.", cost: [30, 55, 80], requires: ["r_pop"], x: 0.9, y: 2.6 },
+    desc: "+15% de toda essência ganha.", cost: [30, 55, 80], requires: ["r_regen"], x: 1.5, y: -4.8 },
   { id: "r_ren", br: "R", icon: "crown", name: "RENASCIMENTO",
-    desc: "1x por expedição: a rainha renasce com 50% de vida.", cost: [160], requires: ["r_vida", "r_ovo"], x: 0, y: -3.7 },
+    desc: "1x por expedição: a rainha renasce com 50% de vida.", cost: [160], requires: ["r_xp", "r_regen"], x: 0, y: -5.4 },
+
+  // ------------------------------------------------------------------- NINHO
+  // o que acontece lá dentro: escavação, berçário, despensa e fungário
+  { id: "n_dig", br: "N", icon: "fist", name: "PATAS ESCAVADORAS",
+    desc: "+30% de velocidade de escavação das câmaras.", cost: [35, 60, 95], requires: ["raiz"], x: 0, y: 1.5 },
+  { id: "n_corr", br: "N", icon: "bolt", name: "CORREDOR RÁPIDO",
+    desc: "+10% de velocidade das formigas dentro do formigueiro.", cost: [30, 55, 85], requires: ["n_dig"], x: -1.3, y: 2.4 },
+  { id: "n_berco", br: "N", icon: "egg", name: "BERÇÁRIO FECUNDO",
+    desc: "-12% no tempo de chocar operárias no berçário.", cost: [35, 65, 100], requires: ["n_dig"], x: 1.3, y: 2.4 },
+  { id: "n_ovo", br: "N", icon: "hourglass", name: "POSTURA REAL",
+    desc: "A rainha bota ovos 10% mais rápido.", cost: [40, 70, 110], requires: ["n_corr"], x: -2.5, y: 3.3 },
+  { id: "n_fung", br: "N", icon: "fungo", name: "FUNGÁRIO DO NINHO",
+    desc: "+1 comida a cada ciclo do fungário.", cost: [40, 70, 105], requires: ["n_berco"], x: 0, y: 3.3 },
+  { id: "n_eco", br: "N", icon: "sk_rico", name: "PLANTA ECONÔMICA",
+    desc: "-8% no custo de escavar/evoluir câmaras.", cost: [35, 65, 100], requires: ["n_berco"], x: 2.5, y: 3.3 },
+  { id: "n_desp", br: "N", icon: "food", name: "DESPENSA FUNDA",
+    desc: "+1 comida em cada entrega feita dentro do formigueiro.", cost: [45, 80, 120], requires: ["n_fung"], x: -1.3, y: 4.4 },
+  { id: "n_zelo", br: "N", icon: "horseshoe", name: "ZELO DA COLÔNIA",
+    desc: "6% de chance da operária sobreviver a um golpe fatal (fica com 1).", cost: [45, 75, 110], requires: ["n_fung"], x: 1.3, y: 4.4 },
 ];
 
 // ------------------------------------------------------------- Recursos iniciais

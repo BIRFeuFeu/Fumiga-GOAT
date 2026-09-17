@@ -87,7 +87,10 @@ function killEnemy(e) {
   SFX.splat();
   dropOrb(e.x, e.y, e.def.ess);
   const run = window.__run;
-  if (run) { run.kills++; run.xp += Math.max(2, Math.round((e.def.ess || 2) * XP_KILL_FRAC)); }
+  if (run) {
+    run.kills++;
+    run.xp += Math.round(Math.max(2, Math.round((e.def.ess || 2) * XP_KILL_FRAC)) * mods().xpGain);
+  }
 }
 
 function tickBurn(u, dt, onDeath) {
@@ -280,7 +283,7 @@ export function spawnBoss(kind, wave) {
 function killBoss(b) {
   b.dead = true; b.dying = 2.2;
   const run = window.__run;
-  if (run) { run.kills++; run.xp += XP_BOSS; }
+  if (run) { run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); }
   dropOrb(b.x, b.y, b.def.ess);
   shake(1);
   ring(b.x, b.y, { r0: 10, r1: 190, life: 0.7, color: "#ffd479", width: 5 });

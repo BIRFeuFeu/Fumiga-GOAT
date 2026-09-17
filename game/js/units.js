@@ -29,7 +29,8 @@ export function spawnQueen() {
     flash: 0, eatT: 0, bob: rand(0, 6.28), rebirthUsed: false,
     takeDamage(dmg) {
       if (this.dead) return;
-      dmg *= mods().muts.dmgTaken;
+      const mm = mods();
+      dmg *= mm.muts.dmgTaken * (1 - mm.queenArmor);
       this.hp -= dmg;
       this.flash = 0.14;
       SFX.queenHit();
@@ -54,17 +55,17 @@ function computeAntStats(typeId) {
   return {
     hp: Math.round(b.hp * m.hpAll * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
-    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : 1),
-    range: b.range, atkCd: b.atkCd,
+    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
+    range: b.range + m.rangeBonus, atkCd: b.atkCd / m.fireRate,
     carry: (b.carry || 0) + (isWorker ? m.workerCarry : 0),
-    gatherRate: b.gatherRate || 0,
+    gatherRate: (b.gatherRate || 0) * m.gatherRate,
     projSpeed: b.projSpeed || 0,
     taunt: b.taunt || 0,
     aggro: b.aggro || 0,
     healRate: (b.healRate || 0) * m.muts.healRateMult,
     healRange: (b.healRange || 0) * m.muts.healRangeMult,
-    aoe: b.aoe || 0,
-    burnDps: (b.burnDps || 0) * m.dmgAll * lvDmg * fightMult,
+    aoe: (b.aoe || 0) * m.aoeMult,
+    burnDps: (b.burnDps || 0) * m.dmgAll * lvDmg * fightMult * m.burnMult,
     burnDur: b.burnDur || 0,
   };
 }
@@ -116,7 +117,16 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     takeDamage(dmg, from, attacker) {
       if (this.dead || this.dying) return;
       const mm = mods();
-      dmg *= mm.muts.dmgTaken;
+      // ESQUIVA: golpe perdido por completo
+      if (mm.dodge > 0 && Math.random() < mm.dodge) {
+        floatText(this.x, this.y - this.bodyR - 10, "ESQUIVA!", { color: "#8fd3ff", life: 0.8 });
+        return;
+      }
+      // ESPINHOS DE QUITINA: quem morde leva de volta
+      if (mm.reflect > 0 && attacker && typeof attacker.takeDamage === "function") {
+        attacker.takeDamage(mm.reflect, "ally");
+      }
+      dmg *= mm.muts.dmgTaken * (1 - mm.armor);
       this.hp -= dmg;
       this.hitT = 0.12;
       if (chance(0.3)) SFX.hurt();
@@ -129,7 +139,17 @@ export function spawnAnt(typeId, x, y, opts = {}) {
         attacker.burnT = Math.max(attacker.burnT || 0, mm.muts.venenoBurn);
         attacker.burnDps = Math.max(attacker.burnDps || 0, 5);
       }
-      if (this.hp <= 0) killAnt(this);
+      if (this.hp <= 0) {
+        // ZELO DA COLÔNIA: operária resiste a um golpe fatal com 1 de vida
+        const save = mm.workerSave > 0 && this.def.role === "worker" && !this.savedOnce;
+        if (save && Math.random() < mm.workerSave) {
+          this.savedOnce = true;
+          this.hp = 1;
+          floatText(this.x, this.y - this.bodyR - 12, "AGUENTOU!", { color: "#7fd6a0", life: 1.2 });
+        } else {
+          killAnt(this);
+        }
+      }
     },
   };
   allies.push(a);
@@ -399,10 +419,33 @@ function updateWorker(a, dt, foes, think, m, G2) {
     }
     case "goto": {
       const tgt = a.pile || a.node;
-      if (!tgt || tgt.amount <= 0) { a.state = "idle"; a.pile = a.node = null; break; }
+      if (!tgt || tgt.amount <= 0 || tgt.blocked) {
+        a.state = "idle"; a.pile = a.node = null; a.gotoT = 0; a.gotoBest = undefined;
+        break;
+      }
       const arrived = moveToward(a, tgt.x, tgt.y, dt);
-      if (arrived || dist2(a.x, a.y, tgt.x, tgt.y) < (tgt.r + 7) * (tgt.r + 7)) {
+      const d = Math.sqrt(dist2(a.x, a.y, tgt.x, tgt.y));
+      if (arrived || d < tgt.r + 7) {
         a.state = "gather"; a.gatherT = a.st.gatherRate;
+        a.gotoT = 0; a.gotoBest = undefined;
+        break;
+      }
+      // TRAVA ANTITRAVAMENTO: se o alvo é inalcançável (nasceu dentro do
+      // formigueiro, atrás de pedra, etc.) a formiga empurra a colisão para
+      // sempre. Sem progresso por alguns segundos, desiste — e marca o recurso
+      // para as irmãs não caírem na mesma armadilha.
+      if (a.gotoBest === undefined || d < a.gotoBest - 6) {
+        a.gotoBest = d;
+        a.gotoT = 0;
+      } else {
+        a.gotoT = (a.gotoT || 0) + dt;
+        if (a.gotoT > 3.5) {
+          tgt.blocked = true;
+          a.pile = a.node = null;
+          a.gotoT = 0; a.gotoBest = undefined;
+          a.state = "idle";
+          floatText(a.x, a.y - 18, "SEM CAMINHO!", { color: "#ff8a96", life: 1 });
+        }
       }
       break;
     }
@@ -451,12 +494,18 @@ function updateWorker(a, dt, foes, think, m, G2) {
 
 function acquireResource(a) {
   // prioriza comida; se sobrar nada, vai para essência
+  const start = (target) => {
+    a.pile = target.kind === "food" ? target : null;
+    a.node = target.kind === "food" ? null : target;
+    a.gotoT = 0; a.gotoBest = undefined;
+    a.state = "goto";
+  };
   const pile = nearestPile(a.x, a.y);
-  if (pile) { a.pile = pile; a.node = null; a.state = "goto"; return; }
+  if (pile) { start(pile); return; }
   const ess = nearestNode(a.x, a.y, "essence");
-  if (ess) { a.node = ess; a.pile = null; a.state = "goto"; return; }
+  if (ess) { start(ess); return; }
   const amber = nearestNode(a.x, a.y, "amber");
-  if (amber) { a.node = amber; a.pile = null; a.state = "goto"; return; }
+  if (amber) { start(amber); return; }
   // nada para coletar: vagar perto
   if (Math.random() < 0.02) {
     const A = world.anthill;
@@ -644,7 +693,11 @@ function spitAt(a, tgt, m) {
   let dmg = a.st.dmg * packBonus(a) * (m.muts.acidDmg);
   const crit = m.critChance > 0 && Math.random() < m.critChance;
   if (crit) dmg *= 2;
-  const isBomb = a.def.role === "bomber";
+  // Cuidado: o papel da bombeira é "ranged" (como a cuspidora) — o teste pelo
+  // role nunca era verdade, então a bomba saía sem área, sem queimadura e com
+  // som/visual de cuspe. O que identifica a bombeira é o tipo (ou ter aoe).
+  const isBomb = a.type === "bomber" || a.def.bomb === true || a.def.role === "bomber"
+    || (a.st.aoe || 0) > 0;
   spawnProj({
     x: a.x + Math.cos(a.angle) * 10, y: a.y + Math.sin(a.angle) * 10 - 4,
     vx: ((px - a.x) / dd) * a.st.projSpeed, vy: ((py - a.y) / dd) * a.st.projSpeed,

@@ -112,6 +112,11 @@ export function genWorld(seed, mapIdx = 0) {
   for (let i = 0; i < 14; i++) {
     const x = 160 + rng() * (WORLD_W - 320);
     const y = 160 + rng() * (WORLD_H - 320);
+    // comida dentro do formigueiro é comida que ninguém alcança: a colisão do
+    // formigueiro (raio 70) barra a aproximação e a operária ficava presa no
+    // "goto" para sempre. 320px de folga mantém a pilha fora do sprite e do
+    // caminho de entrada.
+    if (distA(x, y) < 320) continue;
     pileSpots.push({ x, y, near: distA(x, y) < 700 });
   }
   for (const s of pileSpots) {
@@ -161,9 +166,30 @@ export function genWorld(seed, mapIdx = 0) {
     addProp(x, y, BP.crys[(rng() * BP.crys.length) | 0], 0.7 + rng() * 0.5, 10, rng() < 0.5);
   }
 
+  clearResourcesFromAnthill();
   buildStatics();
   bakeGround(rng);
   bakeMinimap();
+}
+
+/**
+ * Rede de segurança do genWorld: recurso nenhum pode ficar na área do
+ * formigueiro (nem no sprite, nem na faixa onde a colisão impede a formiga de
+ * chegar). Quem estiver lá é empurrado radialmente para a borda da área — a
+ * comida continua existindo, só sai de dentro da parede.
+ */
+export function clearResourcesFromAnthill() {
+  const A = world.anthill;
+  const SAFE = 190;                 // collR 70 + folga para a formiga trabalhar
+  for (const t of [...world.piles, ...world.nodes]) {
+    const dx = t.x - A.x, dy = t.y - A.y;
+    const d = Math.hypot(dx, dy);
+    if (d >= SAFE) continue;
+    const a = d < 0.001 ? (Math.random() * TAU) : Math.atan2(dy, dx);
+    t.x = A.x + Math.cos(a) * SAFE;
+    t.y = A.y + Math.sin(a) * SAFE;
+    t.moved = true;
+  }
 }
 
 function addCrystal(node, rng) {
@@ -557,6 +583,8 @@ export function nearestPile(x, y, onlyKind = "food") {
   let best = null, bd = Infinity;
   for (const p of world.piles) {
     if (p.amount <= 0 || p.kind !== onlyKind) continue;
+    if (p.blocked) continue;
+    if (Math.hypot(p.x - world.anthill.x, p.y - world.anthill.y) < 150) continue; // dentro da parede
     const d = Math.hypot(p.x - x, p.y - y);
     if (d < bd) { bd = d; best = p; }
   }
@@ -567,6 +595,8 @@ export function nearestNode(x, y, kind) {
   let best = null, bd = Infinity;
   for (const n of world.nodes) {
     if (n.amount <= 0 || n.kind !== kind) continue;
+    if (n.blocked) continue;
+    if (Math.hypot(n.x - world.anthill.x, n.y - world.anthill.y) < 150) continue; // dentro da parede
     const d = Math.hypot(n.x - x, n.y - y);
     if (d < bd) { bd = d; best = n; }
   }

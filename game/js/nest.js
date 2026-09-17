@@ -8,7 +8,7 @@
 // você está aqui dentro (o mundo lá fora fica congelado).
 // ============================================================================
 import { CHAMBERS, MAPS, PAL, VIEW_W, VIEW_H } from "./config.js";
-import { G } from "./state.js";
+import { G, mods } from "./state.js";
 import { IMG, rotFrame, rotDrawSize } from "./assets.js";
 import { drawText, wrapText } from "./font.js";
 import { button, panel, bar, pointInRect } from "./ui.js";
@@ -136,7 +136,7 @@ function makeNestAnt(a) {
   const n = {
     id: a.id, type: a.type, job: jobFor(a.type), sprite: a.def ? a.def.sprite : a.type,
     x: c.x + rnd(-40, 40), y: c.y + rnd(-20, 20),
-    angle: rnd(0, TAU), bob: rnd(0, 6.28), speed: rnd(92, 118),
+    angle: rnd(0, TAU), bob: rnd(0, 6.28), speed: rnd(92, 118) * (mods().nestSpeed || 1),
     room: home, route: null, leg: 0, t: rnd(0, 3),
     carry: null, workT: 0, scale: 0,
   };
@@ -198,7 +198,7 @@ export function nestUpdate(dt) {
   // ---- escavação em andamento: o tempo corre e as escavadoras ajudam
   if (nest.dig) {
     const workers = nest.ants.filter((n) => n.job === "digger").length;
-    const speed = 1 + workers * 0.16;
+    const speed = (1 + workers * 0.16) * (mods().digSpeed || 1);
     nest.dig.t += dt * speed;
     const r = roomOf(nest.dig.id);
     if (Math.random() < dt * 14) {
@@ -217,7 +217,7 @@ export function nestUpdate(dt) {
     const nursery = runRef().chambers.nursery;
     nest.growT -= dt;
     if (nest.growT <= 0) {
-      nest.growT = Math.max(9, 20 - nursery * 4);
+      nest.growT = Math.max(9, 20 - nursery * 4) / (mods().nurserySpeed || 1);
       if (popUsed() < popCapTotal()) {
         // A formiga nasce no MUNDO (junto ao formigueiro, como as chocadas na
         // loja) — o que é posicionado na entrada é só o corpo dela na cena de
@@ -244,7 +244,7 @@ export function nestUpdate(dt) {
   if (nest.eggs.length < 3) {
     nest.laidT -= dt;
     if (nest.laidT <= 0) {
-      nest.laidT = rnd(5.5, 8.5);
+      nest.laidT = rnd(5.5, 8.5) * (mods().nestEgg || 1);
       const c = center(roomOf("royal"));
       nest.eggs.push({ t: 0, x: c.x + rnd(-26, 26), y: c.y + rnd(-6, 12), taken: false, grow: 0 });
       SFX.chime();
@@ -278,7 +278,7 @@ export function nestUpdate(dt) {
         else {
           // entrega: a despensa guarda e a comida entra no cofre da run
           const mult = 1 + 0.15 * (runRef().chambers.pantry || 0);
-          const amount = Math.round(rnd(2, 4) * mult);
+          const amount = Math.round(rnd(2, 4) * mult + (mods().nestDeposit || 0));
           if (runRef()) runRef().food += amount;
           nest.deliveries += amount;
           float(n.x, n.y - 16, "+" + amount, "#ffd479", 0.9);
@@ -351,7 +351,7 @@ export function nestDig(id) {
   if (nest.dig) return { ok: false, why: "JÁ ESTÃO ESCAVANDO" };
   const lvl = run.chambers[id];
   if (lvl >= def.max) return { ok: false, why: "NÍVEL MÁXIMO" };
-  const cost = def.costs[lvl];
+  const cost = chamberCost(id, lvl);
   if (run.food < cost.food) return { ok: false, why: "FALTA COMIDA" };
   if (run.essencePool < cost.ess) return { ok: false, why: "FALTA ESSÊNCIA" };
   run.food -= cost.food;
@@ -405,12 +405,20 @@ export function nestHover(x, y) {
 }
 
 // ------------------------------------------------------------------ desenho --
+/** Custo de uma câmara já com o desconto da PLANTA ECONÔMICA (árvore). */
+export function chamberCost(id, lvl) {
+  const c = CHAMBERS[id].costs[lvl];
+  const mult = mods().chamberCost || 1;
+  if (mult >= 1) return c;
+  return { food: Math.round(c.food * mult), ess: Math.round(c.ess * mult) };
+}
+
 function chamberState(id) {
   const run = runRef();
   const def = CHAMBERS[id];
   const lvl = run && run.chambers ? run.chambers[id] : 0;
   const maxed = lvl >= def.max;
-  const cost = maxed ? null : def.costs[lvl];
+  const cost = maxed ? null : chamberCost(id, lvl);
   const afford = !maxed && run && run.food >= cost.food && run.essencePool >= cost.ess;
   return { def, lvl, maxed, cost, afford };
 }

@@ -36,6 +36,19 @@ Entre as ondas, **drafts de mutações** (escolha 1 de 3) moldam a build da expe
 **essência** coletada alimenta a **Árvore da Evolução** permanente (meta-progressão, com preços
 visíveis nos próprios nós).
 
+### Árvore da Evolução — 39 nós em 4 ramos
+
+| Ramo | Cor | Foco |
+|------|-----|------|
+| **TRABALHO** | âmbar | comida, essência, carga, ritmo de coleta e estoque inicial |
+| **GUERRA** | vermelho | dano, vida, cadência, alcance, bombas, armadura, esquiva e espinhos |
+| **REAL** | roxo | a rainha: vida, regeneração, alimentação, XP e renascimento |
+| **NINHO** | verde | o que acontece dentro do formigueiro: escavação, berçário, despensa, fungário |
+
+São **113 níveis compráveis** (contra 46 do começo). Todo nó tem efeito de verdade — quem garante
+é o `test/tree.mjs`. A tela abre enquadrando a árvore, tem **VER TUDO** para ver os 39 nós de
+uma vez, legenda com o progresso de cada ramo e roda do mouse para o zoom (30%–220%).
+
 ### As 9 classes da colônia (teclas 1–9)
 
 1. **Operária** — colhe comida e essência, linha de vida da economia.
@@ -45,7 +58,9 @@ visíveis nos próprios nós).
 5. **Guarda de Ébano** — tanque que provoca os ataques.
 6. **Batedora** — rápida e faro largo, pega o que escapa.
 7. **Curandeira** — cura os feridos em combate, frágil.
-8. **Bombeira** — cuspe brasas em arco: área de explosão + queimadura.
+8. **Bombeira** — joga bombas em arco: explosão em área (56px) + queimadura contínua.
+   O que faz o projétil virar bomba é a flag `bomb: true` na definição (`js/config.js`) —
+   antes o teste era pelo `role`, que é `"ranged"`, e a bomba saía sem efeito nenhum.
 9. **Formiga Gigante** — o colosso: **20 soldados de ponta a ponta**
    (`GIANT_SCALE` em `js/config.js`), 3000 de vida, atrai a horda para si,
    derruba uma árvore em cada passo e mata com um golpe só. Custa 320 de comida,
@@ -108,7 +123,8 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 - `js/` — módulos ES (game, units, enemies, waves, world, render, combat, particles,
   tutorial, meta, nest, audio, config, state, ui, font, input, camera, utils)
 - `js/nest.js` — a cena de dentro do formigueiro (salas, túneis, IA das formigas: carregar,
-  escavar, cuidar das larvas)
+  escavar, cuidar das larvas). Os bônus do ramo **NINHO** da árvore entram aqui: escavação,
+  berçário, despensa, postura da rainha, custo das câmaras.
 - `assets/` — sprites e fontes bitmap processados
 - `tools/prepare_assets.sh` — regenera os sprites a partir das fontes
 - `test/sim.mjs` — simulação headless da expedição inteira:
@@ -122,6 +138,15 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   confere que a lista/ordem de glifos do `js/font.js` bate com o array `CHS` de
   `tools/prepare_assets.sh` — se divergirem, o índice da célula pinta o glifo errado. Rode depois
   de mexer em `js/config.js`, `js/assets.js`, `js/font.js` ou de regerar as fontes.
+- `test/tree.mjs` — auditor da ÁRVORE DA EVOLUÇÃO: confere que todo nó tem pré-requisito
+  existente, caminho até a raiz e um bônus de verdade em `metaBonus()` (nó decorativo = erro),
+  além de comprar **todos** os níveis de **todos** os nós e conferir que os bônus chegam nas
+  fichas das formigas (vida, alcance, cadência, área da bomba, armadura, esquiva, coleta) e no
+  formigueiro (escavação, berçário, entrega, custo da câmara). Rode depois de mexer em
+  `META_NODES`, em `metaBonus()` ou em `js/meta.js`.
+- `test/stuck.mjs` — regressão dos bugfixes: nenhuma pilha/nó de recurso nasce na área do
+  formigueiro, nenhuma operária fica presa no `goto` com alvo inalcançável, e a **bombeira
+  explode de verdade** (área + queimadura em vários inimigos de uma vez).
 - `test/layout.mjs` — auditor de layout headless: roda o jogo com um canvas de mentira que grava
   todas as operações de desenho, reconstrói o texto desenhado (glifo a glifo, a partir do atlas) e
   acusa texto fora do canvas, texto encoberto por painel pintado depois, textos colidindo e botões
@@ -129,6 +154,18 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   transição, fim, mapa 6). Imprime quantos textos auditou em cada cenário: um verde com cobertura
   baixa não vale nada.
 
-Cheque tudo antes de subir: `node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && node test/layout.mjs`.
+Cheque tudo antes de subir (é o que o CI local usa):
+
+```bash
+node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
+node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs
+```
+
+Para inspeção visual do layout das telas internas (gera PNG fora do repo):
+
+```bash
+node test/nestmap.mjs    # -> /home/user/formigueiro-layout.png
+node test/treemap.mjs    # -> /home/user/arvore-layout.png (39 nós, 4 ramos, zoom de enquadramento)
+```
 
 Chegue na porta, defenda a Rainha. A colônia é eterna.

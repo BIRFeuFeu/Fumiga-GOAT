@@ -10,25 +10,64 @@ import { mouse, pressed } from "./input.js";
 import { SFX } from "./audio.js";
 import { clamp, lerp } from "./utils.js";
 
-const NODE_R = 34;      // árvore maior
-const SP = 152;         // respiro entre os nós
+const NODE_R = 34;      // raio do nó em px (sem zoom)
+const SP = 134;         // respiro horizontal entre os nós
+const YF = 0.85;        // respiro vertical (proporcional ao horizontal)
+const MIN_ZOOM = 0.30, MAX_ZOOM = 2.2;
+const TOP_UI = 118, BOTTOM_UI = 44;   // faixas ocupadas pelo HUD/dica
+// centro vertical útil: a árvore é enquadrada entre o HUD do topo e a dica
+const CY = TOP_UI + (VIEW_H - TOP_UI - BOTTOM_UI) / 2;
+
+// Limites da árvore (em unidades de grade) — servem para enquadrar tudo,
+// prender o pan e desenhar a legenda dos ramos.
+const BOUNDS = (() => {
+  const xs = META_NODES.map((n) => n.x), ys = META_NODES.map((n) => n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = (maxX - minX) * SP, h = (maxY - minY) * SP * YF;
+  return { minX, maxX, minY, maxY, w, h, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+})();
 
 let pan = { x: 0, y: 0 };
-let zoom = 1.18;        // roda do mouse aproxima/afasta
+let zoom = 0.62;        // roda do mouse aproxima/afasta
 let dragStart = null;
 let hoverNode = null;
 
+/** Zoom que mostra a árvore inteira (usado no botão VER TUDO e no início). */
+function fitZoom() {
+  const zx = (VIEW_W - 90) / BOUNDS.w;
+  const zy = (VIEW_H - TOP_UI - BOTTOM_UI - 18) / BOUNDS.h;
+  return clamp(Math.min(zx, zy) * 0.98, MIN_ZOOM, 1);
+}
+
+/** Prende o pan para a árvore nunca sair de vista (limite depende do zoom). */
+function clampPan() {
+  const mx = Math.max(24, BOUNDS.w / 2 - (VIEW_W / 2 - 30) / zoom + 60);
+  const my = Math.max(24, BOUNDS.h / 2 - (VIEW_H / 2 - 90) / zoom + 60);
+  pan.x = clamp(pan.x, -mx, mx);
+  pan.y = clamp(pan.y, -my, my);
+}
+
 export function enterTree() {
   pan.x = 0; pan.y = 0;
-  zoom = 1.18;
+  // abre já enquadrando boa parte da árvore (o resto é rolagem/zoom)
+  zoom = clamp(fitZoom() * 1.7, 0.5, 1.05);
+  clampPan();
   dragStart = null;
   hoverNode = null;
 }
 
+/** Botão VER TUDO / duplo clique: volta para o enquadramento completo. */
+export function treeFit() {
+  zoom = fitZoom();
+  pan.x = 0; pan.y = 0;
+  clampPan();
+}
+
 function nodeScreen(n) {
   return {
-    x: VIEW_W / 2 + (pan.x + n.x * SP) * zoom,
-    y: VIEW_H / 2 + (pan.y + n.y * SP * 0.9) * zoom,
+    x: VIEW_W / 2 + (pan.x + (n.x - BOUNDS.cx) * SP) * zoom,
+    y: CY + (pan.y + (n.y - BOUNDS.cy) * SP * YF) * zoom,
   };
 }
 
@@ -37,9 +76,10 @@ export function updateTree(dt) {
   // zoom com a roda (âncora no centro da tela)
   if (mouse.wheel) {
     const beforeZ = zoom;
-    zoom = clamp(zoom * (mouse.wheel > 0 ? 0.9 : 1.11), 0.62, 2.0);
+    zoom = clamp(zoom * (mouse.wheel > 0 ? 0.9 : 1.11), MIN_ZOOM, MAX_ZOOM);
     pan.x = pan.x * beforeZ / zoom;
     pan.y = pan.y * beforeZ / zoom;
+    clampPan();
   }
   const R = NODE_R * zoom;
   for (const n of META_NODES) {
@@ -51,8 +91,9 @@ export function updateTree(dt) {
   if (mouse.down && dragStart) {
     const dx = mouse.x - dragStart.mx, dy = mouse.y - dragStart.my;
     dragStart.d = Math.max(dragStart.d, Math.hypot(dx, dy));
-    pan.x = clamp(dragStart.px + dx / zoom, -300, 300);
-    pan.y = clamp(dragStart.py + dy / zoom, -300, 300);
+    pan.x = dragStart.px + dx / zoom;
+    pan.y = dragStart.py + dy / zoom;
+    clampPan();
   }
   if (!mouse.down) dragStart = null;
 }
@@ -167,23 +208,49 @@ export function drawTree(ctx, dt) {
   if (hoverNode) drawNodeTip(ctx, hoverNode);
 
   // ------------------------------------------------------------- HUD topo --
-  panel(ctx, 12, 10, 360, 54);
+  const owned = META_NODES.filter((n) => metaLevel(n.id) > 0).length;
+  panel(ctx, 12, 10, 430, 54);
   drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 20, { font: "big", scale: 1, color: "#ffd479" });
   drawText(ctx, "Evolua a colônia para sempre", 28, 48, { color: PAL.textDim });
-  // essência (à esquerda do botão: antes os dois se sobrepunham e o botão
-  // ainda saía da tela em 6px)
-  panel(ctx, VIEW_W - 330, 10, 150, 54);
-  drawEssence(ctx, VIEW_W - 322, 16);
+  drawText(ctx, "NÓS " + owned + "/" + META_NODES.length, 300, 22, { color: "#efe9ff" });
+  drawText(ctx, Math.round((owned / META_NODES.length) * 100) + "%", 300, 42, { color: "#c77dff" });
+  // essência (à esquerda dos botões)
+  panel(ctx, VIEW_W - 500, 10, 150, 54);
+  drawEssence(ctx, VIEW_W - 492, 16);
 
-  // botão voltar
+  // botão voltar + ver tudo
+  if (button(ctx, { x: VIEW_W - 340, y: 18, w: 156, h: 40, label: "VER TUDO", id: "treeFit", font: "small" })) {
+    treeFit();
+    SFX.uiClick();
+  }
   if (button(ctx, { x: VIEW_W - 170, y: 18, w: 156, h: 40, label: "VOLTAR", id: "treeBack", font: "small" })) {
     return "back";
   }
 
+  // legenda dos ramos: quantos nós de cada ramo já foram comprados
+  drawLegend(ctx, 12, 72);
+
   // dica
-  drawText(ctx, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA: ZOOM (" + Math.round(zoom * 100) + "%)",
+  drawText(ctx, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA OU VER TUDO: ZOOM (" + Math.round(zoom * 100) + "%)",
     VIEW_W / 2, VIEW_H - 26, { color: PAL.textDim, align: "center" });
   return null;
+}
+
+/** Legenda dos ramos (com progresso) — a árvore grande precisa de bússola. */
+function drawLegend(ctx, x, y) {
+  const ids = Object.keys(META_BRANCHES);
+  const w = 118, h = 30;
+  panel(ctx, x, y, ids.length * w + 16, h + 8);
+  ids.forEach((id, i) => {
+    const br = META_BRANCHES[id];
+    const nodes = META_NODES.filter((n) => n.br === id);
+    const done = nodes.filter((n) => metaLevel(n.id) > 0).length;
+    const cx = x + 14 + i * w;
+    ctx.fillStyle = br.color;
+    ctx.fillRect(cx, y + 14, 8, 8);
+    drawText(ctx, br.name, cx + 14, y + 14, { color: br.color, font: "small" });
+    drawText(ctx, done + "/" + nodes.length, cx + 14, y + 26, { color: PAL.textDim, font: "small" });
+  });
 }
 
 function drawEssence(ctx, x, y) {
