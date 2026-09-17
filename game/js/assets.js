@@ -192,6 +192,36 @@ function bakeWhiteOf(frames) {
 }
 
 /** Assa uma variante tingida de um sprite (ex.: operária -> coletora). */
+/** Cria um apelido de sprite: mesma arte, outro tamanho de assado. */
+export function dupSprite(srcKey, dstKey) {
+  if (IMG[dstKey]) return IMG[dstKey];
+  const src = IMG[srcKey];
+  const cv = document.createElement("canvas");
+  cv.width = src.width; cv.height = src.height;
+  cv.getContext("2d").drawImage(src, 0, 0);
+  IMG[dstKey] = cv;
+  return cv;
+}
+
+/**
+ * Diz que o sprite `key` deve ser DESENHADO `times` vezes o tamanho desenhado
+ * de `refKey`, mesmo tendo sido assado pequeno. É o caso da FORMIGA GIGANTE:
+ * assar o tamanho final (20x a soldado) custaria centenas de MB de canvas —
+ * assar 1/5 disso e ampliar na hora sai igual (nearest-neighbor) e cabe.
+ */
+export function setRotDrawScale(key, refKey, times) {
+  const f = ROT[key], r = ROT[refKey];
+  if (!f || !r || !f.size) return 0;
+  f.drawScale = (r.size * times) / f.size;
+  return f.drawScale;
+}
+
+/** Tamanho desenhado do frame assado de `key`, em px de tela com zoom 1. */
+export function rotDrawSize(key) {
+  const r = ROT[key];
+  return r ? r.size * (r.drawScale || 1) : 0;
+}
+
 export function bakeRotTinted(srcKey, dstKey, outSize, color, alpha = 0.45) {
   if (ROT[dstKey]) return ROT[dstKey];
   const img = IMG[srcKey];

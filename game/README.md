@@ -36,15 +36,20 @@ Entre as ondas, **drafts de mutações** (escolha 1 de 3) moldam a build da expe
 **essência** coletada alimenta a **Árvore da Evolução** permanente (meta-progressão, com preços
 visíveis nos próprios nós).
 
-### As 7 classes da colônia (teclas 1–8; 8 = coletora)
+### As 9 classes da colônia (teclas 1–9)
 
 1. **Operária** — colhe comida e essência, linha de vida da economia.
-2. **Soldado** — linha de frente de confiança.
-3. **Cuspidora** — artilharia de longo alcance.
-4. **Guarda de Ébano** — tanque que provoca os ataques.
-5. **Batedora** — rápida e faro largo, pega o que escapa.
-6. **Curandeira** — cura os feridos em combate, frágil.
-7. **Bombeira** — cuspe brasas em arco: área de explosão + queimadura.
+2. **Coletora** — variante jade da operária: mais rápida e carrega mais.
+3. **Soldado** — linha de frente de confiança.
+4. **Cuspidora** — artilharia de longo alcance.
+5. **Guarda de Ébano** — tanque que provoca os ataques.
+6. **Batedora** — rápida e faro largo, pega o que escapa.
+7. **Curandeira** — cura os feridos em combate, frágil.
+8. **Bombeira** — cuspe brasas em arco: área de explosão + queimadura.
+9. **Formiga Gigante** — o colosso: **20 soldados de ponta a ponta**
+   (`GIANT_SCALE` em `js/config.js`), 3000 de vida, atrai a horda para si,
+   derruba uma árvore em cada passo e mata com um golpe só. Custa 320 de comida,
+   demora 7s para chocar e **só cabe uma por expedição**.
 
 ### Controles
 
@@ -59,7 +64,7 @@ visíveis nos próprios nós).
 | `WASD` / setas | também movem a câmera |
 | Roda do mouse | zoom |
 | `Espaço` | centraliza no formigueiro |
-| `1`–`8` | choca a classe selecionada (8 = coletora) |
+| `1`–`9` | choca a classe selecionada (9 = gigante) |
 | `F` | convoca a guarda para defender |
 | `G` | invoca a próxima onda (bônus de essência) |
 | `T` | pula o tutorial |

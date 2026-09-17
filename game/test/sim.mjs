@@ -128,6 +128,7 @@ function collaboratorArmy(power = 1) {
   for (let i = 0; i < 3; i++) spawnAnt("scout", A.x + (i % 3) * 30 - 30, A.y - 170);
   for (let i = 0; i < 2 + Math.floor(power / 2); i++) spawnAnt("healer", A.x + i * 30 - 30, A.y + 60);
   for (let i = 0; i < 1 + Math.floor(power / 2); i++) spawnAnt("bomber", A.x + i * 30 - 30, A.y - 90);
+  spawnAnt("giant", A.x + 260, A.y + 260);   // o colosso vem junto
 }
 
 // ---------------------------------------------------------------- simul -----
@@ -176,7 +177,8 @@ try {
       const workers = allies.filter(a => !a.dead && a.type === "worker").length;
       const fighters = allies.filter(a => !a.dead && a.type !== "worker").length;
       let want = null;
-      if (workers < 7) want = "worker";
+      if (workers >= 6 && step > 1200 && run.food > 360 && units.unitLimitLeft("giant")) want = "giant";
+      else if (workers < 7) want = "worker";
       else if (fighters < workers * 1.6 && fighters < 30) {
         const r = Math.random();
         want = r < 0.42 ? "soldier" : r < 0.7 ? "spitter" : r < 0.8 ? "tank"
@@ -217,6 +219,7 @@ try {
     stats.minFood = Math.min(stats.minFood, run.food);
     stats.maxAllies = Math.max(stats.maxAllies, allies.filter(a => !a.dead).length);
     stats.maxFoes = Math.max(stats.maxFoes, enemiesAlive(foes));
+    stats.giants = Math.max(stats.giants || 0, allies.filter(a => a.type === "giant" && !a.dead).length);
   }
 } catch (e) {
   console.error("FALHA na simulação @", simT.toFixed(1) + "s, mapa", director.mapIdx + 1, "onda", run.wave);
@@ -239,7 +242,8 @@ console.log("\n======================== RELATÓRIO ========================");
 console.log("Tempo simulado:", mins + "min", " status:", run.status);
 console.log("Mapa:", (director.mapIdx + 1) + "/" + MAPS.length, " mapas limpos:", run.mapsCleared, " onda global:", run.wave);
 console.log("Abates:", run.kills, " comida:", run.food, " essência:", run.essencePool);
-console.log("Aliadas vivas:", allies.filter(a => !a.dead).length, " pico:", stats.maxAllies);
+console.log("Aliadas vivas:", allies.filter(a => !a.dead).length, " pico:", stats.maxAllies,
+  " gigantes (pico):", stats.giants || 0);
 console.log("Inimigos vivos:", enemiesAlive(foes), " pico:", stats.maxFoes);
 console.log("Drafts aplicados:", drafted, " mutações:", [...run.mutations].join(","));
 console.log("Rainha:", queen.hp + "/" + queen.maxHp, " viva:", !queen.dead);

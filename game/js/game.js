@@ -20,8 +20,8 @@ import { initAudio, audioReady, SFX, setCombat } from "./audio.js";
 import { world, genWorld, MINI } from "./world.js";
 import {
   allies, spawnQueen, spawnAnt, updateAllies, buyUnit, unitCost, popUsed, popCapTotal,
-  selectInRect, selectTypeOnScreen, clearSelection, selectedCount, orderSelected,
-  orderAttackSelected, rallyDefenders, recomputeAllies,
+  unitLimitLeft, selectInRect, selectTypeOnScreen, clearSelection, selectedCount,
+  orderSelected, orderAttackSelected, rallyDefenders, recomputeAllies,
 } from "./units.js";
 import { foes, boss, clearFoes, updateFoes, updateBoss } from "./enemies.js";
 import { projectiles, orbs, updateProjectiles, updateOrbs, clearCombat } from "./combat.js";
@@ -48,7 +48,12 @@ const SHOP = [
   { type: "scout",    label: "BATED." },
   { type: "healer",   label: "CURAND." },
   { type: "bomber",   label: "BOMB." },
+  { type: "giant",    label: "GIGANTE", iconScale: 0.13, accent: "#ffd479" },
 ];
+
+// Geometria da fileira da loja: 9 classes + a câmara interna precisam terminar
+// antes do minimapa (x=770). Passo 74 e 70 de largura deixam 10..752.
+const SHOP_W = 70, SHOP_PITCH = 74;
 
 // ------------------------------------------------------------------ run -----
 function newRun() {
@@ -443,7 +448,7 @@ function updateRun(dt) {
     else beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 240 });
     for (const a of allies) {
       if (a.dead || a.dying || a.type === "queen") continue;
-      beings.push({ x: a.x, y: a.y, sight: SIGHT[a.def.role] || 240 });
+      beings.push({ x: a.x, y: a.y, sight: a.def.sight || SIGHT[a.def.role] || 240 });
     }
     if (boss && !boss.dead && (boss.revealT || 0) > 0) beings.push({ x: boss.x, y: boss.y, sight: 320 });
     fogUpdate(beings);
@@ -883,30 +888,32 @@ function drawHUD() {
   const shopY = VIEW_H - 100;
   for (let i = 0; i < SHOP.length; i++) {
     const s = SHOP[i];
-    const x = 10 + i * 78;
+    const x = 10 + i * SHOP_PITCH;
     const cost = unitCost(s.type);
-    const canAfford = run.food >= cost && popUsed() < popCapTotal();
-    const r = iconButton(ctx, { x, y: shopY, w: 72, h: 88, id: "shop" + s.type, disabled: !canAfford });
+    const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(s.type);
+    const r = iconButton(ctx, { x, y: shopY, w: SHOP_W, h: 88, id: "shop" + s.type, disabled: !canBuy, frame: s.accent });
     const frame = rotFrame(UNITS[s.type].sprite, Math.PI / 2);
-    const sc2 = s.type === "worker" || s.type === "scout" || s.type === "gatherer" ? 0.55 : 0.46;
-    ctx.globalAlpha = canAfford ? 1 : 0.35;
-    ctx.drawImage(frame, x + 36 - frame.width * sc2 / 2, shopY + 8, frame.width * sc2, frame.height * sc2);
+    // a gigante é assada 5x maior: mesmo ícone, escala própria para caber
+    const sc2 = s.iconScale !== undefined ? s.iconScale
+      : s.type === "worker" || s.type === "scout" || s.type === "gatherer" ? 0.55 : 0.46;
+    ctx.globalAlpha = canBuy ? 1 : 0.35;
+    ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, shopY + 8, frame.width * sc2, frame.height * sc2);
     ctx.globalAlpha = 1;
-    drawText(ctx, s.label, x + 36, shopY + 52, { scale: 1, color: canAfford ? PAL.text : "#5a4f78", align: "center" });
-    if (IMG.i_food) { ctx.globalAlpha = canAfford ? 1 : 0.5; ctx.drawImage(IMG.i_food, x + 6, shopY + 66, 14, 14); ctx.globalAlpha = 1; }
-    drawText(ctx, cost, x + 24, shopY + 68, { color: canAfford ? "#ffd479" : "#a32e46" });
-    drawText(ctx, String(i + 1), x + 64, shopY + 66, { color: PAL.textDim, align: "center" });
+    drawText(ctx, s.label, x + SHOP_W / 2, shopY + 52, { scale: 1, color: canBuy ? PAL.text : "#5a4f78", align: "center" });
+    if (IMG.i_food) { ctx.globalAlpha = canBuy ? 1 : 0.5; ctx.drawImage(IMG.i_food, x + 5, shopY + 66, 14, 14); ctx.globalAlpha = 1; }
+    drawText(ctx, cost, x + 22, shopY + 68, { color: canBuy ? "#ffd479" : "#a32e46" });
+    drawText(ctx, String(i + 1), x + SHOP_W - 7, shopY + 66, { color: PAL.textDim, align: "center" });
     if (r.hot) shopTooltip = s;
     if (live && r.clicked) {
       const res = buyUnit(s.type);
       if (!res.ok) {
-        const wp = screenToWorld(x + 36, shopY - 14);
+        const wp = screenToWorld(x + SHOP_W / 2, shopY - 14);
         floatText(wp.x, wp.y, res.why, { color: "#ff4d5a", life: 1 });
       }
     }
   }
   // botão da CÂMARA INTERNA (tecla B) logo após a loja
-  const bx = 10 + SHOP.length * 78 + 6;
+  const bx = 10 + SHOP.length * SHOP_PITCH + 4;
   const rCol = iconButton(ctx, { x: bx, y: shopY, w: 72, h: 88, id: "baseBtn", frame: "#c77dff" });
   if (IMG.nest) {
     const ni = IMG.nest;

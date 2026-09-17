@@ -192,15 +192,19 @@ const { allies } = await import(BASE + "units.js");
 await loadFonts();
 await loadAll();
 // mesmo "bake" do boot real (main.js): sprites girados e sheets de chefe
-const { bakeRot, bakeRotTinted } = await import(BASE + "assets.js");
+const { bakeRot, bakeRotTinted, dupSprite, setRotDrawScale, rotDrawSize } = await import(BASE + "assets.js");
+const { GIANT_SCALE } = await import(BASE + "config.js");
 const { bakeBossSheets } = await import(BASE + "render.js");
 const ANT_SIZES = {
   worker: 34, soldier: 48, spitter: 44, tank: 54, queen: 142,
   scout: 36, healer: 40, bomber: 46,
+  giant: 247,   // mesmo assado do main.js (5x o da soldado)
   e_runner: 30, e_swarm: 34, e_warrior: 48, e_spitter: 46, e_reaper: 44,
   e_matron: 80, e_sentinel: 62,
 };
+dupSprite("soldier", "giant");
 for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
+setRotDrawScale("giant", "soldier", GIANT_SCALE);
 bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
 bakeBossSheets();
 boot();
@@ -221,6 +225,16 @@ function frame() {
 }
 
 const problems = new Map();   // chave lógica -> mensagem (dedup)
+
+// A GIGANTE precisa sair do forno exatamente GIANT_SCALE vezes a soldado: o
+// assado é 5x menor (memória) e o fator de desenho compensa.
+const giantPx = rotDrawSize("giant"), soldierPx = rotDrawSize("soldier");
+const ratio = soldierPx ? giantPx / soldierPx : 0;
+console.log("escala: soldado " + soldierPx + "px desenhados, gigante " + giantPx +
+  "px (" + ratio.toFixed(2) + "x, alvo " + GIANT_SCALE + "x)");
+if (Math.abs(ratio - GIANT_SCALE) > 0.01) {
+  problems.set("escala|gigante", "escala da gigante: " + ratio.toFixed(2) + "x (esperado " + GIANT_SCALE + "x)");
+}
 const coverage = [];          // quantos textos cada cenário auditou
 const note = (label, kind, key, msg) => {
   const k = kind + "|" + key;
@@ -351,6 +365,20 @@ auditFrame("RUN hud", frame(), { uiStart: "auto" });
 // HUD expandido
 clickAt(58, G.run ? 108 : 108);
 auditFrame("RUN hud expandido", frame(), { uiStart: "auto" });
+
+// GIGANTE em campo: colosso de 20x a soldado, arte assada 5x e ampliada no
+// desenho. Fica com comida sobrando para a loja mostrar o slot habilitado.
+const { spawnAnt } = await import(BASE + "units.js");
+{
+  const faminto = G.run.food;
+  G.run.food = 900;
+  const A = world.anthill;
+  const GI = spawnAnt("giant", A.x + 30, A.y + 20, { guardPos: { x: A.x + 220, y: A.y + 160 } });
+  GI.spawnT = 0; GI.bob = 1.2;
+  auditFrame("RUN gigante", frame(), { uiStart: "auto" });
+  G.run.food = faminto;
+  allies.splice(allies.indexOf(GI), 1);
+}
 
 // tutorial aberto
 startTutorial();

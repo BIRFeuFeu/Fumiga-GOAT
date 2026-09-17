@@ -71,6 +71,31 @@ en.spawnBoss(G.run ? waves.mapDef().boss : "hare", G.run.wave);
 await wait(400);
 expect(!!en.boss, "chefe presente: " + (en.boss && en.boss.kind));
 
+// ---- FORMIGA GIGANTE: slot 9 da loja, corpo de 20 soldados, uma só por run
+const SHOP_Y = 540 - 100, GIANT_X = 10 + 8 * 74 + 35;
+G.run.food = 999;
+mouse.x = GIANT_X; mouse.y = SHOP_Y + 44; mouse.down = mouse.justDown = true;
+await wait(60);
+mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40);
+mouse.justUp = false;
+await wait(60);
+expect(units.eggs.some(e => e.type === "giant"), "gigante encomendada no 9º slot da loja");
+const foodAfterGiant = G.run.food;
+G.run.food = 999;
+mouse.x = GIANT_X; mouse.y = SHOP_Y + 44; mouse.down = mouse.justDown = true;
+await wait(60);
+mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40);
+mouse.justUp = false;
+await wait(60);
+expect(G.run.food === 999 && units.eggs.filter(e => e.type === "giant").length === 1,
+  "só cabe uma gigante por expedição (comida intacta na 2ª tentativa, cobrada: " + foodAfterGiant + ")");
+const gi = units.spawnAnt("giant", world.anthill.x + 40, world.anthill.y + 40);
+await wait(120);
+expect(gi.bodyR === 240, "corpo da gigante = 20x a soldado (bodyR " + gi.bodyR + ")");
+expect(G.run.status === "running", "run segue viva com o colosso em campo");
+
 // ---- câmara interna (base-building)
 pressed.KeyB = true;
 await wait(60);

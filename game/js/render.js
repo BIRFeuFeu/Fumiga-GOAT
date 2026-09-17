@@ -3,7 +3,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL } from "./config.js";
 import { G } from "./state.js";
-import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet } from "./assets.js";
+import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet, rotDrawSize } from "./assets.js";
 import { world } from "./world.js";
 import { cam, worldToScreen, visibleWorldRect, screenToWorld } from "./camera.js";
 import { allies, eggs } from "./units.js";
@@ -307,7 +307,9 @@ function drawAnt(ctx, u, w2s) {
   const key = u.def.sprite;
   const flashing = (u.hitT > 0 || (u.flash || 0) > 0);
   const frame = flashing ? whiteRotFrame(key, u.angle) : rotFrame(key, u.angle);
-  const size = frame.width; // tamanho original assado
+  // tamanho DESENHADO: normalmente igual ao assado; a gigante é assada pequena
+  // e ampliada na hora (rotDrawSize já traz o fator — 20x a soldado)
+  const size = rotDrawSize(key) || frame.width;
   let dx = s.x, dy = s.y;
 
   // ------------------------------------------------ animação por transformada
@@ -335,9 +337,10 @@ function drawAnt(ctx, u, w2s) {
     squashY = 1 + br * 0.035;
     squashX = 1 - br * 0.02;
   }
-  // lunge: impulso elástico de ataque
+  // lunge: impulso elástico de ataque (acompanha o corpo — a GIGANTE avança
+  // muito mais do que uma soldado ao morder)
   if (u.lunge > 0) {
-    const f = (u.lunge / 0.22) * 7 * z;
+    const f = (u.lunge / 0.22) * 7 * z * Math.max(1, u.bodyR / 12);
     dx += Math.cos(u.angle) * f;
     dy += Math.sin(u.angle) * f;
     squashY *= 1 + (u.lunge / 0.22) * 0.18;

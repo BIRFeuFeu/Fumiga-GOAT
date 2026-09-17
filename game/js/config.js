@@ -37,6 +37,10 @@ export const PAL = {
 // ---------------------------------------------------------------- Formigas --
 // role: "worker" coleta | "fighter" combate corpo-a-corpo | "ranged" ataque à
 // distância | "healer" suporte | "bomber" área + queimadura
+// Quantas vezes a FORMIGA GIGANTE é maior que uma soldado comum. Muda aqui:
+// o assado (main.js) e o desenho (render.js) se ajustam sozinhos.
+export const GIANT_SCALE = 20;
+
 export const UNITS = {
   worker: {
     id: "worker", key: null, name: "OPERÁRIA",
@@ -94,6 +98,21 @@ export const UNITS = {
     hp: 84, dmg: 13, speed: 66, range: 96, atkCd: 1.6,
     projSpeed: 250, aoe: 56, burnDps: 7, burnDur: 3.2,
     sprite: "bomber", role: "ranged",
+  },
+  // A colosso. Vinte soldados de ponta a ponta (drawScale 4 sobre um assado
+  // 5x maior = 20x exatos o frame da soldado), lenta, cara e única por
+  // expedição: atrai a horda (taunt), esmaga com um golpe só e passa por cima
+  // do mato (smash). Ajuste GIANT_SCALE se quiser uma escala menos absurda.
+  giant: {
+    id: "giant", key: null, name: "FORMIGA GIGANTE",
+    tip: "Colosso de 20 soldados de comprimento: puxa a horda, esmaga a mata e mata com um golpe. Só cabe uma por expedição.",
+    cost: 320, costGrow: 0.06, hatchTime: 7.0,
+    hp: 3000, dmg: 95, speed: 30, range: 130, atkCd: 1.6,
+    taunt: 420, sight: 720, smash: 300,
+    sprite: "giant", role: "fighter",
+    // o fator de desenho (GIANT_SCALE x a soldado) é amarrado no boot por
+    // setRotDrawScale — ver main.js
+    bodyR: 12 * GIANT_SCALE, maxAlive: 1,
   },
 };
 
@@ -517,7 +536,7 @@ export const HELP_CONTROLS = [
   ["G", "Invocar a próxima onda (+ess)"],
   ["F", "Convocar a guarda ao formigueiro"],
   ["ESPAÇO", "Centralizar no formigueiro"],
-  ["1 A 8", "Chocar classes de formigas"],
+  ["1 A 9", "Chocar classes de formigas (9 = gigante)"],
   ["ESC", "Pausar / voltar"],
 ];
 export const HELP_TIPS = [

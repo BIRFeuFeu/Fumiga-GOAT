@@ -4,9 +4,10 @@
 // ============================================================================
 import { UNITS, QUEEN, START, LEVEL_HP, LEVEL_DMG } from "./config.js";
 import { mods } from "./state.js";
-import { world, nearestPile, nearestNode, collide } from "./world.js";
+import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
 import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
-import { spawnPart, burst, scent, floatText } from "./particles.js";
+import { spawnPart, burst, scent, floatText, ring } from "./particles.js";
+import { shake } from "./camera.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
 import { tutEvent } from "./tutorial.js";
@@ -97,7 +98,8 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     id: nextId(), type: typeId, def: UNITS[typeId], faction: "ally",
     x, y, vx: 0, vy: 0, angle: rand(0, 6.28),
     hp: st.hp, maxHp: st.hp, st: st,
-    bodyR: typeId === "tank" ? 15 : typeId === "worker" || typeId === "scout" ? 9 : typeId === "healer" ? 10 : 12,
+    bodyR: UNITS[typeId].bodyR ||
+      (typeId === "tank" ? 15 : typeId === "worker" || typeId === "scout" ? 9 : typeId === "healer" ? 10 : 12),
     state: "idle",
     tx: null, ty: null,          // destino de movimento
     target: null,                // inimigo
@@ -165,11 +167,21 @@ export function popUsed() {
   return n;
 }
 
+/** Ainda cabe mais uma unidade deste tipo? (def.maxAlive, ex.: 1 gigante) */
+export function unitLimitLeft(typeId) {
+  const def = UNITS[typeId];
+  if (!def || !def.maxAlive) return true;
+  const n = allies.filter(a => a.type === typeId && !a.dead && !a.dying).length +
+            eggs.filter(e => e.type === typeId).length;
+  return n < def.maxAlive;
+}
+
 export function buyUnit(typeId) {
   const run = window.__run; // setado por game.js
   const cost = unitCost(typeId);
   if (run.food < cost) { SFX.deny(); return { ok: false, why: "SEM COMIDA" }; }
   if (popUsed() >= popCapTotal()) { SFX.deny(); return { ok: false, why: "POPULAÇÃO CHEIA" }; }
+  if (!unitLimitLeft(typeId)) { SFX.deny(); return { ok: false, why: "SÓ CABE UMA POR EXPEDIÇÃO" }; }
   run.food -= cost;
   const m = mods();
   const t = UNITS[typeId].hatchTime * m.hatchSpeed * m.muts.hatchMult;
@@ -198,7 +210,12 @@ function hatchTick(dt) {
     spawnAnt(e.type, x, y, { guardPos: gp, spawnT: 0.34 });
     burst(x, y, { n: 12, color: ["#ffe9a8", "#ffd479", "#fff"], spMin: 20, spMax: 80, life: 0.45, sizeMin: 1, sizeMax: 2.6 });
     SFX.hatch();
-    floatText(x, y - 14, "NOVA " + UNITS[e.type].name, { color: "#ffd479", life: 1.4 });
+    if (e.type === "giant") {
+      // um colosso não nasce em silêncio
+      shake(0.7);
+      ring(x, y, { r0: 20, r1: 460, life: 1.0, color: "#ffd479", width: 6 });
+    }
+    floatText(x, y - (e.type === "giant" ? 300 : 14), "NOVA " + UNITS[e.type].name, { color: "#ffd479", life: 1.4 });
   }
 }
 
@@ -237,6 +254,14 @@ export function updateAllies(dt, foes) {
       a.dying -= dt;
       if (a.dying <= 0) allies.splice(i, 1);
       continue;
+    }
+    // colossos não são empurrados pelo mato: arrancam a vegetação ao passar
+    if (a.def.smash) {
+      a.smashT = (a.smashT || 0) - dt;
+      if (a.smashT <= 0) {
+        a.smashT = 0.45;
+        smashProps(a.x, a.y, a.def.smash);
+      }
     }
     updateAnt(a, dt, foes, m);
   }
@@ -307,9 +332,13 @@ function attackMelee(a, target, dt) {
   if (mm.muts.thorns && target.applyThorns) target.applyThorns(mm.muts.thorns);
   a.lunge = 0.22;
   SFX.bite();
-  burst(a.x + Math.cos(a.angle) * 10, a.y + Math.sin(a.angle) * 10,
-    { n: 4, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70, life: 0.3, sizeMin: 1, sizeMax: 2 });
-  if (crit) floatText(a.x + rand(-6, 6), a.y - 16, "CRITICO", { color: "#ff4d5a", life: 0.8, scale: 1 });
+  // a mordida acompanha o tamanho da formiga: 10px à frente de uma soldado
+  // (bodyR 12) ou 190px à frente de uma GIGANTE, na ponta das mandíbulas
+  const reach = Math.max(10, a.bodyR * 0.8);
+  const biteN = a.bodyR > 40 ? 14 : 4;
+  burst(a.x + Math.cos(a.angle) * reach, a.y + Math.sin(a.angle) * reach,
+    { n: biteN, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70 + a.bodyR, life: 0.3, sizeMin: 1, sizeMax: 2 + a.bodyR / 60 });
+  if (crit) floatText(a.x + rand(-6, 6), a.y - (a.bodyR + 4), "CRITICO", { color: "#ff4d5a", life: 0.8, scale: 1 });
 }
 
 function updateAnt(a, dt, foes, m) {

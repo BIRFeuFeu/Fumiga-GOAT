@@ -32,8 +32,8 @@ globalThis.Image = class {
   set src(v) { if (this.onload) setTimeout(() => this.onload(), 0); }
 };
 
-const { loadAll, IMG } = await import("../js/assets.js");
-const { MAPS, UNITS, ENEMIES, MUTATIONS, META_NODES, CHAMBERS } = await import("../js/config.js");
+const { loadAll, IMG, dupSprite, bakeRotTinted } = await import("../js/assets.js");
+const { MAPS, UNITS, ENEMIES, MUTATIONS, META_NODES, CHAMBERS, GIANT_SCALE } = await import("../js/config.js");
 const { genWorld, world } = await import("../js/world.js");
 const { bossAnimSheets } = await import("../js/render.js");
 const { FONT_CHARS, FONT } = await import("../js/font.js");
@@ -44,6 +44,11 @@ const { fileURLToPath } = await import("node:url");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 await loadAll();
+// Mesmos sprites derivados do boot (main.js): a GIGANTE é um apelido da arte
+// da soldado e a COLETORA é a operária tingida de jade. Sem isso o teste
+// acusaria chaves de sprite que só existem depois do boot.
+dupSprite("soldier", "giant");
+bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
 const have = (k) => !!IMG[k];
 const problems = [];
 const check = (scope, keys) => {
@@ -53,7 +58,7 @@ const check = (scope, keys) => {
 };
 
 // ------------------------------------------------------------- estáticos ----
-check("formigas aliadas", Object.keys(UNITS).filter((u) => u !== "gatherer"));
+check("formigas aliadas", Object.values(UNITS).map((u) => u.sprite));
 check("formigas inimigas", Object.values(ENEMIES).map((e) => e.sprite));
 check("chefes (sheets direcionais)", bossAnimSheets());
 check("ícones de mutação", MUTATIONS.map((m) => "i_" + m.icon));
@@ -126,6 +131,27 @@ if (chsBlock) {
 } else {
   console.log("aviso  não achei o array CHS em tools/prepare_assets.sh");
 }
+
+// ------------------------------------------- escala da FORMIGA GIGANTE --------
+// A gigante é assada em 247 (pad = 5x o da soldado, escolhido na ARTE real) e
+// ampliada no desenho com fator inteiro — sai 20x a soldado com blocos de
+// pixel uniformes. O layout.mjs roda com sprites falsos de 64x64, então só
+// aqui dá para conferir isso contra os PNGs de verdade.
+function padOf(pngPath, out) {
+  const b = fs.readFileSync(path.join(ROOT, pngPath));
+  const w0 = b.readUInt32BE(16), h0 = b.readUInt32BE(20);
+  const sc = out / Math.max(w0, h0);
+  const w = Math.round(w0 * sc), h = Math.round(h0 * sc);
+  return Math.ceil(Math.hypot(w, h)) + 2;
+}
+const GIANT_BAKE = 247;                                    // idêntico ao main.js
+const pSold = padOf("assets/sprites/ants/soldier.png", 48);
+const pGiant = padOf("assets/sprites/ants/soldier.png", GIANT_BAKE);
+const factor = (pSold * GIANT_SCALE) / pGiant;
+const scaleOk = pGiant === 5 * pSold && Number.isInteger(factor);
+console.log((scaleOk ? "ok   " : "ERRO ") +
+  `escala da GIGANTE (${GIANT_SCALE}x a soldado: assado ${pGiant} = 5x${pSold}, fator de desenho ${factor})`);
+if (!scaleOk) problems.push(`assado da gigante desalinhado: pad ${pGiant} x soldado ${pSold} — ajuste ANT_SIZES.giant em main.js`);
 
 // o atlas precisa ter células suficientes para todos os glifos
 const rowsNeeded = Math.ceil(FONT_CHARS.length / 12);
