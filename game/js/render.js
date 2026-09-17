@@ -400,6 +400,7 @@ function drawAnt(ctx, u, w2s) {
 // ------------------------------------------------------------------- prop ---
 function drawProp(ctx, p, w2s) {
   const img = IMG[p.img];
+  if (!img) return; // sprite ausente não pode derrubar o frame
   const s = w2s(p.x, p.y);
   const z = cam.zoom;
   const w = img.width * p.scale * z, h = img.height * p.scale * z;
@@ -428,6 +429,16 @@ const BOSS_ANIMS = {
   grouse:{ px: 122, scale: 1.3, idle: ["grouse_idle", 4], walk: ["grouse_walk", 6], run: ["grouse_flight", 6], hurt: ["grouse_hurt", 4], death: ["grouse_death", 6] },
 };
 let sheetsBaked = false;
+
+/** Todas as sheets usadas pelos chefes (o teste de assets valida contra o MANIFEST). */
+export function bossAnimSheets() {
+  const out = new Set();
+  for (const k of Object.keys(BOSS_ANIMS)) {
+    const A2 = BOSS_ANIMS[k];
+    for (const anim of ["idle", "walk", "run", "hurt", "death"]) out.add(A2[anim][0]);
+  }
+  return [...out];
+}
 
 export function bakeBossSheets() {
   if (sheetsBaked) return;

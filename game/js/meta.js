@@ -170,12 +170,13 @@ export function drawTree(ctx, dt) {
   panel(ctx, 12, 10, 360, 54);
   drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 20, { font: "big", scale: 1, color: "#ffd479" });
   drawText(ctx, "Evolua a colônia para sempre", 28, 48, { color: PAL.textDim });
-  // essência
-  panel(ctx, VIEW_W - 232, 10, 150, 54);
-  drawEssence(ctx, VIEW_W - 226, 16);
+  // essência (à esquerda do botão: antes os dois se sobrepunham e o botão
+  // ainda saía da tela em 6px)
+  panel(ctx, VIEW_W - 330, 10, 150, 54);
+  drawEssence(ctx, VIEW_W - 322, 16);
 
   // botão voltar
-  if (button(ctx, { x: VIEW_W - 150, y: 18, w: 156, h: 40, label: "VOLTAR", id: "treeBack", font: "small" })) {
+  if (button(ctx, { x: VIEW_W - 170, y: 18, w: 156, h: 40, label: "VOLTAR", id: "treeBack", font: "small" })) {
     return "back";
   }
 

@@ -501,29 +501,28 @@ export const MAPS = [
   },
 ];
 
-// Textos de ajuda
-export const HELP_LINES = [
-  ["OBJETIVO", ""],
-  ["Proteja a RAINHA através de " + MAPS.length + " mapas —", ""],
-  ["cada um termina num CHEFÃO. Derrote o DEVASTADOR no fim.", ""],
-  ["", ""],
-  ["CONTROLES", ""],
+// Textos de ajuda (tela COMO JOGAR) — o layout vive em game.js
+export const HELP_GOAL = [
+  "Proteja a RAINHA através de " + MAPS.length + " mapas —",
+  "cada um termina num CHEFÃO. Derrote o DEVASTADOR no fim.",
+];
+export const HELP_CONTROLS = [
   ["ESQ. (ARRASTAR)", "Mover a câmera / explorar o mapa"],
   ["ESQ. (CLIQUE)", "Ordenar unidades selecionadas"],
   ["DIR. (ARRASTAR)", "Caixa de seleção"],
-  ["DIR. (CLIQUE)", "Selecionar 1 formiga / vazio desmarca"],
+  ["DIR. (CLIQUE)", "Selecionar 1 formiga / limpar"],
   ["DIR. DUPLO", "Selecionar tipo visível na tela"],
   ["WASD / SETAS", "Mover câmera"],
   ["RODA DO MOUSE", "Zoom"],
-  ["G", "Invocar a próxima onda (+essência)"],
+  ["G", "Invocar a próxima onda (+ess)"],
   ["F", "Convocar a guarda ao formigueiro"],
   ["ESPAÇO", "Centralizar no formigueiro"],
   ["1 A 7", "Chocar classes de formigas"],
   ["ESC", "Pausar / voltar"],
-  ["", ""],
-  ["DICAS", ""],
-  ["CURANDEIRAS curam o exército. BOMBEIRAS queimam em área.", ""],
-  ["BATEDORAS são baratas, velozes e interceptam invasores.", ""],
-  ["Cristais ROXOS dão essência — a moeda da evolução eterna.", ""],
-  ["Mutações valem na expedição. A ÁRVORE é para sempre.", ""],
+];
+export const HELP_TIPS = [
+  "CURANDEIRAS curam o exército. BOMBEIRAS queimam em área.",
+  "BATEDORAS são baratas, velozes e interceptam invasores.",
+  "Cristais ROXOS dão essência — a moeda da evolução eterna.",
+  "Mutações valem na expedição. A ÁRVORE é para sempre.",
 ];

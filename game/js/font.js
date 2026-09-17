@@ -3,11 +3,18 @@
 // Atlas: grade 12 colunas; ordem = FONT.CHARS
 // ============================================================================
 
+// Ordem idêntica à do pipeline (tools/prepare_assets.sh, array CHS):
+// 12 colunas por linha. Os três últimos glifos ficam no fim para não deslocar
+// índice algum — texto com "—", "•" ou "▶" antes caía no fallback "?".
 const CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
   "ÁÀÂÃÉÊÍÓÔÕÚÇ" +
   "0123456789" +
-  "?!.,:;+-*/%()<>=#_ ";
+  "?!.,:;+-*/%()<>=#_ " +
+  "—•▶";
+
+/** Glifos disponíveis no atlas (ordem da grade). Usado pelo teste de texto. */
+export const FONT_CHARS = CHARS;
 
 export const FONT = {
   big:   { src: "assets/font/font_big.png",   cw: 22, ch: 30, adv: 13, lh: 36 },
@@ -52,8 +59,17 @@ function fontTinted(fname, color) {
   return t;
 }
 
+// Largura real de uma linha: cada glifo avança `adv` px, mas a arte de um
+// glifo ocupa `cw` px de célula. O último caractere precisa da célula inteira,
+// senão a tinta além do avanço (ex.: W, Y, Ç, Ã, É) sai recortada.
+export function lineWidth(len, { font = "small", scale = 1 } = {}) {
+  if (len <= 0) return 0;
+  const F = FONT[font];
+  return ((len - 1) * F.adv + F.cw) * scale;
+}
+
 export function textWidth(text, { font = "small", scale = 1 } = {}) {
-  return String(text).length * FONT[font].adv * scale;
+  return lineWidth(String(text).length, { font, scale });
 }
 
 /** Renderiza (com cache) uma linha de texto e a desenha em ctx. */
@@ -82,7 +98,7 @@ function lineCanvas(text, fname, scale, color) {
   if (cv) return cv;
   const F = FONT[fname];
   const img = fontTinted(fname, color);
-  const w = Math.max(1, text.length * F.adv * scale);
+  const w = Math.max(1, lineWidth(text.length, { font: fname, scale }));
   const h = F.ch * scale;
   cv = document.createElement("canvas");
   cv.width = w; cv.height = h;
@@ -107,13 +123,12 @@ function lineCanvas(text, fname, scale, color) {
 /** Quebra texto em linhas cabendo em maxW. */
 export function wrapText(text, maxW, { font = "small", scale = 1 } = {}) {
   text = String(text).toUpperCase();
-  const adv = FONT[font].adv * scale;
   const words = text.split(" ");
   const lines = [];
   let line = "";
   for (const w of words) {
     const test = line ? line + " " + w : w;
-    if (test.length * adv > maxW && line) { lines.push(line); line = w; }
+    if (textWidth(test, { font, scale }) > maxW && line) { lines.push(line); line = w; }
     else line = test;
   }
   if (line) lines.push(line);

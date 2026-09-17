@@ -82,5 +82,10 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   - `node test/sim.mjs` — roda uma expedição desde o começo
   - `FORCE=N node test/sim.mjs` — pula direto para o chefão do mapa `N` (1–6) com um exército
     coerente, validando o spawn e a IA de cada chefe
+- `test/uitest.mjs` — boot → título → expedição → câmaras → pausa → troca de mapa (DOM simulado)
+- `test/assets.mjs` — integridade de sprites e de texto: todo nome de imagem usado pelo jogo
+  (props de cada bioma, unidades, inimigos, chefes, ícones) precisa estar no `MANIFEST`, e todo
+  caractere dos textos precisa existir no atlas da fonte (senão o jogo desenha `?`). Rode depois
+  de mexer em `js/config.js`, `js/assets.js` ou de regerar as fontes com `tools/prepare_assets.sh`.
 
 Chegue na porta, defenda a Rainha. A colônia é eterna.

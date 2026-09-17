@@ -201,10 +201,13 @@ icn "$I3/Skill_icon7.png"  sk_bomb.png
 if convert -list font 2>/dev/null | grep -qi "DejaVu-Sans-Mono-Bold"; then
 # Atlas bitmap gerado com DejaVu Sans Mono Bold SEM antialiasing (estilo pixel).
 # Célula fixa 22x30, grade 12 colunas. A ordem é a mesma de FONT.CHARS em font.js.
+# Os três últimos glifos são usados nos textos do jogo (— travessão, • marcador,
+# ▶ seta do botão de invocar onda). Ficam no FIM para não deslocar nenhum índice.
 CHS=(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z \
      Á À Â Ã É Ê Í Ó Ô Õ Ú Ç \
      0 1 2 3 4 5 6 7 8 9 \
-     '?' '!' '.' ',' ':' ';' '+' '-' '*' '/' '%' '(' ')' '<' '>' '=' '#' '_' ' ')
+     '?' '!' '.' ',' ':' ';' '+' '-' '*' '/' '%' '(' ')' '<' '>' '=' '#' '_' ' ' \
+     '—' '•' '▶')
 FDIR=$(mktemp -d)
 convert -size 22x30 xc:none "$FDIR/blank.png"
 i=0

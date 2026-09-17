@@ -3,7 +3,7 @@
 // ============================================================================
 import {
   VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL, UNITS, START, MAPS, CHAMBERS,
-  MUTATIONS, RARITY, HELP_LINES, CALM_START, MAX_MUTS, xpForLevel,
+  MUTATIONS, RARITY, HELP_GOAL, HELP_CONTROLS, HELP_TIPS, CALM_START, MAX_MUTS, xpForLevel,
 } from "./config.js";
 import { fogReset, fogUpdate, fogDraw, fogVisible, fogExplored, fogDrawMini } from "./fog.js";
 import {
@@ -32,7 +32,7 @@ import { rollDraft, applyMutation, mutationList } from "./mutations.js";
 import { drawRun, drawTitleBg } from "./render.js";
 import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect } from "./ui.js";
-import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT } from "./tutorial.js";
+import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
 import { rand, clamp, lerp, TAU, fmt } from "./utils.js";
 
 const canvas = document.getElementById("game");
@@ -672,37 +672,55 @@ function renderTitle() {
 }
 
 // ------------------------------------------------------------------ ajuda ----
+// Duas colunas: o texto é longo demais para uma só (a lista de controles
+// terminava fora do painel e fora do canvas). Tudo é quebrado por wrapText.
 function renderHelp() {
   drawTitleBg(ctx);
   ctx.fillStyle = "rgba(10,8,16,0.55)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  panel(ctx, 110, 30, VIEW_W - 220, VIEW_H - 100);
-  drawText(ctx, "COMO JOGAR", VIEW_W / 2, 52, { font: "big", scale: 2, color: "#ffd479", align: "center" });
+  const PX = 40, PY = 26, PW = VIEW_W - 80, PH = VIEW_H - 68; // 40..920 x 26..498
+  panel(ctx, PX, PY, PW, PH);
+  drawText(ctx, "COMO JOGAR", VIEW_W / 2, PY + 16,
+    { font: "big", scale: 2, color: "#ffd479", align: "center" });
 
-  let y = 118;
-  const leftX = 150, rightX = 430;
-  for (const [a, b] of HELP_LINES) {
-    if (b === "") {
-      if (a) {
-        // descrições longas: quebra para não vazar do painel
-        const lines = wrapText(a, 660, {});
-        for (const L of lines) {
-          drawText(ctx, L, leftX, y, { font: "big", scale: 1, color: "#c77dff" });
-          y += 26;
-        }
-        y -= 26 - 26 * lines.length;
-        y += 26;
-      } else y += 20;
-    } else {
-      drawText(ctx, a, leftX, y, { color: "#37e6c8" });
-      // coluna da direita com quebra (corrige textos vazando da caixa)
-      const lines = wrapText(b, 360, {});
-      lines.forEach((L, li) => {
-        drawText(ctx, L, rightX, y + li * 18, { color: PAL.text });
-      });
-      y += Math.max(22, lines.length * 18 + 4);
+  const colW = (PW - 96) / 2;                 // ~392
+  const colX = [PX + 30, PX + 66 + colW];
+  const descX = 134;                          // deslocamento da descrição
+
+  // ---- OBJETIVO: faixa de largura total ----
+  let y = PY + 76;
+  drawText(ctx, "OBJETIVO", colX[0], y, { font: "big", color: "#c77dff" });
+  y += 28;
+  for (const t of HELP_GOAL) {
+    for (const L of wrapText(t, PW - 60, {})) {
+      drawText(ctx, L, colX[0], y, { color: PAL.text });
+      y += 18;
     }
+  }
+  y += 18;
+
+  // ---- coluna esquerda: CONTROLES ----
+  let yl = y;
+  drawText(ctx, "CONTROLES", colX[0], yl, { font: "big", color: "#c77dff" });
+  yl += 28;
+  for (const [k, d] of HELP_CONTROLS) {
+    drawText(ctx, k, colX[0], yl, { color: "#37e6c8" });
+    const lines = wrapText(d, colW - descX, {});
+    lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 16, { color: PAL.text }));
+    yl += Math.max(20, lines.length * 16 + 4);
+  }
+
+  // ---- coluna direita: DICAS ----
+  let yr = y;
+  drawText(ctx, "DICAS", colX[1], yr, { font: "big", color: "#c77dff" });
+  yr += 28;
+  for (const t of HELP_TIPS) {
+    for (const L of wrapText(t, colW, {})) {
+      drawText(ctx, L, colX[1], yr, { color: PAL.text });
+      yr += 17;
+    }
+    yr += 6;
   }
 
   if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 56, w: 200, h: 38, label: "VOLTAR", id: "helpBack" })) {
@@ -750,9 +768,10 @@ function drawHUD() {
 
   let yy = 16;
   // 1) VIDA DO FORMIGUEIRO (a rainha lá dentro)
+  // rótulo tem ~93px de largura: a barra começa depois dele para não cobrir o texto
   drawText(ctx, "FORMIGUEIRO", 22, yy, { color: "#ffd479" });
   const hpFrac = q && q.maxHp ? clamp(q.hp / q.maxHp, 0, 1) : 0;
-  bar(ctx, 94, yy + 4, 164, 10, hpFrac, { c1: hpFrac < 0.3 ? "#ff4d5a" : "#ffd479", c2: "#a32e3a", segments: 10 });
+  bar(ctx, 120, yy + 4, 138, 10, hpFrac, { c1: hpFrac < 0.3 ? "#ff4d5a" : "#ffd479", c2: "#a32e3a", segments: 10 });
   yy += 21;
   // 2) NÍVEL + BARRA DE EXPERIÊNCIA
   drawText(ctx, "NÍVEL " + run.level, 22, yy, { color: "#6db7ff" });
@@ -825,9 +844,12 @@ function drawHUD() {
       VIEW_W / 2, 14, { font: "small", scale: 1, color: "#ffd479", align: "center" });
   }
 
-  // botão invocar onda — desliza sob o contador na calmaria
+  // botão invocar onda — desliza sob o contador na calmaria; se o cartão do
+  // tutorial estiver aberto, desce para logo abaixo dele (sem sobreposição)
   if (run.status === "running" && director.phase === "calm" && !run.draft && !paused && !run.transition) {
-    if (button(ctx, { x: VIEW_W / 2 - cw / 2, y: 66, w: cw, h: 26, label: "⏵ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
+    const tut = TUT.active ? tutorialCardRect() : null;
+    const by = tut ? tut.y + tut.h + 6 : 66;
+    if (button(ctx, { x: VIEW_W / 2 - cw / 2, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
       skipPeace();
     }
   }
@@ -982,13 +1004,17 @@ function drawBaseScreen() {
   ctx.fillStyle = "rgba(7,5,11,0.88)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   panel(ctx, px, py, PW, PH, { border: "#8a5f7a" });
-  drawText(ctx, "CÂMARA INTERNA DA COLÔNIA", VIEW_W / 2, py + 18, { font: "big", scale: 1, color: "#ffd479", align: "center" });
-  drawText(ctx, "Escavações da base — bônus valem durante ESTA expedição. Clique numa câmara para construir/melhorar.",
-    VIEW_W / 2, py + 44, { color: PAL.textDim, align: "center" });
+  // cabeçalho em faixas: cada texto com sua própria linha (antes o subtítulo
+  // era mais largo que o painel e a caixa de dica subia por cima do título)
+  drawText(ctx, "CÂMARA INTERNA DA COLÔNIA", VIEW_W / 2, py + 16, { font: "big", scale: 1, color: "#ffd479", align: "center" });
+  const baseSub = wrapText("Escavações da base — bônus valem durante ESTA expedição. Clique numa câmara para construir ou melhorar.", PW - 40, {});
+  baseSub.forEach((L, li) =>
+    drawText(ctx, L, VIEW_W / 2, py + 46 + li * 16, { color: PAL.textDim, align: "center" }));
+  const headH = 44 + baseSub.length * 16;
 
   // terra compactada de fundo (corte transversal)
   ctx.fillStyle = "#241609";
-  ctx.fillRect(px + 14, py + 64, PW - 28, PH - 64 - 44);
+  ctx.fillRect(px + 14, py + headH + 14, PW - 28, PH - headH - 14 - 44);
   for (let i = 0; i < 40; i++) {
     const ex = px + 20 + ((i * 173) % (PW - 48));
     const ey = py + 70 + ((i * 97) % (PH - 120));
@@ -1002,14 +1028,14 @@ function drawBaseScreen() {
     const rx2 = px + 40 + i * 76;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(rx2, py + 64);
-    ctx.quadraticCurveTo(rx2 + 20, py + 110, rx2 - 20, py + 150);
+    ctx.moveTo(rx2, py + headH + 20);
+    ctx.quadraticCurveTo(rx2 + 20, py + headH + 66, rx2 - 20, py + headH + 106);
     ctx.stroke();
   }
 
   // ---- CÂMARA REAL (a rainha) ----
   const qh = 64, qw = 240;
-  const qx = VIEW_W / 2 - qw / 2, qy = py + 78;
+  const qx = VIEW_W / 2 - qw / 2, qy = py + headH + 8;
   drawChamberRoom(qx, qy, qw, qh, "#6a4a16", "#ffd479");
   drawText(ctx, "CÂMARA REAL", VIEW_W / 2, qy + 8, { color: "#ffd479", align: "center" });
   const queen = allies.queen;
@@ -1071,8 +1097,10 @@ function drawBaseScreen() {
     const def = baseHover.def;
     const wTip = 248, lines = wrapText(def.tip + " " + def.per, wTip - 20, {});
     const th = 30 + lines.length * 16 + 10;
-    let tx = clamp(mouse.x + 18, 12, VIEW_W - wTip - 12);
-    let ty = clamp(mouse.y + 14, 12, VIEW_H - th - 12);
+    // mantém a dica dentro do painel e acima do botão VOLTAR
+    const tipTop = py + 8, tipBottom = py + PH - 52 - th;
+    let tx = clamp(mouse.x + 18, px + 8, px + PW - wTip - 8);
+    let ty = clamp(mouse.y + 14, tipTop, tipBottom);
     panel(ctx, tx, ty, wTip, th);
     drawText(ctx, def.name + "  (NÍVEL " + baseHover.lvl + "/" + def.max + ")", tx + 10, ty + 10, { color: "#ffd479" });
     lines.forEach((L, li) => drawText(ctx, L, tx + 10, ty + 30 + li * 16, { color: PAL.text }));
