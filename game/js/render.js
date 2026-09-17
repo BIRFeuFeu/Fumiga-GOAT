@@ -536,6 +536,21 @@ function drawBoss(ctx, b, w2s) {
 // ================================================================= TÍTULO ===
 let titleBg = null;
 
+/** Partículas de brasa subindo (animadas por cima do fundo do título). */
+export function drawTitleMotes(ctx, time) {
+  for (let i = 0; i < 30; i++) {
+    const seed = i * 37.7;
+    const x = (seed * 61 + time * (8 + (i % 5) * 4)) % VIEW_W;
+    const y = 520 - ((seed * 29 + time * (14 + (i % 3) * 7)) % 520);
+    const a = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(time * 1.7 + i));
+    const r = 1 + (i % 3);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = i % 3 ? "#ffd479" : "#ffeccb";
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 export function drawTitleBg(ctx) {
   if (!titleBg) bakeTitleBg();
   ctx.drawImage(titleBg, 0, 0);

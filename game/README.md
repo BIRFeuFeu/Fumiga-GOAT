@@ -64,12 +64,38 @@ visíveis nos próprios nós).
 | `WASD` / setas | também movem a câmera |
 | Roda do mouse | zoom |
 | `Espaço` | centraliza no formigueiro |
-| `1`–`9` | choca a classe selecionada (9 = gigante) |
+| `B` | **entra no formigueiro** (a cena viva de dentro) |
+| `1`–`9` | choca a classe selecionada (9 = gigante) — só com a fileira **FORMIGAS** aberta |
+| `Q` | abre/fecha a fileira das 9 classes de formigas |
 | `F` | convoca a guarda para defender |
 | `G` | invoca a próxima onda (bônus de essência) |
 | `T` | pula o tutorial |
 | `M` | liga/desliga som |
 | `Esc` | **pausa** (Continuar / Como jogar / Reiniciar / Sair) |
+
+### Dentro do formigueiro (tecla `B`)
+
+O botão **FORMIGUEIRO**, no canto inferior-direito, entra na colônia — um corte transversal vivo,
+no espírito do *Ant Colony* (pasta `inspiração/`): túneis de terra, câmaras e as formigas
+trabalhando em tempo real.
+
+- **Carregadoras** (operárias e coletoras) pegam comida na **ENTRADA** e levam para a **DESPENSA** —
+  cada entrega rende comida de verdade para a expedição.
+- **Escavadoras**: quando você clica numa câmara, as operárias largam a coleta, vão para a obra e
+  o nível sobe ao fim da escavação (custo pago no início, barra de progresso na câmara).
+- **Curandeiras** cuidam das larvas no **BERÇÁRIO**, que de tempos em tempos gera uma operária
+  nova (mais rápido com o berçário melhorado).
+- A **RAINHA** bota ovos na **CÂMARA REAL**; os ovos viram larvas e as larvas viram formigas.
+- No **QUARTEL** fica a FORMIGA GIGANTE de folga; **FUNGÁRIO** e **REFINARIA** enchem a sala de
+  fungos e cristais conforme o nível.
+- O mundo lá fora **congela** enquanto você está dentro; o cabeçalho mostra comida, essência,
+  população e quanto as formigas já entregaram. `B` ou `Esc` volta para a colônia.
+
+### HUD da expedição
+
+- O rodapé tem só dois botões: **FORMIGAS** (esquerda, abre a fileira das 9 classes — tecla `Q`) e
+  **FORMIGUEIRO** (canto inferior-direito). Nove cartões fixos na tela eram ruído demais.
+- O **minimapa** fica no canto **superior-direito**, livre do rodapé.
 
 ### Tutorial dinâmico
 
@@ -80,7 +106,9 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 ## Desenvolvimento
 
 - `js/` — módulos ES (game, units, enemies, waves, world, render, combat, particles,
-  tutorial, meta, audio, config, state, ui, font, input, camera, utils)
+  tutorial, meta, nest, audio, config, state, ui, font, input, camera, utils)
+- `js/nest.js` — a cena de dentro do formigueiro (salas, túneis, IA das formigas: carregar,
+  escavar, cuidar das larvas)
 - `assets/` — sprites e fontes bitmap processados
 - `tools/prepare_assets.sh` — regenera os sprites a partir das fontes
 - `test/sim.mjs` — simulação headless da expedição inteira:

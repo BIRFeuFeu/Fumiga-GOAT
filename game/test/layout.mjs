@@ -186,6 +186,7 @@ const { startTutorial, stopTutorial, TUT } = await import(BASE + "tutorial.js");
 const { enterTree } = await import(BASE + "meta.js");
 const { director, resetDirector } = await import(BASE + "waves.js");
 const { spawnBoss, foes } = await import(BASE + "enemies.js");
+const { nestExit } = await import(BASE + "nest.js");
 const { world } = await import(BASE + "world.js");
 const { allies } = await import(BASE + "units.js");
 
@@ -366,6 +367,11 @@ auditFrame("RUN hud", frame(), { uiStart: "auto" });
 clickAt(58, G.run ? 108 : 108);
 auditFrame("RUN hud expandido", frame(), { uiStart: "auto" });
 
+// botão FORMIGAS: abre a fileira das 9 classes no rodapé (recolhida por padrão)
+clickAt(62, 540 - 100 + 44);
+auditFrame("RUN formigas abertas", frame(), { uiStart: "auto" });
+clickAt(62, 540 - 100 + 44);   // fecha de novo
+
 // GIGANTE em campo: colosso de 20x a soldado, arte assada 5x e ampliada no
 // desenho. Fica com comida sobrando para a loja mostrar o slot habilitado.
 const { spawnAnt } = await import(BASE + "units.js");
@@ -405,10 +411,11 @@ G.run.draft = { options: (await import(BASE + "mutations.js")).rollDraft(), t: 2
 auditFrame("RUN draft", frame(), { uiStart: "auto" });
 G.run.draft = null;
 
-// base / câmara interna
+// FORMIGUEIRO (cena viva): abre pelo botão do canto inferior-direito
 G.run.baseOpen = true;
-auditFrame("RUN câmara interna", frame(), { uiStart: "auto" });
+auditFrame("RUN formigueiro", frame(), { uiStart: "auto" });
 G.run.baseOpen = false;
+nestExit();
 
 // pausa
 const { setPaused } = await import(BASE + "game.js");

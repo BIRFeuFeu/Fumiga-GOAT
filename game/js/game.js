@@ -29,10 +29,11 @@ import {
   director, resetDirector, updateDirector, skipPeace, mapDef, waveDef, isLastMap, nextMapCalm,
 } from "./waves.js";
 import { rollDraft, applyMutation, mutationList } from "./mutations.js";
-import { drawRun, drawTitleBg } from "./render.js";
+import { drawRun, drawTitleBg, drawTitleMotes } from "./render.js";
 import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
+import { nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover } from "./nest.js";
 import { rand, clamp, lerp, TAU, fmt } from "./utils.js";
 
 const canvas = document.getElementById("game");
@@ -53,7 +54,12 @@ const SHOP = [
 
 // Geometria da fileira da loja: 9 classes + a câmara interna precisam terminar
 // antes do minimapa (x=770). Passo 74 e 70 de largura deixam 10..752.
-const SHOP_W = 70, SHOP_PITCH = 74;
+const SHOP_W = 70, SHOP_PITCH = 76;
+
+// O painel de formigas começa RECOLHIDO: o rodapé só mostra o botão FORMIGAS
+// (que abre a fileira das 9 classes) e o botão do FORMIGUEIRO, no canto
+// inferior-direito. Um botão, um lugar — nada de nove cartões fixos na tela.
+let shopOpen = false;
 
 // ------------------------------------------------------------------ run -----
 function newRun() {
@@ -67,6 +73,7 @@ function newRun() {
   allies.length = 0;
   camReset();
   paused = false;
+  nestExit();
 
   const m = metaBonus();
   const run = {
@@ -296,11 +303,12 @@ function updateRun(dt) {
   const simDt = dt * G.timeScale;
   run.elapsed += simDt;
 
-  // ----------------------------------------- câmara interna (construção) ---
+  // ------------------------- FORMIGUEIRO (cena viva, inspiração Ant Colony)
   if (run.baseOpen) {
-    if (pressed.Escape || pressed.KeyB) { run.baseOpen = false; SFX.uiClick(); }
+    if (pressed.Escape || pressed.KeyB) { closeNest(run, true); hudInputless(dt); return; }
+    nestUpdate(dt);            // as formigas trabalham enquanto você assiste
     hudInputless(dt);
-    return; // mundo congelado enquanto a câmara está aberta
+    return;                    // mundo congelado enquanto você está lá dentro
   }
 
   // -------------------------------------------------------- pausa (ESC) -----
@@ -392,8 +400,9 @@ function updateRun(dt) {
       }
     }
   }
+  if (pressed.KeyQ) { shopOpen = !shopOpen; SFX.uiClick(); }
   if (pressed.KeyG && director.phase === "calm") skipPeace();
-  if (pressed.KeyB && run.status === "running") { run.baseOpen = true; SFX.uiClick(); }
+  if (pressed.KeyB && run.status === "running") { openNest(run); }
   if (pressed.KeyF) {
     const n = rallyDefenders(world.anthill);
     tutEvent("rally", n);
@@ -644,17 +653,42 @@ function cursorCustom() {
 // ------------------------------------------------------------------ título ---
 function renderTitle() {
   drawTitleBg(ctx);
+  drawTitleMotes(ctx, G.time);
 
-  // =============================================================== Dead Cells
-  // Título minimalista: logo escuro sobre o pôr-do-sol, 3 botões discretos,
-  // sem painéis extras poluindo a tela.
-  const tY = 52 + Math.sin(G.time * 0.8) * 3;
-  drawText(ctx, "FUMIGA", 66, tY, { font: "big", scale: 4, color: "#170b22", shadowColor: "rgba(255,214,140,0.85)" });
-  drawText(ctx, "COLÔNIA ETERNA", 72, tY + 128, { font: "small", scale: 2, color: "#2a0f2e" });
-  drawText(ctx, "um roguelite de colônia de formigas", 72, tY + 164, { color: "#3a1530" });
+  // ====================================================== inspiração2 ------
+  // Logo-neon (letras claras com halo ciano e contorno escuro), silhueta do
+  // formigueiro no horizonte e um "PRESSIONE PARA COMEÇAR" discreto — o menu
+  // é a cena, os botões são o mínimo.
+  const tY = 62 + Math.sin(G.time * 0.8) * 3;
+  const logo = (x, y, str, font, scale) => {
+    const off = [
+      [-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3],
+    ];
+    ctx.globalAlpha = 0.10;
+    for (const [dx, dy] of off) drawText(ctx, str, x + dx, y + dy, { font, scale, color: "#35e8ff" });
+    ctx.globalAlpha = 0.30;
+    for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+      drawText(ctx, str, x + dx, y + dy, { font, scale, color: "#5ff4ff" });
+    }
+    ctx.globalAlpha = 1;
+    // contorno escuro separa o halo das letras
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      drawText(ctx, str, x + dx, y + dy, { font, scale, color: "#0a1a24" });
+    }
+    drawText(ctx, str, x, y, { font, scale, color: "#eafffb" });
+  };
+  logo(66, tY, "FUMIGA", "big", 4);
+  drawText(ctx, "COLÔNIA ETERNA", 70, tY + 130, { font: "small", scale: 2, color: "#08131c", shadowColor: "rgba(95,244,255,0.55)" });
+  drawText(ctx, "um roguelite de colônia de formigas", 72, tY + 166, { color: "#2a0f2e" });
 
   // menu: coluna esquerda, chips escuros (contraste na cena clara)
   const bx = 66, bw = 268;
+  const pulse = 0.55 + 0.45 * Math.sin(G.time * 3.2);
+  drawText(ctx, "PRESSIONE PARA COMEÇAR", bx, 254, { color: "#2a0f2e" });
+  ctx.globalAlpha = 0.35 + pulse * 0.5;
+  ctx.fillStyle = "#eafffb";
+  ctx.fillRect(bx + 214, 254 + 3, 8, 11);
+  ctx.globalAlpha = 1;
   if (button(ctx, { x: bx, y: 272, w: bw, h: 44, label: "INICIAR EXPEDIÇÃO", font: "big", scale: 1, id: "start", accent: "#37e6c8" })) {
     initAudio();
     newRun();
@@ -671,13 +705,13 @@ function renderTitle() {
     return;
   }
 
-  // rodapé mínimo: 1 linha com tudo
+  // rodapé minimalista à esquerda (versão + progresso), como na referência
+  drawText(ctx, "v2.2", 24, VIEW_H - 20, { color: "#ffd9a0" });
   drawText(ctx, "GELÉIA REAL: " + G.save.essence +
     "   •   VITÓRIAS " + G.save.best.wins + "/" + G.save.best.runs +
     "   •   MELHOR: MAPA " + (G.save.best.maps || 0) +
     "   •   M: SOM",
-    24, VIEW_H - 20, { color: "#ffd9a0" });
-  drawText(ctx, "v2.1", VIEW_W - 20, VIEW_H - 20, { color: "#ffd9a0", align: "right" });
+    62, VIEW_H - 20, { color: "#ffd9a0" });
 }
 
 // ------------------------------------------------------------------ ajuda ----
@@ -761,7 +795,7 @@ function renderRun() {
   }
   if (run.draft && !paused) drawDraft(run.draft);
   if (run.transition && !paused) drawTransition(run);
-  if (run.baseOpen) drawBaseScreen();
+  if (run.baseOpen) drawNestScreen(run);
   if (paused) drawPause();
   if (run.status === "ended") drawEnd(run);
 }
@@ -769,6 +803,28 @@ function renderRun() {
 let lastDt = 1 / 60;
 export function setLastDt(v) { lastDt = v; }
 function dtClampForAnim() { return lastDt; }
+
+// ------------------------------------------------------- formigueiro (cena) --
+function openNest(run) {
+  run.baseOpen = true;
+  nestEnter();
+  SFX.uiClick();
+}
+
+function closeNest(run, click) {
+  run.baseOpen = false;
+  nestExit();
+  if (click) SFX.uiClick();
+}
+
+// A cena do formigueiro trata os próprios cliques (câmaras + botão de sair)
+function drawNestScreen(run) {
+  if (!nest.open) nestEnter();
+  nestHover(mouse.x, mouse.y);
+  const action = nestDraw(ctx);
+  if (mouse.justDown && action !== "back") nestClick(mouse.x, mouse.y);
+  if (action === "back") closeNest(run, true);
+}
 
 // Faixa vertical logo abaixo do contador de onda, já descontando o cartão do
 // tutorial quando ele está na tela: é onde entram a barra do chefe e o botão
@@ -883,60 +939,83 @@ function drawHUD() {
     }
   }
 
-  // ============ LOJA DE UNIDADES (rodapé-esquerdo) ============
+  // ============ RODAPÉ: FORMIGAS (recolhido) + FORMIGUEIRO ============
+  // À esquerda, um botão abre a fileira das 9 classes de formigas (tecla Q) —
+  // antes os nove cartões ficavam fixos na tela. À direita, no canto, fica o
+  // botão que entra no formigueiro (a cena viva, tecla B).
   shopTooltip = null;
-  const shopY = VIEW_H - 100;
-  for (let i = 0; i < SHOP.length; i++) {
-    const s = SHOP[i];
-    const x = 10 + i * SHOP_PITCH;
-    const cost = unitCost(s.type);
-    const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(s.type);
-    const r = iconButton(ctx, { x, y: shopY, w: SHOP_W, h: 88, id: "shop" + s.type, disabled: !canBuy, frame: s.accent });
-    const frame = rotFrame(UNITS[s.type].sprite, Math.PI / 2);
-    // a gigante é assada 5x maior: mesmo ícone, escala própria para caber
-    const sc2 = s.iconScale !== undefined ? s.iconScale
-      : s.type === "worker" || s.type === "scout" || s.type === "gatherer" ? 0.55 : 0.46;
-    ctx.globalAlpha = canBuy ? 1 : 0.35;
-    ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, shopY + 8, frame.width * sc2, frame.height * sc2);
-    ctx.globalAlpha = 1;
-    drawText(ctx, s.label, x + SHOP_W / 2, shopY + 52, { scale: 1, color: canBuy ? PAL.text : "#5a4f78", align: "center" });
-    if (IMG.i_food) { ctx.globalAlpha = canBuy ? 1 : 0.5; ctx.drawImage(IMG.i_food, x + 5, shopY + 66, 14, 14); ctx.globalAlpha = 1; }
-    drawText(ctx, cost, x + 22, shopY + 68, { color: canBuy ? "#ffd479" : "#a32e46" });
-    drawText(ctx, String(i + 1), x + SHOP_W - 7, shopY + 66, { color: PAL.textDim, align: "center" });
-    if (r.hot) shopTooltip = s;
-    if (live && r.clicked) {
-      const res = buyUnit(s.type);
-      if (!res.ok) {
-        const wp = screenToWorld(x + SHOP_W / 2, shopY - 14);
-        floatText(wp.x, wp.y, res.why, { color: "#ff4d5a", life: 1 });
+  const footY = VIEW_H - 100;
+  const shopSprite = rotFrame("worker", Math.PI / 2);
+  const rShop = iconButton(ctx, { x: 10, y: footY, w: 104, h: 88, id: "shopToggle",
+    frame: shopOpen ? "#ffd479" : "#37e6c8", selected: shopOpen });
+  ctx.drawImage(shopSprite, 10 + 52 - shopSprite.width * 0.5 / 2, footY + 4,
+    shopSprite.width * 0.5, shopSprite.height * 0.5);
+  drawText(ctx, "FORMIGAS", 10 + 52, footY + 50, { color: PAL.text, align: "center" });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 10 + 52, footY + 66,
+    { color: shopOpen ? "#ffd479" : "#37e6c8", align: "center" });
+  if (live && rShop.clicked) { shopOpen = !shopOpen; }
+
+  if (shopOpen) {
+    const x0 = 10 + 104 + 6;
+    for (let i = 0; i < SHOP.length; i++) {
+      const sp = SHOP[i];
+      const x = x0 + i * SHOP_PITCH;
+      const cost = unitCost(sp.type);
+      const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(sp.type);
+      const r = iconButton(ctx, { x, y: footY, w: SHOP_W, h: 88, id: "shop" + sp.type, disabled: !canBuy, frame: sp.accent });
+      const frame = rotFrame(UNITS[sp.type].sprite, Math.PI / 2);
+      const sc2 = sp.iconScale !== undefined ? sp.iconScale
+        : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" ? 0.5 : 0.42;
+      ctx.globalAlpha = canBuy ? 1 : 0.35;
+      ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 6, frame.width * sc2, frame.height * sc2);
+      ctx.globalAlpha = 1;
+      drawText(ctx, sp.label, x + SHOP_W / 2, footY + 50, { color: canBuy ? PAL.text : "#5a4f78", align: "center" });
+      if (IMG.i_food) { ctx.globalAlpha = canBuy ? 1 : 0.5; ctx.drawImage(IMG.i_food, x + 4, footY + 66, 13, 13); ctx.globalAlpha = 1; }
+      drawText(ctx, cost, x + 20, footY + 68, { color: canBuy ? "#ffd479" : "#a32e46" });
+      drawText(ctx, String(i + 1), x + SHOP_W - 7, footY + 66, { color: PAL.textDim, align: "center" });
+      if (r.hot) shopTooltip = sp;
+      if (live && r.clicked) {
+        const res = buyUnit(sp.type);
+        if (!res.ok) {
+          const wp = screenToWorld(x + SHOP_W / 2, footY - 14);
+          floatText(wp.x, wp.y, res.why, { color: "#ff4d5a", life: 1 });
+        }
       }
     }
-  }
-  // botão da CÂMARA INTERNA (tecla B) logo após a loja
-  const bx = 10 + SHOP.length * SHOP_PITCH + 4;
-  const rCol = iconButton(ctx, { x: bx, y: shopY, w: 72, h: 88, id: "baseBtn", frame: "#c77dff" });
-  if (IMG.nest) {
-    const ni = IMG.nest;
-    ctx.drawImage(ni, bx + 36 - 17, shopY + 8, 34, 34);
-  } else if (IMG.i_essence) {
-    ctx.drawImage(IMG.i_essence, bx + 36 - 17, shopY + 8, 34, 34);
-  }
-  drawText(ctx, "COLÔNIA", bx + 36, shopY + 52, { scale: 1, color: PAL.text, align: "center" });
-  drawText(ctx, "BASE (B)", bx + 36, shopY + 68, { scale: 1, color: "#c77dff", align: "center" });
-  if (live && rCol.clicked) {
-    run.baseOpen = true;
-    SFX.uiClick();
   }
 
   if (shopTooltip) {
     const tipLines = wrapText(UNITS[shopTooltip.type].tip, 248, {});
     const th = 26 + tipLines.length * 16 + 8;
-    panel(ctx, 10, shopY - 10 - th, 268, th);
-    drawText(ctx, UNITS[shopTooltip.type].name, 20, shopY - 10 - th + 10, { color: "#ffd479" });
-    tipLines.forEach((L, li) => drawText(ctx, L, 20, shopY - 10 - th + 28 + li * 16, { color: PAL.text }));
+    panel(ctx, 10, footY - 12 - th, 268, th);
+    drawText(ctx, UNITS[shopTooltip.type].name, 20, footY - 12 - th + 10, { color: "#ffd479" });
+    tipLines.forEach((L, li) => drawText(ctx, L, 20, footY - 12 - th + 28 + li * 16, { color: PAL.text }));
   }
 
-  // minimapa (rodapé-direito)
+  // ---- FORMIGUEIRO: canto inferior-direito ----
+  const nw = 132, nx2 = VIEW_W - 10 - nw;
+  const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 88, id: "nestBtn", frame: "#ffd479" });
+  const nestImg = IMG.nest || IMG.i_essence;
+  if (nestImg) ctx.drawImage(nestImg, nx2 + nw / 2 - 20, footY + 6, 40, 40);
+  // formiguinhas entrando na boca do formigueiro (chama a atenção)
+  {
+    const t = G.time * 2.2;
+    for (let i = 0; i < 3; i++) {
+      const ph = (t + i * 0.33) % 1;
+      const ax = nx2 + nw / 2 - 26 + ph * 52;
+      const ay = footY + 44 - Math.sin(ph * Math.PI) * 7;
+      ctx.fillStyle = "#ffd479";
+      ctx.fillRect(ax, ay, 3, 2);
+    }
+  }
+  drawText(ctx, "FORMIGUEIRO", nx2 + nw / 2, footY + 50, { color: PAL.text, align: "center" });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 66, { color: "#ffd479", align: "center" });
+  if (live && rNest.clicked) {
+    openNest(run);
+    return;
+  }
+
+  // minimapa (canto SUPERIOR-direito)
   drawMinimap();
 
   // barra do chefão (sob o contador central)
@@ -970,7 +1049,7 @@ function drawHUD() {
 
   // dica de controles rodapé central
   if (run.elapsed < 14 && run.status === "running") {
-    drawText(ctx, "ESQ: CÂMERA/ORDEM  •  DIR: SELECIONAR  •  B: BASE  •  ESC: PAUSA",
+    drawText(ctx, "ESQ: CÂMERA/ORDEM  •  DIR: SELECIONAR  •  Q: FORMIGAS  •  B: FORMIGUEIRO  •  ESC: PAUSA",
       VIEW_W / 2, VIEW_H - 118, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4 });
   }
 }
@@ -980,7 +1059,7 @@ let hudExpanded = false;
 function drawMinimap() {
   const run = G.run;
   const mw = MINI.w, mh = MINI.h;
-  const mx = VIEW_W - mw - 10, my = VIEW_H - mh - 10;
+  const mx = VIEW_W - mw - 10, my = 10;      // canto superior-direito
   uiButtons().push({ x: mx - 3, y: my - 3, w: mw + 6, h: mh + 6, id: "minimap" });
   ctx.fillStyle = "rgba(10,8,16,0.75)";
   ctx.fillRect(mx - 3, my - 3, mw + 6, mh + 6);
@@ -1022,173 +1101,6 @@ function drawMinimap() {
     cam.y = (mouse.y - my) / sy;
     SFX.uiClick();
   }
-}
-
-// ===================================================================== BASE ==
-// TELA DA CÂMARA INTERNA: corte transversal do formigueiro com construção de
-// câmaras que dão bônus à expedição em curso (estilo Ant Colony).
-const CH_ORDER = ["nursery", "pantry", "barracks", "fungus", "refinery"];
-const CH_POS = {
-  nursery:  [150, 210],
-  pantry:   [335, 210],
-  barracks: [520, 210],
-  fungus:   [242, 332],
-  refinery: [428, 332],
-};
-
-function drawBaseScreen() {
-  const run = G.run;
-  const PW = 640, PH = 440;
-  const px = VIEW_W / 2 - PW / 2, py = (VIEW_H - PH) / 2;
-
-  ctx.fillStyle = "rgba(7,5,11,0.88)";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  panel(ctx, px, py, PW, PH, { border: "#8a5f7a" });
-  // cabeçalho em faixas: cada texto com sua própria linha (antes o subtítulo
-  // era mais largo que o painel e a caixa de dica subia por cima do título)
-  drawText(ctx, "CÂMARA INTERNA DA COLÔNIA", VIEW_W / 2, py + 16, { font: "big", scale: 1, color: "#ffd479", align: "center" });
-  const baseSub = wrapText("Escavações da base — bônus valem durante ESTA expedição. Clique numa câmara para construir ou melhorar.", PW - 40, {});
-  baseSub.forEach((L, li) =>
-    drawText(ctx, L, VIEW_W / 2, py + 46 + li * 16, { color: PAL.textDim, align: "center" }));
-  const headH = 44 + baseSub.length * 16;
-
-  // terra compactada de fundo (corte transversal)
-  ctx.fillStyle = "#241609";
-  ctx.fillRect(px + 14, py + headH + 14, PW - 28, PH - headH - 14 - 44);
-  for (let i = 0; i < 40; i++) {
-    const ex = px + 20 + ((i * 173) % (PW - 48));
-    const ey = py + 70 + ((i * 97) % (PH - 120));
-    ctx.fillStyle = i % 2 ? "#2c1c0d" : "#1c1107";
-    ctx.fillRect(ex, ey, 6, 3);
-  }
-
-  // raízes escancaradas
-  ctx.strokeStyle = "#171007";
-  for (let i = 0; i < 8; i++) {
-    const rx2 = px + 40 + i * 76;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(rx2, py + headH + 20);
-    ctx.quadraticCurveTo(rx2 + 20, py + headH + 66, rx2 - 20, py + headH + 106);
-    ctx.stroke();
-  }
-
-  // ---- CÂMARA REAL (a rainha) ----
-  const qh = 64, qw = 240;
-  const qx = VIEW_W / 2 - qw / 2, qy = py + headH + 8;
-  drawChamberRoom(qx, qy, qw, qh, "#6a4a16", "#ffd479");
-  drawText(ctx, "CÂMARA REAL", VIEW_W / 2, qy + 8, { color: "#ffd479", align: "center" });
-  const queen = allies.queen;
-  if (queen && !queen.dead) {
-    const frac = clamp(queen.hp / queen.maxHp, 0, 1);
-    bar(ctx, qx + 60, qy + 34, qw - 120, 10, frac, { c1: "#ffd479", c2: "#a35a2c", segments: 8 });
-    drawText(ctx, Math.ceil(queen.hp) + "/" + queen.maxHp, VIEW_W / 2, qy + 48, { color: "#ffe6b0", align: "center" });
-  }
-  if (IMG.queen) {
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(IMG.queen, qx + 8, qy + 18, 40, 40);
-    ctx.globalAlpha = 1;
-  }
-
-  // ---- câmaras construtíveis ----
-  baseHover = null;
-  for (const id of CH_ORDER) {
-    const def = CHAMBERS[id];
-    const lvl = run.chambers[id];
-    const [lx, ly] = CH_POS[id];
-    const rx = px + lx - 82, ry = py + ly - 46;
-    const maxed = lvl >= def.max;
-    const cost = maxed ? null : def.costs[lvl];
-    const afford = !maxed && run.food >= cost.food && run.essencePool >= cost.ess;
-    drawChamberRoom(rx, ry, 164, 92, afford ? "#3a2a12" : "#241a0c", afford ? "#c9a659" : "#5c4626");
-
-    // nome + pips
-    drawText(ctx, def.name, rx + 82, ry + 10, { color: lvl > 0 ? "#ffd479" : PAL.textDim, align: "center" });
-    for (let i = 0; i < def.max; i++) {
-      ctx.fillStyle = i < lvl ? "#ffd479" : "#2c2414";
-      ctx.fillRect(rx + 82 - (def.max - 1) * 8 + i * 16 - 6, ry + 24, 12, 5);
-    }
-    // ícone
-    const ic = IMG["i_" + def.icon];
-    ctx.globalAlpha = lvl > 0 ? 1 : 0.55;
-    if (ic) ctx.drawImage(ic, rx + 82 - 17, ry + 32, 34, 34);
-    ctx.globalAlpha = 1;
-    // preço ou MAX
-    if (maxed) {
-      drawText(ctx, "NÍVEL MÁXIMO", rx + 82, ry + 70, { color: "#7fd6a0", align: "center" });
-    } else {
-      const can = afford;
-      if (IMG.i_food) ctx.drawImage(IMG.i_food, rx + 34, ry + 68, 13, 13);
-      drawText(ctx, cost.food, rx + 52, ry + 70, { color: run.food >= cost.food ? "#ffd479" : "#ff8a96" });
-      if (cost.ess > 0) {
-        if (IMG.i_essence) ctx.drawImage(IMG.i_essence, rx + 92, ry + 68, 13, 13);
-        drawText(ctx, cost.ess, rx + 110, ry + 70, { color: run.essencePool >= cost.ess ? "#c77dff" : "#ff8a96" });
-      }
-    }
-
-    const hot = pointInRect(mouse.x, mouse.y, rx, ry, 164, 92);
-    uiButtons().push({ x: rx, y: ry, w: 164, h: 92, id: "chamber_" + id });
-    if (hot) baseHover = { id, def, lvl, maxed, cost, rx, ry };
-    if (hot && mouse.justDown) tryBuildChamber(id);
-  }
-
-  // tooltip da câmara sob o mouse
-  if (baseHover) {
-    const def = baseHover.def;
-    const wTip = 248, lines = wrapText(def.tip + " " + def.per, wTip - 20, {});
-    const th = 30 + lines.length * 16 + 10;
-    // mantém a dica dentro do painel e acima do botão VOLTAR
-    const tipTop = py + 8, tipBottom = py + PH - 52 - th;
-    let tx = clamp(mouse.x + 18, px + 8, px + PW - wTip - 8);
-    let ty = clamp(mouse.y + 14, tipTop, tipBottom);
-    panel(ctx, tx, ty, wTip, th);
-    drawText(ctx, def.name + "  (NÍVEL " + baseHover.lvl + "/" + def.max + ")", tx + 10, ty + 10, { color: "#ffd479" });
-    lines.forEach((L, li) => drawText(ctx, L, tx + 10, ty + 30 + li * 16, { color: PAL.text }));
-  }
-
-  // botão voltar
-  if (button(ctx, { x: VIEW_W / 2 - 90, y: py + PH - 42, w: 180, h: 30, label: "VOLTAR (B)", id: "baseBack" })) {
-    run.baseOpen = false;
-    SFX.uiClick();
-  }
-}
-
-let baseHover = null;
-
-function drawChamberRoom(x, y, w, h, fill, rim) {
-  // "buraco" arredondado na terra, estilo corte do Ant Colony
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, TAU);
-  ctx.fill();
-  ctx.strokeStyle = rim;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, y + h / 2, w / 2 - 1, h / 2 - 1, 0, 0, TAU);
-  ctx.stroke();
-  // sombreamento superior do túnel
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, y + h * 0.32, w / 2 - 4, h * 0.18, 0, 0, TAU);
-  ctx.fill();
-}
-
-function tryBuildChamber(id) {
-  const run = G.run;
-  const def = CHAMBERS[id];
-  const lvl = run.chambers[id];
-  if (lvl >= def.max) { SFX.deny(); return; }
-  const cost = def.costs[lvl];
-  if (run.food < cost.food || run.essencePool < cost.ess) {
-    SFX.deny();
-    return;
-  }
-  run.food -= cost.food;
-  run.essencePool -= cost.ess;
-  run.chambers[id] = lvl + 1;
-  SFX.buy();
-  SFX.chime();
-  recomputeAllies();
 }
 
 // ----------------------------------------------------------------- banner ---

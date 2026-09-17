@@ -71,19 +71,31 @@ en.spawnBoss(G.run ? waves.mapDef().boss : "hare", G.run.wave);
 await wait(400);
 expect(!!en.boss, "chefe presente: " + (en.boss && en.boss.kind));
 
-// ---- FORMIGA GIGANTE: slot 9 da loja, corpo de 20 soldados, uma só por run
-const SHOP_Y = 540 - 100, GIANT_X = 10 + 8 * 74 + 35;
+// ---- HUD: as formigas só aparecem no botão FORMIGAS (recolhido por padrão)
+const FOOT_Y = 540 - 100, SHOP_TOGGLE_X = 10 + 52, GIANT_X = 10 + 104 + 6 + 8 * 76 + 35;
+expect(units.eggs.length === 0, "loja começa recolhida (sem encomenda pendente)");
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40); mouse.justUp = false; await wait(60);
+expect(units.eggs.length === 0, "clicar onde ficaria a gigante não compra nada com a loja fechada");
+
+// abre pelo botão FORMIGAS
+mouse.x = SHOP_TOGGLE_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40); mouse.justUp = false; await wait(60);
+
+// ---- FORMIGA GIGANTE: slot 9 da loja aberta, corpo de 20 soldados, 1 por run
 G.run.food = 999;
-mouse.x = GIANT_X; mouse.y = SHOP_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
 await wait(60);
 mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40);
 mouse.justUp = false;
 await wait(60);
-expect(units.eggs.some(e => e.type === "giant"), "gigante encomendada no 9º slot da loja");
+expect(units.eggs.some(e => e.type === "giant"), "gigante encomendada no 9º slot da loja aberta");
 const foodAfterGiant = G.run.food;
 G.run.food = 999;
-mouse.x = GIANT_X; mouse.y = SHOP_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
 await wait(60);
 mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40);
@@ -96,27 +108,67 @@ await wait(120);
 expect(gi.bodyR === 240, "corpo da gigante = 20x a soldado (bodyR " + gi.bodyR + ")");
 expect(G.run.status === "running", "run segue viva com o colosso em campo");
 
-// ---- câmara interna (base-building)
-pressed.KeyB = true;
-await wait(60);
-pressed.KeyB = false;
-await wait(100);
-expect(G.run.baseOpen === true, "tela da câmara abriu (B)");
-// tenta construir o berçário clicando no retângulo da câmara
+// ---- FORMIGUEIRO (a cena viva): entra pelo botão do canto inferior-direito
+const nestMod = await import(BASE + "/nest.js");
+mouse.x = 960 - 10 - 132 + 66; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40); mouse.justUp = false; await wait(120);
+expect(G.run.baseOpen === true && nestMod.nest.open === true, "formigueiro aberto pelo botão do canto");
+expect(nestMod.nest.ants.length >= 1, "formigas trabalhando lá dentro (" + nestMod.nest.ants.length + ")");
+
+// clica numa câmara: começa a ESCAVAÇÃO (não é mais um clique instantâneo)
 G.run.food = 999; G.run.essencePool = 999;
-const PW = 640, PH = 440, pxo = 960 / 2 - PW / 2, pyo = (540 - PH) / 2;
-mouse.x = pxo + 150; mouse.y = pyo + 210; mouse.down = mouse.justDown = true;
-await wait(60);
-mouse.down = mouse.justDown = false; mouse.justUp = true;
-await wait(40);
-mouse.justUp = false;
-expect(G.run.chambers.nursery === 1, "berçário construído ao clicar na câmara");
-// fecha com ESC
+const rr = nestMod.NEST_ROOMS.find(r => r.id === "pantry");
+mouse.x = rr.x + rr.w / 2; mouse.y = rr.y + rr.h / 2; mouse.down = mouse.justDown = true;
+await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
+await wait(40); mouse.justUp = false; await wait(60);
+expect(!!nestMod.nest.dig && nestMod.nest.dig.id === "pantry",
+  "escavação da despensa começou com as formigas na obra (" + nestMod.nest.ants.filter(n => n.job === "digger").length + " escavando)");
+
+// a comida foi gasta no início da obra e o nível só sobe no fim
+const foodDuringDig = G.run.food;
+await wait(7200);   // a obra leva ~6s com as escavadoras (mais rápido a cada nível)
+expect(G.run.chambers.pantry === 1, "despensa ficou pronta depois da escavação (nível " + G.run.chambers.pantry + ", comida na obra: " + foodDuringDig + ")");
+
+// entregas: uma carregadora na despensa entrega na hora (caminho determinístico,
+// sem depender do tempo real do laço — antes esse expect era instável)
+const carrier = nestMod.nest.ants.find(a => a.job === "carrier");
+expect(!!carrier, "há carregadoras trabalhando no formigueiro");
+if (carrier) {
+  const pc = nestMod.NEST_ROOMS.find(r => r.id === "pantry");
+  carrier.carry = 1;
+  carrier.room = "pantry";
+  carrier.route = null;
+  carrier.x = pc.x + pc.w / 2;
+  carrier.y = pc.y + pc.h / 2;
+  const before = nestMod.nest.deliveries;
+  await wait(200);
+  expect(nestMod.nest.deliveries > before,
+    "formigas entregaram comida na despensa (+" + (nestMod.nest.deliveries - before) + ")");
+}
+// e o formigueiro continua vivo: alguém está em rota ou carregando algo
+await wait(600);
+const busy = nestMod.nest.ants.filter(a => a.route || a.carry).length;
+expect(busy >= 1, "formigas em movimento dentro do formigueiro (" + busy + " ocupadas)");
+
+// a operária que nasce no berçário sai no MUNDO, junto ao formigueiro
+{
+  const antes = units.allies.filter(a => !a.dead).length;
+  G.run.chambers.nursery = Math.max(1, G.run.chambers.nursery);
+  nestMod.nest.growT = 0.01;
+  await wait(400);
+  const novas = units.allies.filter(a => !a.dead && a.type === "worker");
+  const perto = novas.some(a => Math.hypot(a.x - world.anthill.x, a.y - world.anthill.y) < 200);
+  expect(units.allies.filter(a => !a.dead).length > antes && perto,
+    "nova operária nasceu no berçário e apareceu junto ao formigueiro no mundo");
+}
+
+// sai com ESC
 pressed.Escape = true;
 await wait(60);
 pressed.Escape = false;
-await wait(80);
-expect(!G.run.baseOpen, "tela da câmara fechou (ESC)");
+await wait(100);
+expect(!G.run.baseOpen && nestMod.nest.open === false, "formigueiro fechou (ESC)");
 
 // ---- pausa e retorno
 pressed.Escape = true;
