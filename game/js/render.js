@@ -208,7 +208,8 @@ export function drawRun(ctx, dt) {
   // fog of war sobre o mundo inteiro
   fogDraw(ctx, origin.x, origin.y, cam.zoom, G.time);
 
-  drawFloats(ctx, drawText);
+  // textos flutuantes (dano, coleta, avisos) — em coordenadas de mundo
+  drawFloats(ctx, drawText, w2s);
 }
 
 function inView(vis, x, y, m) {

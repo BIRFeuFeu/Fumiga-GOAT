@@ -36,7 +36,7 @@ Entre as ondas, **drafts de mutações** (escolha 1 de 3) moldam a build da expe
 **essência** coletada alimenta a **Árvore da Evolução** permanente (meta-progressão, com preços
 visíveis nos próprios nós).
 
-### As 7 classes da colônia (teclas 1–7)
+### As 7 classes da colônia (teclas 1–8; 8 = coletora)
 
 1. **Operária** — colhe comida e essência, linha de vida da economia.
 2. **Soldado** — linha de frente de confiança.
@@ -59,7 +59,7 @@ visíveis nos próprios nós).
 | `WASD` / setas | também movem a câmera |
 | Roda do mouse | zoom |
 | `Espaço` | centraliza no formigueiro |
-| `1`–`7` | choca a classe selecionada |
+| `1`–`8` | choca a classe selecionada (8 = coletora) |
 | `F` | convoca a guarda para defender |
 | `G` | invoca a próxima onda (bônus de essência) |
 | `T` | pula o tutorial |
@@ -85,7 +85,17 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 - `test/uitest.mjs` — boot → título → expedição → câmaras → pausa → troca de mapa (DOM simulado)
 - `test/assets.mjs` — integridade de sprites e de texto: todo nome de imagem usado pelo jogo
   (props de cada bioma, unidades, inimigos, chefes, ícones) precisa estar no `MANIFEST`, e todo
-  caractere dos textos precisa existir no atlas da fonte (senão o jogo desenha `?`). Rode depois
-  de mexer em `js/config.js`, `js/assets.js` ou de regerar as fontes com `tools/prepare_assets.sh`.
+  caractere dos textos precisa existir no atlas da fonte (senão o jogo desenha `?`). Também
+  confere que a lista/ordem de glifos do `js/font.js` bate com o array `CHS` de
+  `tools/prepare_assets.sh` — se divergirem, o índice da célula pinta o glifo errado. Rode depois
+  de mexer em `js/config.js`, `js/assets.js`, `js/font.js` ou de regerar as fontes.
+- `test/layout.mjs` — auditor de layout headless: roda o jogo com um canvas de mentira que grava
+  todas as operações de desenho, reconstrói o texto desenhado (glifo a glifo, a partir do atlas) e
+  acusa texto fora do canvas, texto encoberto por painel pintado depois, textos colidindo e botões
+  sobrepostos em todas as telas (título, ajuda, árvore, HUD, tutorial, chefe, draft, câmara, pausa,
+  transição, fim, mapa 6). Imprime quantos textos auditou em cada cenário: um verde com cobertura
+  baixa não vale nada.
+
+Cheque tudo antes de subir: `node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && node test/layout.mjs`.
 
 Chegue na porta, defenda a Rainha. A colônia é eterna.

@@ -499,7 +499,7 @@ function updateHealer(a, dt, foes, m) {
       const frac = o.hp / o.maxHp;
       if (frac < score) { score = frac; best = o; }
     }
-    a.healTarget = best || a.healTarget && !a.healTarget.dead ? best : null;
+    a.healTarget = best;
   }
 
   const tgt = a.healTarget && !a.healTarget.dead && a.healTarget.hp < a.healTarget.maxHp - 1 ? a.healTarget : null;

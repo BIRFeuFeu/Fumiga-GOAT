@@ -81,15 +81,21 @@ if (unused.length) console.log("aviso  props citados no config e não sorteados 
 
 // ------------------------------------------------ glifos x textos do jogo ----
 // Todo caractere usado nos textos precisa existir no atlas, senão drawText
-// desenha "?" no lugar (foi o caso de "—", "•" e "⏵").
+// desenha "?" no lugar (foi o caso de "—", "•", "▶", "[", "]" e "✓").
+//
+// O scanner antigo exigia >=3 letras E um espaço na string, então nunca via
+// rótulos curtos nem símbolos soltos — foi assim que "[ ", " ]" (atalhos do
+// draft) e "✓" (nível comprado na árvore) passaram batido.
 const missing = new Map();
 const jsDir = path.join(ROOT, "js");
 for (const file of fs.readdirSync(jsDir).filter((f) => f.endsWith(".js"))) {
   const src = fs.readFileSync(path.join(jsDir, file), "utf8");
-  for (const m of src.matchAll(/"([^"\\\n]*)"/g)) {
+  for (const m of src.matchAll(/"((?:[^"\\\n]|\\.)*)"/g)) {
     const s = m[1];
-    if (!/[A-Za-zÀ-ÿ]{3}/.test(s) || !/ /.test(s)) continue; // só texto visível
-    if (/px|https?:|\.png|\.js|monospace/.test(s)) continue; // ruído de código
+    if (/[{}@$\\|^~'`&]/.test(s)) continue;                        // ruído de código
+    const texty = /[A-Za-zÀ-ÿ0-9]/.test(s) || /[—•▶✓\[\]]/.test(s); // texto visível
+    if (!texty) continue;
+    if (/px|https?:|\.png|\.js|monospace|node:/.test(s)) continue;  // ruído de código
     for (const ch of s.toUpperCase()) {
       if (ch === " ") continue;
       if (!FONT_CHARS.includes(ch)) missing.set(ch, s.trim());
@@ -99,6 +105,27 @@ for (const file of fs.readdirSync(jsDir).filter((f) => f.endsWith(".js"))) {
 const bad = [...missing.entries()];
 console.log((bad.length ? "ERRO " : "ok   ") + "glifos x textos (" + FONT_CHARS.length + " glifos no atlas)");
 if (bad.length) problems.push("caracteres sem glifo: " + bad.map(([c, s]) => `${c} em "${s}"`).join(" | "));
+
+// A ordem/lista de glifos da fonte e a do pipeline precisam ser idênticas: se
+// divergirem, o índice da célula aponta para o glifo errado (texto trocado).
+const pipeline = fs.readFileSync(path.join(ROOT, "..", "tools", "prepare_assets.sh"), "utf8");
+const chsBlock = pipeline.match(/^CHS=\(([\s\S]*?)\)\s*$/m);
+if (chsBlock) {
+  // tokens: ou 'x' entre aspas simples, ou uma sequência sem espaços
+  const tokens = chsBlock[1].replace(/\\\n/g, " ").match(/'[^']*'|[^\s\\]+/g) || [];
+  const chs = tokens.map((t) => (t.startsWith("'") && t.endsWith("'") ? t.slice(1, -1) : t)).join("");
+  const same = chs === FONT_CHARS;
+  console.log((same ? "ok   " : "ERRO ") + "CHS do pipeline x FONT_CHARS (" + chs.length + " glifos)");
+  if (!same) {
+    const diff = [];
+    for (let i = 0; i < Math.max(chs.length, FONT_CHARS.length); i++) {
+      if (chs[i] !== FONT_CHARS[i]) diff.push(i + ": " + JSON.stringify(chs[i]) + " x " + JSON.stringify(FONT_CHARS[i]));
+    }
+    problems.push("ordem dos glifos divergente: " + diff.slice(0, 6).join(", "));
+  }
+} else {
+  console.log("aviso  não achei o array CHS em tools/prepare_assets.sh");
+}
 
 // o atlas precisa ter células suficientes para todos os glifos
 const rowsNeeded = Math.ceil(FONT_CHARS.length / 12);

@@ -517,7 +517,7 @@ export const HELP_CONTROLS = [
   ["G", "Invocar a próxima onda (+ess)"],
   ["F", "Convocar a guarda ao formigueiro"],
   ["ESPAÇO", "Centralizar no formigueiro"],
-  ["1 A 7", "Chocar classes de formigas"],
+  ["1 A 8", "Chocar classes de formigas"],
   ["ESC", "Pausar / voltar"],
 ];
 export const HELP_TIPS = [

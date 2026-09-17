@@ -4,14 +4,14 @@
 // ============================================================================
 
 // Ordem idêntica à do pipeline (tools/prepare_assets.sh, array CHS):
-// 12 colunas por linha. Os três últimos glifos ficam no fim para não deslocar
-// índice algum — texto com "—", "•" ou "▶" antes caía no fallback "?".
+// 12 colunas por linha. Os glifos extras ficam no fim para não deslocar índice
+// algum — texto com "—", "•", "▶", "[", "]" ou "✓" antes caía no fallback "?".
 const CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
   "ÁÀÂÃÉÊÍÓÔÕÚÇ" +
   "0123456789" +
   "?!.,:;+-*/%()<>=#_ " +
-  "—•▶";
+  "—•▶[]✓";
 
 /** Glifos disponíveis no atlas (ordem da grade). Usado pelo teste de texto. */
 export const FONT_CHARS = CHARS;

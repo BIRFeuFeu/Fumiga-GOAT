@@ -256,10 +256,11 @@ function uiCapture() {
 export function update(dt) {
   G.time += dt;
 
-  // alterna mudo sempre
+  // alterna mudo sempre (o aviso entra no HUD como texto de MUNDO: converte)
   if (pressed.KeyM) {
     const m = toggleMute();
-    floatText(60, 20, m ? "SOM: DESLIGADO" : "SOM: LIGADO", { color: "#efe9ff", life: 1.2 });
+    const p = screenToWorld(VIEW_W / 2, VIEW_H / 2 - 30);
+    floatText(p.x, p.y, m ? "SOM: DESLIGADO" : "SOM: LIGADO", { color: "#efe9ff", life: 1.2 });
   }
 
   switch (G.screen) {
@@ -380,7 +381,10 @@ function updateRun(dt) {
   for (let i = 0; i < SHOP.length; i++) {
     if (pressed["Digit" + (i + 1)]) {
       const r = buyUnit(SHOP[i].type);
-      if (!r.ok) floatText(mouse.x, mouse.y - 20, r.why, { color: "#ff4d5a", life: 1 });
+      if (!r.ok) {
+        const wp = screenToWorld(mouse.x, mouse.y - 20);
+        floatText(wp.x, wp.y, r.why, { color: "#ff4d5a", life: 1 });
+      }
     }
   }
   if (pressed.KeyG && director.phase === "calm") skipPeace();
@@ -738,9 +742,18 @@ function renderRun() {
   if (!run) { G.screen = "TITLE"; return; }
   drawRun(ctx, dtClampForAnim());
 
-  drawHUD();
-  if (run.banner && run.banner.t > 0 && !paused) drawBanner(run.banner);
-  if (TUT.active && !paused) drawTutorial(ctx, VIEW_W);
+  // Telas modais (câmara, draft, pausa, transição, fim) cobrem o campo: o HUD
+  // não é desenhado por baixo. Antes ele continuava ali — os botões da loja
+  // seguiam clicáveis sob o painel do fim de expedição (clicar em "NOVA
+  // EXPEDIÇÃO" também comprava uma formiga) e os textos do HUD ficavam
+  // encobertos por painéis opacos.
+  const modal = paused || !!run.draft || !!run.transition || !!run.baseOpen || run.status !== "running";
+
+  if (!modal) {
+    drawHUD();
+    if (run.banner && run.banner.t > 0) drawBanner(run.banner);
+    if (TUT.active) drawTutorial(ctx, VIEW_W);
+  }
   if (run.draft && !paused) drawDraft(run.draft);
   if (run.transition && !paused) drawTransition(run);
   if (run.baseOpen) drawBaseScreen();
@@ -752,10 +765,22 @@ let lastDt = 1 / 60;
 export function setLastDt(v) { lastDt = v; }
 function dtClampForAnim() { return lastDt; }
 
+// Faixa vertical logo abaixo do contador de onda, já descontando o cartão do
+// tutorial quando ele está na tela: é onde entram a barra do chefe e o botão
+// de invocar onda (o cartão cobria a barra do chefe na primeira expedição).
+function hudTopSlot() {
+  const tut = TUT.active ? tutorialCardRect(VIEW_W) : null;
+  return tut ? tut.y + tut.h + 6 : 66;
+}
+
 function drawHUD() {
   const run = G.run;
   const m = mapDef();
   const q = allies.queen;
+  // HUD só reage a cliques com a expedição em andamento e SEM tela modal na
+  // frente (câmara, draft, pausa, transição, fim) — o desenho já é pulado
+  // nesses casos, mas a trava fica explícita contra reordenações futuras.
+  const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
 
   // ============ PAINEL DO JOGADOR (topo-esquerdo) ============
   // Sempre visíveis: vida do formigueiro, nível+XP, recursos. "VER MAIS"
@@ -792,7 +817,7 @@ function drawHUD() {
   ctx.strokeRect(22.5, yy - 1.5, 71, 16);
   drawText(ctx, hudExpanded ? "VER MENOS" : "VER MAIS", 58, yy + 2, { color: moreHot ? "#efe9ff" : PAL.textDim, align: "center" });
   uiButtons().push({ x: 22, y: yy - 2, w: 72, h: 17, id: "hudMore" });
-  if (moreHot && mouse.justDown) { hudExpanded = !hudExpanded; SFX.uiClick(); }
+  if (live && moreHot && mouse.justDown) { hudExpanded = !hudExpanded; SFX.uiClick(); }
 
   if (hudExpanded) {
     yy += 22;
@@ -846,9 +871,8 @@ function drawHUD() {
 
   // botão invocar onda — desliza sob o contador na calmaria; se o cartão do
   // tutorial estiver aberto, desce para logo abaixo dele (sem sobreposição)
-  if (run.status === "running" && director.phase === "calm" && !run.draft && !paused && !run.transition) {
-    const tut = TUT.active ? tutorialCardRect() : null;
-    const by = tut ? tut.y + tut.h + 6 : 66;
+  if (live && director.phase === "calm") {
+    const by = hudTopSlot();
     if (button(ctx, { x: VIEW_W / 2 - cw / 2, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
       skipPeace();
     }
@@ -873,9 +897,12 @@ function drawHUD() {
     drawText(ctx, cost, x + 24, shopY + 68, { color: canAfford ? "#ffd479" : "#a32e46" });
     drawText(ctx, String(i + 1), x + 64, shopY + 66, { color: PAL.textDim, align: "center" });
     if (r.hot) shopTooltip = s;
-    if (r.clicked && !paused && !run.draft && !run.transition) {
+    if (live && r.clicked) {
       const res = buyUnit(s.type);
-      if (!res.ok) floatText(x + 36, shopY - 14, res.why, { color: "#ff4d5a", life: 1 });
+      if (!res.ok) {
+        const wp = screenToWorld(x + 36, shopY - 14);
+        floatText(wp.x, wp.y, res.why, { color: "#ff4d5a", life: 1 });
+      }
     }
   }
   // botão da CÂMARA INTERNA (tecla B) logo após a loja
@@ -889,7 +916,7 @@ function drawHUD() {
   }
   drawText(ctx, "COLÔNIA", bx + 36, shopY + 52, { scale: 1, color: PAL.text, align: "center" });
   drawText(ctx, "BASE (B)", bx + 36, shopY + 68, { scale: 1, color: "#c77dff", align: "center" });
-  if (rCol.clicked && !paused && !run.draft && !run.transition && run.status === "running") {
+  if (live && rCol.clicked) {
     run.baseOpen = true;
     SFX.uiClick();
   }
@@ -907,16 +934,21 @@ function drawHUD() {
 
   // barra do chefão (sob o contador central)
   if (boss && !boss.dead && run.status === "running" && (boss.revealT > 0 || fogVisible(boss.x, boss.y))) {
-    const bw = 420;
-    panel(ctx, VIEW_W / 2 - bw / 2 - 8, 66, bw + 16, 42);
-    drawText(ctx, boss.def.name, VIEW_W / 2, 72, { font: "small", scale: 1, color: "#ff4d5a", align: "center" });
-    bar(ctx, VIEW_W / 2 - bw / 2, 90, bw, 12, boss.hp / boss.maxHp, { c1: "#ff7a6a", c2: "#a32e46", segments: 8 });
+    const bw = 420, by = hudTopSlot();
+    panel(ctx, VIEW_W / 2 - bw / 2 - 8, by, bw + 16, 42);
+    drawText(ctx, boss.def.name, VIEW_W / 2, by + 6, { font: "small", scale: 1, color: "#ff4d5a", align: "center" });
+    bar(ctx, VIEW_W / 2 - bw / 2, by + 24, bw, 12, boss.hp / boss.maxHp, { c1: "#ff7a6a", c2: "#a32e46", segments: 8 });
   }
 
   // contagem de selecionadas
   const sc = selectedCount();
   if (sc > 0 && !run.draft) {
-    drawText(ctx, sc + " SELECIONADAS", mouse.x + 16, mouse.y + 10, { color: "#37e6c8" });
+    const lbl = sc + " SELECIONADAS";
+    const tw = textWidth(lbl, {});
+    drawText(ctx, lbl,
+      clamp(mouse.x + 16, 6, VIEW_W - tw - 6),
+      clamp(mouse.y + 10, 6, VIEW_H - 22),
+      { color: "#37e6c8" });
   }
 
   // caixa de seleção (botão direito)
@@ -932,7 +964,7 @@ function drawHUD() {
   // dica de controles rodapé central
   if (run.elapsed < 14 && run.status === "running") {
     drawText(ctx, "ESQ: CÂMERA/ORDEM  •  DIR: SELECIONAR  •  B: BASE  •  ESC: PAUSA",
-      VIEW_W / 2, VIEW_H - 110, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4 });
+      VIEW_W / 2, VIEW_H - 118, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4 });
   }
 }
 
@@ -976,8 +1008,9 @@ function drawMinimap() {
   // névoa de guerra por cima do minimapa
   fogDrawMini(ctx, mx, my, mw, mh);
 
-  // clique no minimapa: pula a câmera
-  if (mouse.justDown && pointInRect(mouse.x, mouse.y, mx, my, mw, mh)) {
+  // clique no minimapa: pula a câmera (só com o jogo em andamento)
+  const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
+  if (live && mouse.justDown && pointInRect(mouse.x, mouse.y, mx, my, mw, mh)) {
     cam.x = (mouse.x - mx) / sx;
     cam.y = (mouse.y - my) / sy;
     SFX.uiClick();
@@ -1155,7 +1188,10 @@ function tryBuildChamber(id) {
 function drawBanner(b) {
   const a = clamp(b.t < 0.6 ? b.t / 0.6 : b.t > 3.2 - 0.5 ? (3.2 + 0.6 - b.t) / 0.5 + 0.2 : 1, 0, 1);
   ctx.globalAlpha = clamp(a, 0, 1);
-  const y = 96;
+  // Sem tutorial o anúncio fica logo abaixo do painel do jogador (y 8..104);
+  // com o cartão aberto ele desce para não ficar meio escondido atrás dele.
+  const tut = TUT.active ? tutorialCardRect(VIEW_W) : null;
+  const y = tut ? tut.y + tut.h + 60 : 116;
   ctx.fillStyle = "rgba(10,8,16,0.55)";
   ctx.fillRect(0, y - 10, VIEW_W, 96);
   drawText(ctx, b.title, VIEW_W / 2, y, { font: "big", scale: 2, color: "#ffd479", align: "center" });
@@ -1269,68 +1305,100 @@ function settleAbandon() {
 let helpReturn = "TITLE";
 
 // ------------------------------------------------------------------- fim ----
+// Painel de resultados: cabe TUDO dentro do painel (500x436) mesmo com a run
+// mais longa. Antes a lista era de uma coluna só e, com muitas mutações, os
+// botões "NOVA EXPEDIÇÃO"/"MENU PRINCIPAL" saíam do canvas (y=535 num canvas
+// de 540) e ficavam sob a loja do HUD.
 function drawEnd(run) {
   ctx.fillStyle = "rgba(10,8,16,0.82)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   const p = run.payout;
   if (!p) return;
   const won = p.winBonus > 0;
-  panel(ctx, VIEW_W / 2 - 250, 54, 500, 436, { border: won ? "#ffd479" : "#ff4d5a" });
+  const PX = VIEW_W / 2 - 250, PY = 54, PW = 500, PH = 436;
+  panel(ctx, PX, PY, PW, PH, { border: won ? "#ffd479" : "#ff4d5a" });
 
   drawText(ctx, won ? "VITÓRIA DA COLÔNIA!" : "A COLÔNIA CAIU",
-    VIEW_W / 2, 80, { font: "big", scale: 2, color: won ? "#ffd479" : "#ff4d5a", align: "center" });
+    VIEW_W / 2, PY + 22, { font: "big", scale: 2, color: won ? "#ffd479" : "#ff4d5a", align: "center" });
   const subLock = won
     ? "O DEVASTADOR caiu no Pico Congelado. O formigueiro é eterno."
     : "A rainha tombou. Mas a essência alimenta a próxima geração.";
-  wrapText(subLock, 440, {}).forEach((L, li) =>
-    drawText(ctx, L, VIEW_W / 2, 128 + li * 18, { color: PAL.text, align: "center" }));
+  const subLines = wrapText(subLock, PW - 60, {});
+  subLines.forEach((L, li) =>
+    drawText(ctx, L, VIEW_W / 2, PY + 78 + li * 18, { color: PAL.text, align: "center" }));
 
-  let y = 170;
-  const line = (label, val, color) => {
-    drawText(ctx, label, VIEW_W / 2 - 190, y, { color: PAL.textDim });
-    drawText(ctx, val, VIEW_W / 2 + 190, y, { color: color || PAL.text, align: "right" });
-    y += 24;
-  };
-  line("ONDAS REPELIDAS", run.wave);
-  line("MAPAS LIMPOS", run.mapsCleared + "/" + MAPS.length);
-  line("INIMIGOS ABATIDOS", run.kills);
-  line("NÍVEL DA COLÔNIA", run.level);
-  line("MUTAÇÕES ADOTADAS", run.mutationLog.length);
-  // ícones das mutações
-  if (run.mutationLog.length) {
-    let ix = VIEW_W / 2 - 190;
-    for (const mm of run.mutationLog) {
-      const icon = IMG["i_" + mm.icon];
-      if (icon) ctx.drawImage(icon, ix, y - 4, 20, 20);
-      ix += 26;
-      if (ix > VIEW_W / 2 + 150) { ix = VIEW_W / 2 - 190; y += 24; }
-    }
-    y += 26;
+  // ---- números em DUAS colunas. A faixa de baixo é RESERVADA para a linha do
+  // total e para os botões: com muitas mutações a lista antiga empurrava
+  // "NOVA EXPEDIÇÃO" para fora do canvas (y=535 num canvas de 540).
+  const rows = [
+    ["ONDAS REPELIDAS", String(run.wave), PAL.text],
+    ["MAPAS LIMPOS", run.mapsCleared + "/" + MAPS.length, PAL.text],
+    ["INIMIGOS ABATIDOS", String(run.kills), PAL.text],
+    ["NÍVEL DA COLÔNIA", String(run.level), PAL.text],
+    ["MUTAÇÕES ADOTADAS", String(run.mutationLog.length), PAL.text],
+    ["RELÍQUIA (10%)", String(p.relic), "#c77dff"],
+    ["BÔNUS DE ONDAS", "+" + p.waveBonus, "#c77dff"],
+    ["BÔNUS DE MAPAS", "+" + p.mapBonus, "#c77dff"],
+    ["BÔNUS DE ABATES", "+" + p.killBonus, "#c77dff"],
+  ];
+  if (p.winBonus) rows.push(["VITÓRIA ÉPICA", "+" + p.winBonus, "#c77dff"]);
+  if (p.mult > 1) rows.push(["ALMA DA COLÔNIA", "x" + p.mult.toFixed(2), "#c77dff"]);
+
+  const btnTop = PY + PH - 100;                       // topo da faixa dos botões
+  const totalY = btnTop - 72;                         // separador + TOTAL (2x)
+  const iconsH = run.mutationLog.length ? 26 : 0;
+  const rowsBottom = totalY - 8 - iconsH - 14;        // última linha ainda com tinta
+
+  const y0 = PY + 78 + subLines.length * 18 + 14;
+  const half = Math.ceil(rows.length / 2);
+  const maxRows = Math.max(half, rows.length - half);
+  let step = 21;
+  if (y0 + (maxRows - 1) * step > rowsBottom) {
+    step = Math.max(15, Math.floor((rowsBottom - y0) / Math.max(1, maxRows - 1)));
   }
-  line("RELÍQUIA (10% DA ESSÊNCIA)", p.relic, "#c77dff");
-  line("BÔNUS DE ONDAS", "+" + p.waveBonus, "#c77dff");
-  line("BÔNUS DE MAPAS", "+" + p.mapBonus, "#c77dff");
-  line("BÔNUS DE ABATES", "+" + p.killBonus, "#c77dff");
-  if (p.winBonus) line("VITÓRIA ÉPICA", "+" + p.winBonus, "#c77dff");
-  if (p.mult > 1) line("ALMA DA COLÔNIA", "x" + p.mult.toFixed(2), "#c77dff");
-  y += 4;
-  ctx.fillStyle = "#3a3054";
-  ctx.fillRect(VIEW_W / 2 - 190, y - 10, 380, 2);
-  drawText(ctx, "TOTAL DE GELÉIA REAL", VIEW_W / 2 - 190, y + 10, { font: "big", scale: 1, color: "#c77dff" });
-  drawText(ctx, "+" + p.total, VIEW_W / 2 + 190, y + 6, { font: "big", scale: 2, color: "#ffd479", align: "right" });
-  y += 58;
+  const colX = [PX + 24, PX + 258], colW = 212;
+  rows.forEach(([label, val, col], i) => {
+    const cx = colX[i < half ? 0 : 1];
+    const ry = y0 + (i % half) * step;
+    drawText(ctx, label, cx, ry, { color: PAL.textDim });
+    drawText(ctx, val, cx + colW, ry, { color: col, align: "right" });
+  });
+  let y = y0 + (maxRows - 1) * step + 22;
 
-  if (button(ctx, { x: VIEW_W / 2 - 230, y: y, w: 220, h: 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
+  // ---- ícones das mutações: uma linha só, com "+N" no fim ----
+  if (run.mutationLog.length) {
+    const maxIcons = 14;
+    let ix = PX + 24;
+    for (const mm of run.mutationLog.slice(0, maxIcons)) {
+      const icon = IMG["i_" + mm.icon];
+      if (icon) ctx.drawImage(icon, ix, y, 20, 20);
+      ix += 26;
+    }
+    if (run.mutationLog.length > maxIcons) {
+      drawText(ctx, "+" + (run.mutationLog.length - maxIcons), ix, y + 4, { color: PAL.textDim });
+    }
+    y += iconsH;
+  }
+
+  // ---- separador + total, ancorados logo acima dos botões ----
+  ctx.fillStyle = "#3a3054";
+  ctx.fillRect(PX + 24, totalY, PW - 48, 2);
+  drawText(ctx, "TOTAL DE GELÉIA REAL", PX + 24, totalY + 22, { font: "big", scale: 1, color: "#c77dff" });
+  drawText(ctx, "+" + p.total, PX + PW - 24, totalY + 14, { font: "big", scale: 2, color: "#ffd479", align: "right" });
+
+  // ---- botões: ancorados à faixa reservada (nunca saem do painel) ----
+  const by = btnTop;
+  if (button(ctx, { x: VIEW_W / 2 - 230, y: by, w: 220, h: 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
     paused = false;
     newRun();
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 + 10, y: y, w: 220, h: 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
+  if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
     enterTree();
     G.screen = "TREE";
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 - 110, y: y + 50, w: 220, h: 34, label: "MENU PRINCIPAL", id: "menu" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 110, y: by + 48, w: 220, h: 32, label: "MENU PRINCIPAL", id: "menu" })) {
     G.screen = "TITLE";
     return;
   }

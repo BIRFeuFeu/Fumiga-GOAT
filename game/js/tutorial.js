@@ -125,24 +125,35 @@ export function updateTutorial(dt, run) {
 }
 
 // desenha o cartão do passo atual (chamado pelo HUD da run) -------------------
-let cardRect = null;
-
-/** Retângulo do cartão desenhado no último frame (ou null se não há tutorial). */
-export function tutorialCardRect() { return cardRect; }
-
-export function drawTutorial(ctx, VIEW_W) {
-  if (!TUT.active) { cardRect = null; return; }
-  const st = TUT.steps[TUT.idx];
-  if (!st) { cardRect = null; return; }
-
+// O cartão tem largura fixa e repousa logo abaixo do contador de onda (y 8..60).
+// O retângulo é CALCULADO do estado, não lido do último desenho: o HUD é
+// desenhado ANTES do cartão no mesmo frame, então a posição "desenhada" atrasa
+// um frame — o botão de invocar onda nascia debaixo do cartão e o anúncio do
+// mapa aparecia meio escondido atrás dele.
+const CARD_W = 410;
+const CARD_Y = 68;
+function cardMetrics(st) {
   // A descrição é quebrada dentro do cartão: antes, textos de até 71 caracteres
   // vazavam da caixa e ficavam escondidos atrás do botão de invocar onda.
-  const w = 430;
+  // A largura também não pode invadir o painel do jogador (x 10..272).
+  return { w: CARD_W, h: 40 + wrapText(st.desc, CARD_W - 32, {}).length * 17 + 18 };
+}
+
+/** Retângulo de repouso do cartão (ou null se o tutorial não está ativo). */
+export function tutorialCardRect(VIEW_W) {
+  if (!TUT.active) return null;
+  const st = TUT.steps[TUT.idx];
+  if (!st) return null;
+  const m = cardMetrics(st);
+  return { x: (VIEW_W - m.w) / 2, y: CARD_Y, w: m.w, h: m.h };
+}
+
+export function drawTutorial(ctx, VIEW_W) {
+  const st = TUT.steps[TUT.idx];
+  if (!TUT.active || !st) return;
+  const { x, w, h, y: yRest } = tutorialCardRect(VIEW_W);
   const descLines = wrapText(st.desc, w - 32, {});
-  const h = 40 + descLines.length * 17 + 18;
-  const x = (VIEW_W - w) / 2;
   const yIn = clamp((TUT.t) / 0.5, 0, 1);
-  const yRest = 68;                                  // logo abaixo do contador de onda (y 8..60)
   const yStart = -h - 12;                            // entra deslizando por cima da borda
   const y = yStart + (yRest - yStart) * (1 - Math.pow(1 - yIn, 3));
 
@@ -159,7 +170,6 @@ export function drawTutorial(ctx, VIEW_W) {
   drawText(ctx, st.title, x + 16, y + 10, { font: "big", scale: 1, color: TUT._done ? "#7fd6a0" : "#ffd479" });
   descLines.forEach((L, li) => drawText(ctx, L, x + 16, y + 34 + li * 17, { color: PAL.text }));
   drawText(ctx, "PASSO " + (TUT.idx + 1) + "/" + TUT.steps.length, x + 16, y + h - 16, { color: PAL.textDim });
-  cardRect = { x, y: yIn >= 1 ? y : -1e3, w, h };
 
   // botão "PULAR" sempre clicável (rótulo curto: o antigo vazava do cartão)
   const bw = 92, bh = 20;
