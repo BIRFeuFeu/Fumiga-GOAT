@@ -1,0 +1,29 @@
+/* FUMIGA-GOAT — shell da página */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #0a0812;
+  overflow: hidden;
+  font-family: "Courier New", monospace;
+}
+
+body {
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #171224 0%, #0a0812 55%, #05040a 100%);
+}
+
+#frame {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100vw; height: 100vh;
+}
+
+#game {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #14101d;
+  box-shadow: 0 0 0 2px #2b2340, 0 0 60px rgba(0,0,0,.8), 0 0 140px rgba(94,60,160,.15);
+  cursor: crosshair;
+}
