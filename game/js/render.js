@@ -3,7 +3,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL } from "./config.js";
 import { G } from "./state.js";
-import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet } from "./assets.js";
+import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet, rotDrawSize } from "./assets.js";
 import { world } from "./world.js";
 import { cam, worldToScreen, visibleWorldRect, screenToWorld } from "./camera.js";
 import { allies, eggs } from "./units.js";
@@ -208,7 +208,8 @@ export function drawRun(ctx, dt) {
   // fog of war sobre o mundo inteiro
   fogDraw(ctx, origin.x, origin.y, cam.zoom, G.time);
 
-  drawFloats(ctx, drawText);
+  // textos flutuantes (dano, coleta, avisos) — em coordenadas de mundo
+  drawFloats(ctx, drawText, w2s);
 }
 
 function inView(vis, x, y, m) {
@@ -306,7 +307,9 @@ function drawAnt(ctx, u, w2s) {
   const key = u.def.sprite;
   const flashing = (u.hitT > 0 || (u.flash || 0) > 0);
   const frame = flashing ? whiteRotFrame(key, u.angle) : rotFrame(key, u.angle);
-  const size = frame.width; // tamanho original assado
+  // tamanho DESENHADO: normalmente igual ao assado; a gigante é assada pequena
+  // e ampliada na hora (rotDrawSize já traz o fator — 20x a soldado)
+  const size = rotDrawSize(key) || frame.width;
   let dx = s.x, dy = s.y;
 
   // ------------------------------------------------ animação por transformada
@@ -334,9 +337,10 @@ function drawAnt(ctx, u, w2s) {
     squashY = 1 + br * 0.035;
     squashX = 1 - br * 0.02;
   }
-  // lunge: impulso elástico de ataque
+  // lunge: impulso elástico de ataque (acompanha o corpo — a GIGANTE avança
+  // muito mais do que uma soldado ao morder)
   if (u.lunge > 0) {
-    const f = (u.lunge / 0.22) * 7 * z;
+    const f = (u.lunge / 0.22) * 7 * z * Math.max(1, u.bodyR / 12);
     dx += Math.cos(u.angle) * f;
     dy += Math.sin(u.angle) * f;
     squashY *= 1 + (u.lunge / 0.22) * 0.18;
@@ -400,6 +404,7 @@ function drawAnt(ctx, u, w2s) {
 // ------------------------------------------------------------------- prop ---
 function drawProp(ctx, p, w2s) {
   const img = IMG[p.img];
+  if (!img) return; // sprite ausente não pode derrubar o frame
   const s = w2s(p.x, p.y);
   const z = cam.zoom;
   const w = img.width * p.scale * z, h = img.height * p.scale * z;
@@ -428,6 +433,16 @@ const BOSS_ANIMS = {
   grouse:{ px: 122, scale: 1.3, idle: ["grouse_idle", 4], walk: ["grouse_walk", 6], run: ["grouse_flight", 6], hurt: ["grouse_hurt", 4], death: ["grouse_death", 6] },
 };
 let sheetsBaked = false;
+
+/** Todas as sheets usadas pelos chefes (o teste de assets valida contra o MANIFEST). */
+export function bossAnimSheets() {
+  const out = new Set();
+  for (const k of Object.keys(BOSS_ANIMS)) {
+    const A2 = BOSS_ANIMS[k];
+    for (const anim of ["idle", "walk", "run", "hurt", "death"]) out.add(A2[anim][0]);
+  }
+  return [...out];
+}
 
 export function bakeBossSheets() {
   if (sheetsBaked) return;
@@ -520,6 +535,21 @@ function drawBoss(ctx, b, w2s) {
 
 // ================================================================= TÍTULO ===
 let titleBg = null;
+
+/** Partículas de brasa subindo (animadas por cima do fundo do título). */
+export function drawTitleMotes(ctx, time) {
+  for (let i = 0; i < 30; i++) {
+    const seed = i * 37.7;
+    const x = (seed * 61 + time * (8 + (i % 5) * 4)) % VIEW_W;
+    const y = 520 - ((seed * 29 + time * (14 + (i % 3) * 7)) % 520);
+    const a = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(time * 1.7 + i));
+    const r = 1 + (i % 3);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = i % 3 ? "#ffd479" : "#ffeccb";
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
 
 export function drawTitleBg(ctx) {
   if (!titleBg) bakeTitleBg();

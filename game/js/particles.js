@@ -161,10 +161,17 @@ export function drawRings(ctx, w2s, zoom) {
   ctx.globalAlpha = 1;
 }
 
-export function drawFloats(ctx, font_drawText) {
+/**
+ * Textos flutuantes vivem em coordenadas de MUNDO (como as partículas).
+ * w2s = worldToScreen da câmera: sem converter, "+5" de uma coleta perto do
+ * formigueiro era desenhado em (1600, 1180) num canvas de 960x540 — fora da
+ * tela, ou seja, TODO texto flutuante era invisível.
+ */
+export function drawFloats(ctx, font_drawText, w2s) {
   for (const f of floats) {
     const t = f.life / f.maxLife;
-    font_drawText(ctx, f.text, f.x, f.y, {
+    const s = w2s ? w2s(f.x, f.y) : { x: f.x, y: f.y };
+    font_drawText(ctx, f.text, s.x, s.y, {
       font: f.font, scale: f.scale, color: f.color,
       align: "center", alpha: clamp(t * 1.8, 0, 1),
     });

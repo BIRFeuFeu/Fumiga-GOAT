@@ -94,6 +94,35 @@ export function metaBonus() {
     popCap: 4 * L("r_pop"),
     essMult: 1 + 0.15 * L("r_ess"),
     rebirth: L("r_ren") > 0,
+
+    // ---------------------------------------------------- nós novos da árvore
+    // TRABALHO
+    gatherRate: 1 + 0.12 * L("t_rap"),
+    allSpeed: 1 + 0.05 * L("t_rede"),
+    startFood: 20 * L("t_estoque"),
+    skipBonus: 5 * L("t_atalho"),
+    // GUERRA
+    fireRate: 1 + 0.08 * L("g_cad"),
+    rangeBonus: 14 * L("g_alc"),
+    aoeMult: 1 + 0.15 * L("g_bomb"),
+    burnMult: 1 + 0.15 * L("g_fogo"),
+    armor: 0.04 * L("g_arm"),          // fração do dano recebido ignorada
+    dodge: 0.05 * L("g_esq"),          // chance de esquivar por completo
+    reflect: 3 * L("g_esp"),           // dano devolvido a quem morde
+    // REAL
+    queenArmor: 0.08 * L("r_casca"),
+    xpGain: 1 + 0.10 * L("r_xp"),
+    queenRegen: 1.5 * L("r_regen"),
+    startEssence: 20 * L("r_essin"),
+    // NINHO
+    digSpeed: 1 + 0.30 * L("n_dig"),
+    nurserySpeed: 1 + 0.12 * L("n_berco"),
+    nestEgg: Math.pow(0.90, L("n_ovo")),
+    fungusRate: L("n_fung"),
+    chamberCost: Math.pow(0.92, L("n_eco")),
+    nestDeposit: L("n_desp"),
+    nestSpeed: 1 + 0.10 * L("n_corr"),
+    workerSave: 0.06 * L("n_zelo"),
   };
 }
 
@@ -137,6 +166,9 @@ export function mods() {
     queenHp: m.queenHp * u.queenHp,
     popCap: m.popCap + u.popCap,
     critChance: m.critChance + u.crit,
+    // a mutação CORAÇÃO também regenera — antes o valor morria no mutBonus()
+    // porque ninguém somava aqui (a rainha nunca regenerava de verdade)
+    queenRegen: (m.queenRegen || 0) + u.queenRegen,
     muts: u,
   });
 }

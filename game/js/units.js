@@ -4,9 +4,10 @@
 // ============================================================================
 import { UNITS, QUEEN, START, LEVEL_HP, LEVEL_DMG } from "./config.js";
 import { mods } from "./state.js";
-import { world, nearestPile, nearestNode, collide } from "./world.js";
+import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
 import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
-import { spawnPart, burst, scent, floatText } from "./particles.js";
+import { spawnPart, burst, scent, floatText, ring } from "./particles.js";
+import { shake } from "./camera.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
 import { tutEvent } from "./tutorial.js";
@@ -28,7 +29,8 @@ export function spawnQueen() {
     flash: 0, eatT: 0, bob: rand(0, 6.28), rebirthUsed: false,
     takeDamage(dmg) {
       if (this.dead) return;
-      dmg *= mods().muts.dmgTaken;
+      const mm = mods();
+      dmg *= mm.muts.dmgTaken * (1 - mm.queenArmor);
       this.hp -= dmg;
       this.flash = 0.14;
       SFX.queenHit();
@@ -53,17 +55,17 @@ function computeAntStats(typeId) {
   return {
     hp: Math.round(b.hp * m.hpAll * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
-    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : 1),
-    range: b.range, atkCd: b.atkCd,
+    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
+    range: b.range + m.rangeBonus, atkCd: b.atkCd / m.fireRate,
     carry: (b.carry || 0) + (isWorker ? m.workerCarry : 0),
-    gatherRate: b.gatherRate || 0,
+    gatherRate: (b.gatherRate || 0) * m.gatherRate,
     projSpeed: b.projSpeed || 0,
     taunt: b.taunt || 0,
     aggro: b.aggro || 0,
     healRate: (b.healRate || 0) * m.muts.healRateMult,
     healRange: (b.healRange || 0) * m.muts.healRangeMult,
-    aoe: b.aoe || 0,
-    burnDps: (b.burnDps || 0) * m.dmgAll * lvDmg * fightMult,
+    aoe: (b.aoe || 0) * m.aoeMult,
+    burnDps: (b.burnDps || 0) * m.dmgAll * lvDmg * fightMult * m.burnMult,
     burnDur: b.burnDur || 0,
   };
 }
@@ -97,7 +99,8 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     id: nextId(), type: typeId, def: UNITS[typeId], faction: "ally",
     x, y, vx: 0, vy: 0, angle: rand(0, 6.28),
     hp: st.hp, maxHp: st.hp, st: st,
-    bodyR: typeId === "tank" ? 15 : typeId === "worker" || typeId === "scout" ? 9 : typeId === "healer" ? 10 : 12,
+    bodyR: UNITS[typeId].bodyR ||
+      (typeId === "tank" ? 15 : typeId === "worker" || typeId === "scout" ? 9 : typeId === "healer" ? 10 : 12),
     state: "idle",
     tx: null, ty: null,          // destino de movimento
     target: null,                // inimigo
@@ -114,7 +117,16 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     takeDamage(dmg, from, attacker) {
       if (this.dead || this.dying) return;
       const mm = mods();
-      dmg *= mm.muts.dmgTaken;
+      // ESQUIVA: golpe perdido por completo
+      if (mm.dodge > 0 && Math.random() < mm.dodge) {
+        floatText(this.x, this.y - this.bodyR - 10, "ESQUIVA!", { color: "#8fd3ff", life: 0.8 });
+        return;
+      }
+      // ESPINHOS DE QUITINA: quem morde leva de volta
+      if (mm.reflect > 0 && attacker && typeof attacker.takeDamage === "function") {
+        attacker.takeDamage(mm.reflect, "ally");
+      }
+      dmg *= mm.muts.dmgTaken * (1 - mm.armor);
       this.hp -= dmg;
       this.hitT = 0.12;
       if (chance(0.3)) SFX.hurt();
@@ -127,7 +139,17 @@ export function spawnAnt(typeId, x, y, opts = {}) {
         attacker.burnT = Math.max(attacker.burnT || 0, mm.muts.venenoBurn);
         attacker.burnDps = Math.max(attacker.burnDps || 0, 5);
       }
-      if (this.hp <= 0) killAnt(this);
+      if (this.hp <= 0) {
+        // ZELO DA COLÔNIA: operária resiste a um golpe fatal com 1 de vida
+        const save = mm.workerSave > 0 && this.def.role === "worker" && !this.savedOnce;
+        if (save && Math.random() < mm.workerSave) {
+          this.savedOnce = true;
+          this.hp = 1;
+          floatText(this.x, this.y - this.bodyR - 12, "AGUENTOU!", { color: "#7fd6a0", life: 1.2 });
+        } else {
+          killAnt(this);
+        }
+      }
     },
   };
   allies.push(a);
@@ -165,11 +187,21 @@ export function popUsed() {
   return n;
 }
 
+/** Ainda cabe mais uma unidade deste tipo? (def.maxAlive, ex.: 1 gigante) */
+export function unitLimitLeft(typeId) {
+  const def = UNITS[typeId];
+  if (!def || !def.maxAlive) return true;
+  const n = allies.filter(a => a.type === typeId && !a.dead && !a.dying).length +
+            eggs.filter(e => e.type === typeId).length;
+  return n < def.maxAlive;
+}
+
 export function buyUnit(typeId) {
   const run = window.__run; // setado por game.js
   const cost = unitCost(typeId);
   if (run.food < cost) { SFX.deny(); return { ok: false, why: "SEM COMIDA" }; }
   if (popUsed() >= popCapTotal()) { SFX.deny(); return { ok: false, why: "POPULAÇÃO CHEIA" }; }
+  if (!unitLimitLeft(typeId)) { SFX.deny(); return { ok: false, why: "SÓ CABE UMA POR EXPEDIÇÃO" }; }
   run.food -= cost;
   const m = mods();
   const t = UNITS[typeId].hatchTime * m.hatchSpeed * m.muts.hatchMult;
@@ -198,7 +230,12 @@ function hatchTick(dt) {
     spawnAnt(e.type, x, y, { guardPos: gp, spawnT: 0.34 });
     burst(x, y, { n: 12, color: ["#ffe9a8", "#ffd479", "#fff"], spMin: 20, spMax: 80, life: 0.45, sizeMin: 1, sizeMax: 2.6 });
     SFX.hatch();
-    floatText(x, y - 14, "NOVA " + UNITS[e.type].name, { color: "#ffd479", life: 1.4 });
+    if (e.type === "giant") {
+      // um colosso não nasce em silêncio
+      shake(0.7);
+      ring(x, y, { r0: 20, r1: 460, life: 1.0, color: "#ffd479", width: 6 });
+    }
+    floatText(x, y - (e.type === "giant" ? 300 : 14), "NOVA " + UNITS[e.type].name, { color: "#ffd479", life: 1.4 });
   }
 }
 
@@ -237,6 +274,14 @@ export function updateAllies(dt, foes) {
       a.dying -= dt;
       if (a.dying <= 0) allies.splice(i, 1);
       continue;
+    }
+    // colossos não são empurrados pelo mato: arrancam a vegetação ao passar
+    if (a.def.smash) {
+      a.smashT = (a.smashT || 0) - dt;
+      if (a.smashT <= 0) {
+        a.smashT = 0.45;
+        smashProps(a.x, a.y, a.def.smash);
+      }
     }
     updateAnt(a, dt, foes, m);
   }
@@ -307,9 +352,13 @@ function attackMelee(a, target, dt) {
   if (mm.muts.thorns && target.applyThorns) target.applyThorns(mm.muts.thorns);
   a.lunge = 0.22;
   SFX.bite();
-  burst(a.x + Math.cos(a.angle) * 10, a.y + Math.sin(a.angle) * 10,
-    { n: 4, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70, life: 0.3, sizeMin: 1, sizeMax: 2 });
-  if (crit) floatText(a.x + rand(-6, 6), a.y - 16, "CRITICO", { color: "#ff4d5a", life: 0.8, scale: 1 });
+  // a mordida acompanha o tamanho da formiga: 10px à frente de uma soldado
+  // (bodyR 12) ou 190px à frente de uma GIGANTE, na ponta das mandíbulas
+  const reach = Math.max(10, a.bodyR * 0.8);
+  const biteN = a.bodyR > 40 ? 14 : 4;
+  burst(a.x + Math.cos(a.angle) * reach, a.y + Math.sin(a.angle) * reach,
+    { n: biteN, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70 + a.bodyR, life: 0.3, sizeMin: 1, sizeMax: 2 + a.bodyR / 60 });
+  if (crit) floatText(a.x + rand(-6, 6), a.y - (a.bodyR + 4), "CRITICO", { color: "#ff4d5a", life: 0.8, scale: 1 });
 }
 
 function updateAnt(a, dt, foes, m) {
@@ -370,10 +419,33 @@ function updateWorker(a, dt, foes, think, m, G2) {
     }
     case "goto": {
       const tgt = a.pile || a.node;
-      if (!tgt || tgt.amount <= 0) { a.state = "idle"; a.pile = a.node = null; break; }
+      if (!tgt || tgt.amount <= 0 || tgt.blocked) {
+        a.state = "idle"; a.pile = a.node = null; a.gotoT = 0; a.gotoBest = undefined;
+        break;
+      }
       const arrived = moveToward(a, tgt.x, tgt.y, dt);
-      if (arrived || dist2(a.x, a.y, tgt.x, tgt.y) < (tgt.r + 7) * (tgt.r + 7)) {
+      const d = Math.sqrt(dist2(a.x, a.y, tgt.x, tgt.y));
+      if (arrived || d < tgt.r + 7) {
         a.state = "gather"; a.gatherT = a.st.gatherRate;
+        a.gotoT = 0; a.gotoBest = undefined;
+        break;
+      }
+      // TRAVA ANTITRAVAMENTO: se o alvo é inalcançável (nasceu dentro do
+      // formigueiro, atrás de pedra, etc.) a formiga empurra a colisão para
+      // sempre. Sem progresso por alguns segundos, desiste — e marca o recurso
+      // para as irmãs não caírem na mesma armadilha.
+      if (a.gotoBest === undefined || d < a.gotoBest - 6) {
+        a.gotoBest = d;
+        a.gotoT = 0;
+      } else {
+        a.gotoT = (a.gotoT || 0) + dt;
+        if (a.gotoT > 3.5) {
+          tgt.blocked = true;
+          a.pile = a.node = null;
+          a.gotoT = 0; a.gotoBest = undefined;
+          a.state = "idle";
+          floatText(a.x, a.y - 18, "SEM CAMINHO!", { color: "#ff8a96", life: 1 });
+        }
       }
       break;
     }
@@ -422,12 +494,18 @@ function updateWorker(a, dt, foes, think, m, G2) {
 
 function acquireResource(a) {
   // prioriza comida; se sobrar nada, vai para essência
+  const start = (target) => {
+    a.pile = target.kind === "food" ? target : null;
+    a.node = target.kind === "food" ? null : target;
+    a.gotoT = 0; a.gotoBest = undefined;
+    a.state = "goto";
+  };
   const pile = nearestPile(a.x, a.y);
-  if (pile) { a.pile = pile; a.node = null; a.state = "goto"; return; }
+  if (pile) { start(pile); return; }
   const ess = nearestNode(a.x, a.y, "essence");
-  if (ess) { a.node = ess; a.pile = null; a.state = "goto"; return; }
+  if (ess) { start(ess); return; }
   const amber = nearestNode(a.x, a.y, "amber");
-  if (amber) { a.node = amber; a.pile = null; a.state = "goto"; return; }
+  if (amber) { start(amber); return; }
   // nada para coletar: vagar perto
   if (Math.random() < 0.02) {
     const A = world.anthill;
@@ -499,7 +577,7 @@ function updateHealer(a, dt, foes, m) {
       const frac = o.hp / o.maxHp;
       if (frac < score) { score = frac; best = o; }
     }
-    a.healTarget = best || a.healTarget && !a.healTarget.dead ? best : null;
+    a.healTarget = best;
   }
 
   const tgt = a.healTarget && !a.healTarget.dead && a.healTarget.hp < a.healTarget.maxHp - 1 ? a.healTarget : null;
@@ -615,7 +693,11 @@ function spitAt(a, tgt, m) {
   let dmg = a.st.dmg * packBonus(a) * (m.muts.acidDmg);
   const crit = m.critChance > 0 && Math.random() < m.critChance;
   if (crit) dmg *= 2;
-  const isBomb = a.def.role === "bomber";
+  // Cuidado: o papel da bombeira é "ranged" (como a cuspidora) — o teste pelo
+  // role nunca era verdade, então a bomba saía sem área, sem queimadura e com
+  // som/visual de cuspe. O que identifica a bombeira é o tipo (ou ter aoe).
+  const isBomb = a.type === "bomber" || a.def.bomb === true || a.def.role === "bomber"
+    || (a.st.aoe || 0) > 0;
   spawnProj({
     x: a.x + Math.cos(a.angle) * 10, y: a.y + Math.sin(a.angle) * 10 - 4,
     vx: ((px - a.x) / dd) * a.st.projSpeed, vy: ((py - a.y) / dd) * a.st.projSpeed,
