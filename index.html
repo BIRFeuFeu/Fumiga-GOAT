@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FUMIGA — Colônia Eterna</title>
+<meta name="description" content="Roguelite de colônia de formigas em pixel art. Clique para jogar.">
+<!-- O jogo em si mora em game/: este arquivo só leva você até lá.
+     Assim o endereço do repositório no GitHub Pages já abre o jogo. -->
+<meta http-equiv="refresh" content="0; url=./game/">
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkaGj4DwAFhAJ/ylK4NQAAAABJRU5ErkJggg==">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px; text-align: center; padding: 24px;
+    background: radial-gradient(120% 90% at 50% 0%, #171224 0%, #0a0812 55%, #05040a 100%);
+    color: #efe9ff; font-family: "Courier New", monospace;
+  }
+  h1 {
+    font-size: clamp(28px, 7vw, 56px); letter-spacing: .14em; color: #7ff3e0;
+    text-shadow: 0 0 12px #37e6c8, 0 0 42px rgba(199,125,255,.55), 0 2px 0 #1a1330;
+  }
+  p { color: #b7a9d6; letter-spacing: .08em; font-size: clamp(12px, 2.6vw, 15px); }
+  a.jogar {
+    display: inline-block; padding: 16px 34px; border: 2px solid #37e6c8; border-radius: 3px;
+    background: linear-gradient(180deg, rgba(55,230,200,.16), rgba(199,125,255,.12));
+    color: #dffcf5; text-decoration: none; letter-spacing: .22em; font-weight: bold;
+    font-size: clamp(14px, 3vw, 18px); box-shadow: 0 0 26px rgba(55,230,200,.35);
+    animation: pulsa 1.9s ease-in-out infinite;
+  }
+  a.jogar:hover { background: rgba(55,230,200,.28); }
+  @keyframes pulsa { 50% { transform: scale(1.045); box-shadow: 0 0 40px rgba(55,230,200,.6); } }
+  small { color: #6f6490; letter-spacing: .06em; }
+</style>
+</head>
+<body>
+  <h1>FUMIGA</h1>
+  <p>Colônia Eterna — roguelite de colônia de formigas em pixel art</p>
+  <a class="jogar" href="./game/">▶ JOGAR</a>
+  <small>levando você para o jogo…</small>
+  <script>location.replace("./game/");</script>
+</body>
+</html>

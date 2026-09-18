@@ -6,7 +6,11 @@ Arte inspirada em **Dead Cells** e **Celeste**; sprites do próprio repositório
 
 ## Como jogar
 
-Sirva a pasta `game/` por HTTP (módulos ES exigem servidor; abrir o arquivo direto não funciona):
+**No navegador, sem instalar nada:** <https://feufeup.github.io/Fumiga-GOAT/> — o GitHub Pages
+publica este repositório como site (a página inicial leva para `game/`). O *como ligar* está no
+[README da raiz](../README.md).
+
+Ou sirva a pasta `game/` por HTTP (módulos ES exigem servidor; abrir o arquivo direto não funciona):
 
 ```bash
 cd game
