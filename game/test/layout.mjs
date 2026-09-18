@@ -84,6 +84,7 @@ class MockCtx {
     }
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
+  setLineDash() {}
   fillRect(x, y, w, h) {
     const [ax, ay] = apply(this.m, x, y);
     const [bx, by] = apply(this.m, x + w, y + h);
@@ -337,7 +338,13 @@ const clickAt = (x, y) => {
   mouse.down = mouse.justDown = false; mouse.justUp = true;
   frame();
   mouse.justUp = false;
+  frame();
 };
+function flushTransition(maxFrames = 40) {
+  for (let i = 0; i < maxFrames; i++) {
+    frame();
+  }
+}
 
 // ---------------------------------------------------------------- cenários --
 await wait(30);
@@ -358,9 +365,15 @@ G.save.nodes = { raiz: 1, t_col: 2, g_dan: 5, r_pop: 4 };
 auditFrame("ÁRVORE", frame(), { allowOffscreen: true });
 G.screen = "TITLE"; frame();
 
-// RUN: começa clicando em INICIAR EXPEDIÇÃO (mesmo caminho do jogador)
-clickAt(200, 294);
-if (G.screen !== "RUN") { console.error("não entrou na RUN (screen=" + G.screen + ")"); process.exit(3); }
+// RUN: novo fluxo PRETITLE->TITLE->MODE->RUN
+// TÍTULO já está em TITLE, clica JOGAR -> MODE -> primeiro card -> RUN
+clickAt(200, 275);
+flushTransition();
+if (G.screen !== "MODE") { console.error("não entrou em MODE após JOGAR (screen=" + G.screen + ")"); process.exit(3); }
+auditFrame("MODE", frame());
+clickAt(114, 282);
+flushTransition();
+if (G.screen !== "RUN") { console.error("não entrou na RUN após modo (screen=" + G.screen + ")"); process.exit(3); }
 auditFrame("RUN hud", frame(), { uiStart: "auto" });
 
 // HUD expandido

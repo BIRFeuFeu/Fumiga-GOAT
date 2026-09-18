@@ -1,5 +1,6 @@
 // ============================================================================
-// FUMIGA-GOAT — bootstrap: carregamento, loop principal, redimensionamento
+// FUMIGA-GOAT — bootstrap: carregamento, loop principal, redimensionamento V2
+// Agora começa em PRETITLE com título animado
 // ============================================================================
 import { VIEW_W, VIEW_H, PAL, GIANT_SCALE } from "./config.js";
 import { G, loadSave } from "./state.js";
@@ -18,7 +19,7 @@ ctx.imageSmoothingEnabled = false;
 function fit() {
   const w = window.innerWidth, h = window.innerHeight;
   let s = Math.min(w / VIEW_W, h / VIEW_H);
-  if (s >= 2.1) s = Math.floor(s); // preferir escala inteira quando possível
+  if (s >= 2.1) s = Math.floor(s);
   canvas.style.width = Math.floor(VIEW_W * s) + "px";
   canvas.style.height = Math.floor(VIEW_H * s) + "px";
 }
@@ -29,9 +30,6 @@ fit();
 const ANT_SIZES = {
   worker: 34, soldier: 48, spitter: 44, tank: 54, queen: 142,
   scout: 36, healer: 40, bomber: 46,
-  // a GIGANTE é assada 5x maior que a soldado (pad 315 = 5x63) e desenhada
-  // com fator 4 = 20x exatos (ver setRotDrawScale abaixo): blocos de pixel
-  // uniformes sem pagar o custo de um canvas de 1260px por ângulo
   giant: 247,
   e_runner: 30, e_swarm: 34, e_warrior: 48, e_spitter: 46, e_reaper: 44,
   e_matron: 80, e_sentinel: 62,
@@ -40,31 +38,70 @@ const ANT_SIZES = {
 let progress = 0, phase = "CARREGANDO ESPOROS", ready = false, loadError = null;
 
 function drawLoading() {
-  ctx.fillStyle = "#14101d";
+  ctx.fillStyle = "#0a0812";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  // formigueiro mecânico de loading
+
+  // fundo com gradiente
+  const g = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2 - 40, 20, VIEW_W/2, VIEW_H/2 - 40, 500);
+  g.addColorStop(0, "#1a1430");
+  g.addColorStop(1, "#0a0812");
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  // logo pequeno
+  ctx.fillStyle = "#efe9ff";
+  ctx.font = "bold 32px 'Courier New', monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("FUMIGA", VIEW_W/2, VIEW_H/2 - 90);
+
+  // anéis animados
   ctx.strokeStyle = "#4a3a6e";
-  ctx.lineWidth = 3;
-  const cx = VIEW_W / 2, cy = VIEW_H / 2 - 60;
+  ctx.lineWidth = 2.5;
+  const cx = VIEW_W / 2, cy = VIEW_H / 2 - 20;
+  const time = performance.now() / 1000;
   for (let i = 0; i < 3; i++) {
+    ctx.globalAlpha = 0.5 + Math.sin(time * 2 + i) * 0.3;
     ctx.beginPath();
-    ctx.arc(cx, cy, 14 + i * 10 + Math.sin(performance.now() / 300 + i) * 3, 0, 6.29);
+    ctx.arc(cx, cy, 18 + i * 14 + Math.sin(time * 1.5 + i) * 4, 0, 6.29);
     ctx.stroke();
   }
-  const bw = 360;
+  ctx.globalAlpha = 1;
+
+  // barra de progresso refinada
+  const bw = 360, bh = 24;
+  const bx = cx - bw/2, by = cy + 70;
+  // sombra
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(bx + 3, by + 4, bw, bh);
+  // fundo
   ctx.fillStyle = "#1d1730";
-  ctx.fillRect(cx - bw / 2, cy + 60, bw, 22);
-  ctx.strokeRect(cx - bw / 2 + 0.5, cy + 60.5, bw, 22);
-  const grad = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = "#4a3a6e";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+  // preenchimento com gradiente
+  const grad = ctx.createLinearGradient(bx, by, bx + bw, by);
   grad.addColorStop(0, "#37e6c8");
+  grad.addColorStop(0.5, "#8f6fd6");
   grad.addColorStop(1, "#c77dff");
   ctx.fillStyle = grad;
-  ctx.fillRect(cx - bw / 2 + 2, cy + 62, (bw - 4) * progress, 18);
-  // texto vetorial (a fonte bitmap ainda não foi carregada nesta fase)
-  ctx.fillStyle = loadError ? "#ff4d5a" : "#efe9ff";
-  ctx.font = "bold 13px 'Courier New', monospace";
+  const fillW = (bw - 4) * progress;
+  ctx.fillRect(bx + 2, by + 2, fillW, bh - 4);
+  // brilho
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.fillRect(bx + 2, by + 2, fillW, 2);
+
+  ctx.fillStyle = loadError ? "#ff4d5a" : "#9a8fc0";
+  ctx.font = "11px 'Courier New', monospace";
   ctx.textAlign = "center";
-  ctx.fillText(loadError ? ("ERRO: " + loadError.message) : (phase + "... " + Math.floor(progress * 100) + "%"), cx, cy + 108);
+  ctx.fillText(loadError ? ("ERRO: " + loadError.message) : (phase + "... " + Math.floor(progress * 100) + "%"), cx, by + bh + 22);
+
+  // dica
+  if (!loadError) {
+    ctx.fillStyle = "rgba(154,143,192,0.5)";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.fillText("Inspirado em Dead Cells • Colônia Eterna", cx, VIEW_H - 20);
+  }
 }
 
 // --------------------------------------------------------------- loop -------
@@ -75,7 +112,7 @@ function loop(t) {
   let dt = (t - prev) / 1000;
   prev = t;
   if (dt <= 0) return;
-  if (dt > 0.1) dt = 0.1; // evita salto após alt-tab
+  if (dt > 0.1) dt = 0.1;
 
   if (!ready) { drawLoading(); return; }
   setLastDt(dt);
@@ -90,15 +127,15 @@ async function bootAll() {
   await loadAll((p) => { progress = p * 0.9; });
   phase = "ASSANDO PIXELS";
   await new Promise(r => requestAnimationFrame(r));
-  dupSprite("soldier", "giant");                            // mesma arte, assado 5x
+  dupSprite("soldier", "giant");
   for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
-  setRotDrawScale("giant", "soldier", GIANT_SCALE);          // 20x a soldado, exato
-  bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5); // coletora: variante jade da operária
+  setRotDrawScale("giant", "soldier", GIANT_SCALE);
+  bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
   bakeBossSheets();
   progress = 1;
   boot();
   ready = true;
-  G.screen = "TITLE";
+  G.screen = "PRETITLE";
 }
 
 // primeira interação: destrava áudio

@@ -1,18 +1,15 @@
 // ============================================================================
-// FUMIGA — TUTORIAL DINÂMICO: acontece junto com a gameplay, não em telas.
-// Passos aparecem como cartões vivos no topo; cada um se completa quando o
-// jogador realiza a ação pedida. Tecla T pula. Persiste em save.tutorial.
+// FUMIGA — TUTORIAL DINÂMICO V2: cartões refinados estilo Dead Cells
 // ============================================================================
 import { G, persistSave } from "./state.js";
 import { PAL } from "./config.js";
 import { drawText, wrapText } from "./font.js";
-import { clamp } from "./utils.js";
-import { uiButtons, pointInRect } from "./ui.js";
+import { clamp, TAU } from "./utils.js";
+import { panel, pointInRect } from "./ui.js";
+import { uiButtons } from "./ui.js";
 import { mouse } from "./input.js";
 import { SFX } from "./audio.js";
 
-// cadeia de eventos do tutorial ----------------------------------------------
-// game.js / units.js chamam tutEvent(<nome>) nos momentos certos.
 let events = Object.create(null);
 
 export function tutEvent(name, data) {
@@ -25,7 +22,7 @@ export function tutEvent(name, data) {
 export const TUT = {
   active: false,
   idx: 0,
-  t: 0,            // tempo no passo atual (para fades)
+  t: 0,
   done: false,
   camAccum: 0,
   steps: [],
@@ -35,7 +32,7 @@ const STEP_DEFS = [
   {
     id: "cam", title: "EXPLORE O MAPA", icon: "i_bolt",
     desc: "Arraste com o BOTÃO ESQUERDO para mover a câmera. WASD também funciona.",
-    on() { /* completo via checagem em updateTutorial */ },
+    on() {},
   },
   {
     id: "select", title: "SELECIONE FORMIGAS", icon: "i_spider",
@@ -110,36 +107,23 @@ export function updateTutorial(dt, run) {
   const st = TUT.steps[TUT.idx];
   if (!st) return;
 
-  // passo de câmera: completa por arraste acumulado ou WASD
   if (st.id === "cam" && (TUT.camAccum > 420 || TUT.t > 16)) TUT._done = true;
-  // passos contextuais com tolerância temporal (o jogador já sabe jogar)
   if (st.id === "select" && TUT.t > 60) TUT._done = true;
   if (st.id === "wave" && run.wave >= 1) TUT._done = true;
   if (st.id === "essence" && run.wave >= 2) TUT._done = true;
 
   if (TUT._done) {
-    // breve pausa para o jogador ver o "check"
     if (TUT.t > 0.5) advance();
     else TUT.t = 0.51;
   }
 }
 
-// desenha o cartão do passo atual (chamado pelo HUD da run) -------------------
-// O cartão tem largura fixa e repousa logo abaixo do contador de onda (y 8..60).
-// O retângulo é CALCULADO do estado, não lido do último desenho: o HUD é
-// desenhado ANTES do cartão no mesmo frame, então a posição "desenhada" atrasa
-// um frame — o botão de invocar onda nascia debaixo do cartão e o anúncio do
-// mapa aparecia meio escondido atrás dele.
-const CARD_W = 410;
-const CARD_Y = 68;
+const CARD_W = 420;
+const CARD_Y = 72;
 function cardMetrics(st) {
-  // A descrição é quebrada dentro do cartão: antes, textos de até 71 caracteres
-  // vazavam da caixa e ficavam escondidos atrás do botão de invocar onda.
-  // A largura também não pode invadir o painel do jogador (x 10..272).
-  return { w: CARD_W, h: 40 + wrapText(st.desc, CARD_W - 32, {}).length * 17 + 18 };
+  return { w: CARD_W, h: 44 + wrapText(st.desc, CARD_W - 40, {}).length * 17 + 22 };
 }
 
-/** Retângulo de repouso do cartão (ou null se o tutorial não está ativo). */
 export function tutorialCardRect(VIEW_W) {
   if (!TUT.active) return null;
   const st = TUT.steps[TUT.idx];
@@ -152,30 +136,51 @@ export function drawTutorial(ctx, VIEW_W) {
   const st = TUT.steps[TUT.idx];
   if (!TUT.active || !st) return;
   const { x, w, h, y: yRest } = tutorialCardRect(VIEW_W);
-  const descLines = wrapText(st.desc, w - 32, {});
+  const descLines = wrapText(st.desc, w - 40, {});
   const yIn = clamp((TUT.t) / 0.5, 0, 1);
-  const yStart = -h - 12;                            // entra deslizando por cima da borda
+  const yStart = -h - 12;
   const y = yStart + (yRest - yStart) * (1 - Math.pow(1 - yIn, 3));
 
   ctx.globalAlpha = clamp(TUT.t / 0.25, 0, 1);
-  // corpo
-  ctx.fillStyle = "rgba(16,12,26,0.92)";
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = TUT._done ? "#7fd6a0" : "#37e6c8";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-  ctx.fillStyle = "#37e6c8";
-  ctx.fillRect(x, y, 4, h);
 
-  drawText(ctx, st.title, x + 16, y + 10, { font: "big", scale: 1, color: TUT._done ? "#7fd6a0" : "#ffd479" });
-  descLines.forEach((L, li) => drawText(ctx, L, x + 16, y + 34 + li * 17, { color: PAL.text }));
-  drawText(ctx, "PASSO " + (TUT.idx + 1) + "/" + TUT.steps.length, x + 16, y + h - 16, { color: PAL.textDim });
+  // sombra
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(x + 3, y + 4, w, h);
 
-  // botão "PULAR" sempre clicável (rótulo curto: o antigo vazava do cartão)
-  const bw = 92, bh = 20;
-  const bx = x + w - bw - 10, by = y + h - bh - 8;
+  // painel refinado
+  panel(ctx, x, y, w, h, {
+    fill: TUT._done ? "#1e2a1e" : "#1a1628",
+    border: TUT._done ? "#7fd6a0" : "#37e6c8",
+    accentLine: TUT._done ? "#7fd6a0" : "#37e6c8",
+    glow: TUT._done ? "#7fd6a0" : "#37e6c8",
+    r: 6,
+  });
+
+  // barra lateral animada
+  const pulse = 0.5 + Math.sin(G.time * 3) * 0.3;
+  ctx.fillStyle = TUT._done ? "#7fd6a0" : "#37e6c8";
+  ctx.globalAlpha = 0.6 + pulse * 0.4;
+  ctx.fillRect(x, y + 2, 4, h - 4);
+  ctx.globalAlpha = clamp(TUT.t / 0.25, 0, 1);
+
+  // ícone de check se concluído
+  if (TUT._done) {
+    ctx.fillStyle = "#7fd6a0";
+    ctx.beginPath();
+    ctx.arc(x + w - 18, y + 16, 10, 0, TAU);
+    ctx.fill();
+    drawText(ctx, "✓", x + w - 18, y + 10, { color: "#000", align: "center", font: "big" });
+  }
+
+  drawText(ctx, st.title, x + 20, y + 12, { font: "big", scale: 1, color: TUT._done ? "#7fd6a0" : "#ffd479" });
+  descLines.forEach((L, li) => drawText(ctx, L, x + 20, y + 36 + li * 17, { color: PAL.text }));
+  drawText(ctx, "PASSO " + (TUT.idx + 1) + "/" + TUT.steps.length, x + 20, y + h - 18, { color: PAL.textDim });
+
+  // botão pular refinado
+  const bw = 96, bh = 22;
+  const bx = x + w - bw - 12, by = y + h - bh - 10;
   const hot = pointInRect(mouse.x, mouse.y, bx, by, bw, bh);
-  ctx.fillStyle = hot ? "#4a3a6e" : "#2c2444";
+  ctx.fillStyle = hot ? "#3a3054" : "#2c2444";
   ctx.fillRect(bx, by, bw, bh);
   ctx.strokeStyle = hot ? "#8f7bd6" : "#4a3a6e";
   ctx.lineWidth = 1;
@@ -188,7 +193,9 @@ export function drawTutorial(ctx, VIEW_W) {
   }
 
   if (TUT._done) {
-    drawText(ctx, "CONCLUÍDO!", x + w / 2, y + h + 6, { color: "#7fd6a0", align: "center" });
+    ctx.fillStyle = "rgba(127,214,160,0.15)";
+    ctx.fillRect(x, y + h, w, 18);
+    drawText(ctx, "CONCLUÍDO!", x + w / 2, y + h + 4, { color: "#7fd6a0", align: "center" });
   }
   ctx.globalAlpha = 1;
 }
