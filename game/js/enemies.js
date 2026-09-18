@@ -6,7 +6,7 @@ import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS }
 import { mods } from "./state.js";
 import { world, collide, smashProps } from "./world.js";
 import { rand, dist, dist2, clamp, angLerp, nextId, TAU, easeOutCubic } from "./utils.js";
-import { burst, ring, scent, floatText, spawnPart } from "./particles.js";
+import { burst, ring, scent, floatText, spawnPart, impact, bloodSplatter, explosion, dustPoof, levelUpBurst } from "./particles.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
 import { shake } from "./camera.js";
@@ -79,11 +79,14 @@ function killEnemy(e) {
   if (e.dying) return;
   e.dead = true;
   e.dying = 0.4;
+  bloodSplatter(e.x, e.y, e.bodyR > 15 ? "#a32e46" : "#ff4d5a");
   burst(e.x, e.y, {
-    n: e.bodyR > 15 ? 22 : 12,
+    n: e.bodyR > 15 ? 24 : 14,
     color: ["#ff4d5a", "#a32e46", "#6e2537", "#3a2c4c"],
-    spMin: 25, spMax: 130, life: 0.55, sizeMin: 1, sizeMax: 3, g: 60,
+    spMin: 25, spMax: 140, life: 0.6, sizeMin: 1.2, sizeMax: 3.2, g: 60,
   });
+  impact(e.x, e.y, { color: "#ff4d5a", power: e.bodyR > 15 ? 1.6 : 1 });
+  if (e.bodyR > 15) dustPoof(e.x, e.y, 8);
   SFX.splat();
   dropOrb(e.x, e.y, e.def.ess);
   const run = window.__run;
@@ -283,11 +286,13 @@ export function spawnBoss(kind, wave) {
 function killBoss(b) {
   b.dead = true; b.dying = 2.2;
   const run = window.__run;
-  if (run) { run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); }
+  if (run) { run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); run.mapsCleared++; }
   dropOrb(b.x, b.y, b.def.ess);
-  shake(1);
+  shake(1.2);
+  explosion(b.x, b.y, 140, "#ffd479");
   ring(b.x, b.y, { r0: 10, r1: 190, life: 0.7, color: "#ffd479", width: 5 });
-  burst(b.x, b.y, { n: 60, color: ["#ffd479", "#ff7a3d", "#ff4d5a", "#c77dff"], spMin: 40, spMax: 260, life: 0.9, sizeMin: 1.5, sizeMax: 4, glow: true });
+  burst(b.x, b.y, { n: 70, color: ["#ffd479", "#ff7a3d", "#ff4d5a", "#c77dff", "#fff"], spMin: 40, spMax: 280, life: 1, sizeMin: 1.8, sizeMax: 4.5, glow: true });
+  levelUpBurst(b.x, b.y);
   SFX.roar();
   SFX.slam();
 }

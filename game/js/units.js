@@ -6,7 +6,7 @@ import { UNITS, QUEEN, START, LEVEL_HP, LEVEL_DMG } from "./config.js";
 import { mods } from "./state.js";
 import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
 import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
-import { spawnPart, burst, scent, floatText, ring } from "./particles.js";
+import { spawnPart, burst, scent, floatText, ring, impact, critBurst, healPulse, bloodSplatter, dustPoof } from "./particles.js";
 import { shake } from "./camera.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
@@ -161,11 +161,16 @@ export function killAnt(a) {
   a.dying = 0.45;
   a.dead = true;
   a.selected = false;
-  burst(a.x, a.y, { n: 10, color: ["#ff7a3d", "#c94f2e", "#5a3a4a"], spMin: 20, spMax: 100, life: 0.5, sizeMin: 1, sizeMax: 3, g: 80 });
+  bloodSplatter(a.x, a.y, "#c94f2e");
+  burst(a.x, a.y, { n: 12, color: ["#ff7a3d", "#c94f2e", "#5a3a4a"], spMin: 20, spMax: 110, life: 0.55, sizeMin: 1.2, sizeMax: 3.2, g: 80 });
+  dustPoof(a.x, a.y, 6);
   SFX.splat();
   if (a.carry > 0 && a.carryKind === "food") {
-    // derruba metade da comida como partículas âmbar
     burst(a.x, a.y, { n: Math.min(8, a.carry * 2), color: "#ffb347", spMin: 15, spMax: 60, life: 0.6, sizeMin: 1, sizeMax: 2.2 });
+  }
+  if (a.type === "giant") {
+    shake(0.5);
+    ring(a.x, a.y, { r0: 10, r1: 80, life: 0.5, color: "#ffd479", width: 3 });
   }
 }
 
@@ -339,7 +344,6 @@ function packBonus(a) {
 }
 
 function attackMelee(a, target, dt) {
-  // anima avanço curto
   if (a.atkT > 0) return;
   a.atkT = a.st.atkCd;
   const mm = a.mm;
@@ -347,18 +351,22 @@ function attackMelee(a, target, dt) {
   const crit = mm.critChance > 0 && Math.random() < mm.critChance;
   if (crit) dmg *= 2;
   target.takeDamage(dmg, "ally", a);
-  // bônus de mutações no impacto
   if (mm.muts.weakenOnHit) target.weakT = Math.max(target.weakT || 0, 3);
   if (mm.muts.thorns && target.applyThorns) target.applyThorns(mm.muts.thorns);
   a.lunge = 0.22;
   SFX.bite();
-  // a mordida acompanha o tamanho da formiga: 10px à frente de uma soldado
-  // (bodyR 12) ou 190px à frente de uma GIGANTE, na ponta das mandíbulas
   const reach = Math.max(10, a.bodyR * 0.8);
-  const biteN = a.bodyR > 40 ? 14 : 4;
-  burst(a.x + Math.cos(a.angle) * reach, a.y + Math.sin(a.angle) * reach,
-    { n: biteN, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70 + a.bodyR, life: 0.3, sizeMin: 1, sizeMax: 2 + a.bodyR / 60 });
-  if (crit) floatText(a.x + rand(-6, 6), a.y - (a.bodyR + 4), "CRITICO", { color: "#ff4d5a", life: 0.8, scale: 1 });
+  const hx = a.x + Math.cos(a.angle) * reach;
+  const hy = a.y + Math.sin(a.angle) * reach;
+  if (crit) {
+    critBurst(hx, hy);
+    floatText(a.x + rand(-6, 6), a.y - (a.bodyR + 4), "CRITICO!", { color: "#ff4d5a", life: 0.9, scale: 1.2, pop: 0.6 });
+    shake(0.18);
+  } else {
+    impact(hx, hy, { color: a.bodyR > 40 ? "#ffd479" : "#ffb347", power: a.bodyR > 40 ? 2 : 1 });
+    const biteN = a.bodyR > 40 ? 14 : 4;
+    burst(hx, hy, { n: biteN, color: ["#ffb347", "#ff7a3d"], spMin: 15, spMax: 70 + a.bodyR, life: 0.3, sizeMin: 1, sizeMax: 2 + a.bodyR / 60 });
+  }
 }
 
 function updateAnt(a, dt, foes, m) {

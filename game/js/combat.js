@@ -1,10 +1,14 @@
 // ============================================================================
-// FUMIGA-GOAT — projéteis e orbes de essência
+// FUMIGA-GOAT — projéteis e orbes de essência V2 com efeitos visuais
 // ============================================================================
 import { rand, dist2, TAU } from "./utils.js";
-import { spawnPart, burst, ring, floatText } from "./particles.js";
+import {
+  spawnPart, burst, ring, floatText,
+  impact, explosion, essenceCollect, slashTrail, dashTrail
+} from "./particles.js";
 import { SFX } from "./audio.js";
 import { world } from "./world.js";
+import { shake } from "./camera.js";
 
 export const projectiles = [];
 export const orbs = [];
@@ -16,10 +20,10 @@ export function spawnProj(o) {
     x: o.x, y: o.y,
     vx: o.vx, vy: o.vy,
     dmg: o.dmg,
-    faction: o.faction,         // 'ally' | 'enemy'
+    faction: o.faction,
     color: o.color || "#8fe87f",
-    slow: o.slow || 0,          // fração de lentidão aplicada (2s)
-    weaken: o.weaken || 0,      // redução de dano aplicada (3s)
+    slow: o.slow || 0,
+    weaken: o.weaken || 0,
     bounces: o.bounces || 0,
     aoe: o.aoe || 0,
     burnDps: o.burnDps || 0,
@@ -28,10 +32,10 @@ export function spawnProj(o) {
     t: 0,
     life: 2.2,
     size: o.size || 2.5,
+    trail: [],
   });
 }
 
-// alvo implícito: quem devolve dano com contato — resolvido em enemies/units
 export function updateProjectiles(dt, allies, foes) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
@@ -39,12 +43,20 @@ export function updateProjectiles(dt, allies, foes) {
     p.t = (p.t || 0) + dt;
     p.x += p.vx * dt; p.y += p.vy * dt;
 
-    // projéteis "lob" (bombeira) têm altura visual e rastro de brasa
-    if (p.arc && Math.random() < 0.7) {
-      spawnPart({ x: p.x, y: p.y, life: 0.45, size: 2, sizeEnd: 0.3,
-        color: Math.random() < 0.5 ? "#ff9a3d" : "#ff5a2a", glow: true, drag: 1 });
-    } else if (!p.arc && Math.random() < 0.5) {
-      spawnPart({ x: p.x, y: p.y, life: 0.3, size: 1.5, sizeEnd: 0.4, color: p.color, glow: true, drag: 1 });
+    // trilha
+    p.trail.push({ x: p.x, y: p.y, life: 0.25 });
+    if (p.trail.length > 6) p.trail.shift();
+    for (const tr of p.trail) tr.life -= dt;
+    p.trail = p.trail.filter(t => t.life > 0);
+
+    if (p.arc && Math.random() < 0.75) {
+      spawnPart({ x: p.x, y: p.y, life: 0.5, size: 2.2, sizeEnd: 0.3,
+        color: Math.random() < 0.5 ? "#ff9a3d" : "#ff5a2a", glow: true, drag: 1, shape: "circle" });
+      if (Math.random() < 0.15) {
+        spawnPart({ x: p.x, y: p.y, vx: rand(-20,20), vy: rand(-30,-5), life: 0.6, size: 1.2, sizeEnd: 0.2, color: "#ff7a3d", glow: false, drag: 0.92, g: 30 });
+      }
+    } else if (!p.arc && Math.random() < 0.6) {
+      spawnPart({ x: p.x, y: p.y, life: 0.35, size: 1.8, sizeEnd: 0.4, color: p.color, glow: true, drag: 1, shape: "spark" });
     }
 
     if (p.life <= 0) { projectiles.splice(i, 1); continue; }
@@ -57,7 +69,6 @@ export function updateProjectiles(dt, allies, foes) {
       if (dist2(p.x, p.y, t.x, t.y) < rr * rr) { hit = t; break; }
     }
     if (!hit && p.faction === "enemy") {
-      // projéteis inimigos também acertam a rainha
       const q = allies.queen;
       if (q && !q.dead) {
         const A = world.anthill;
@@ -67,7 +78,6 @@ export function updateProjectiles(dt, allies, foes) {
     if (hit) {
       hit.takeDamage(p.dmg, p.faction === "ally" ? "ally" : "enemy", p);
       if (p.aoe > 0) {
-        // EXPLOSÃO EM ÁREA: meio dano ao redor + queimadura
         for (const t of targets) {
           if (t === hit || t.dead || t.dying) continue;
           const rr = p.aoe + (t.bodyR || 12);
@@ -83,16 +93,16 @@ export function updateProjectiles(dt, allies, foes) {
             }
           }
         }
-        ring(p.x, p.y, { r0: 6, r1: p.aoe, life: 0.4, color: "#ff9a3d", width: 3 });
-        ring(p.x, p.y, { r0: 3, r1: p.aoe * 1.4, life: 0.5, color: "#ff5a2a", width: 2 });
-        burst(p.x, p.y, { n: 22, color: ["#ff9a3d", "#ff5a2a", "#ffd479"], spMin: 40, spMax: 220, life: 0.5, sizeMin: 1.5, sizeMax: 3.5, glow: true, g: 60 });
-        burst(p.x, p.y, { n: 10, color: ["#3a2418", "#241812"], spMin: 10, spMax: 80, life: 0.8, sizeMin: 2, sizeMax: 4, g: -40 });
+        explosion(p.x, p.y, p.aoe, "#ff7a3d");
+        shake(0.35);
         SFX.boom();
       } else {
-        burst(p.x, p.y, { n: 5, color: p.color, spMin: 10, spMax: 60, life: 0.35, sizeMin: 1, sizeMax: 2.4, glow: true });
+        impact(p.x, p.y, { color: p.color, power: 1.1 });
+        if (p.faction === "ally") {
+          slashTrail(p.x, p.y, Math.atan2(p.vy, p.vx), p.color);
+        }
       }
       if (p.bounces > 0) {
-        // ricochete: próximo alvo próximo
         let next = null, bd = Infinity;
         for (const t of targets) {
           if (t === hit || t.dead || t.dying) continue;
@@ -106,6 +116,8 @@ export function updateProjectiles(dt, allies, foes) {
           const sp = Math.hypot(p.vx, p.vy);
           p.vx = ((next.x - p.x) / d) * sp;
           p.vy = ((next.y - p.y) / d) * sp;
+          // ricochete visual
+          ring(p.x, p.y, { r0: 2, r1: 18, life: 0.2, color: p.color, width: 2 });
           continue;
         }
       }
@@ -115,15 +127,40 @@ export function updateProjectiles(dt, allies, foes) {
 }
 
 export function drawProjectiles(ctx, w2s) {
+  // trilha primeiro
+  for (const p of projectiles) {
+    if (!p.trail) continue;
+    for (const tr of p.trail) {
+      const s = w2s(tr.x, tr.y);
+      const a = tr.life / 0.25;
+      ctx.globalAlpha = a * 0.35;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(s.x - 1, s.y - 1, 2, 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   for (const p of projectiles) {
     const s = w2s(p.x, p.y);
+    // glow externo
     ctx.fillStyle = p.color;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(s.x - p.size, s.y - p.size, p.size * 2, p.size * 2);
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(s.x - p.size * 1.9, s.y - p.size * 1.9, p.size * 3.8, p.size * 3.8);
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, p.size * 3.5, 0, TAU);
+    ctx.fill();
+    // núcleo
+    ctx.globalAlpha = 0.95;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, p.size, 0, TAU);
+    ctx.fill();
+    // brilho central branco
+    ctx.fillStyle = "#fff";
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, p.size * 0.5, 0, TAU);
+    ctx.fill();
   }
   ctx.restore();
   ctx.globalAlpha = 1;
@@ -132,16 +169,16 @@ export function drawProjectiles(ctx, w2s) {
 // ------------------------------------------------------------- essência -----
 export function dropOrb(x, y, amt) {
   for (let i = 0; i < amt; i++) {
-    if (orbs.length > 150) { orbs[0].amt += 1; break; }
+    if (orbs.length > 180) { orbs[0].amt += 1; break; }
     orbs.push({
       x: x + rand(-8, 8), y: y + rand(-8, 8),
       vx: rand(-46, 46), vy: rand(-66, -20),
       amt: 1, t: 0, delay: rand(0.35, 0.8),
+      phase: rand(0, TAU),
     });
   }
 }
 
-/** updateOrbs: orbes voam ao formigueiro após um instante. Retorna essência coletada. */
 export function updateOrbs(dt, anthill, queenAlive) {
   let gained = 0;
   for (let i = orbs.length - 1; i >= 0; i--) {
@@ -155,12 +192,13 @@ export function updateOrbs(dt, anthill, queenAlive) {
     if (!queenAlive) continue;
     const dx = anthill.x - o.x, dy = anthill.y - o.y;
     const d = Math.hypot(dx, dy) || 1;
-    const sp = Math.min(520, 120 + o.t * o.t * 900);
+    const sp = Math.min(620, 120 + o.t * o.t * 1100);
     o.x += (dx / d) * sp * dt;
     o.y += (dy / d) * sp * dt;
     if (d < 40) {
       gained += o.amt;
-      spawnPart({ x: o.x, y: o.y, life: 0.4, size: 2.4, sizeEnd: 0.4, color: "#c77dff", glow: true, drag: 1 });
+      essenceCollect(o.x, o.y);
+      spawnPart({ x: o.x, y: o.y, life: 0.5, size: 3, sizeEnd: 0.4, color: "#c77dff", glow: true, drag: 1, shape: "circle" });
       orbs.splice(i, 1);
     }
   }
@@ -173,12 +211,20 @@ export function drawOrbs(ctx, w2s, time) {
   ctx.globalCompositeOperation = "lighter";
   for (const o of orbs) {
     const s = w2s(o.x, o.y);
-    const wob = Math.sin(time * 6 + o.x) * 1.5;
+    const wob = Math.sin(time * 6 + o.phase) * 1.8;
+    const pulse = 0.8 + Math.sin(time * 4 + o.x * 0.01) * 0.2;
+    // glow
     ctx.fillStyle = "#c77dff";
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = 0.25 * pulse;
+    ctx.beginPath(); ctx.arc(s.x, s.y + wob, 8, 0, TAU); ctx.fill();
+    // núcleo
+    ctx.globalAlpha = 0.9 * pulse;
+    ctx.fillStyle = "#d8b4ff";
     ctx.fillRect(s.x - 1.5, s.y - 3 + wob, 3, 6);
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(s.x - 3, s.y - 5 + wob, 6, 10);
+    // brilho
+    ctx.fillStyle = "#fff";
+    ctx.globalAlpha = 0.7;
+    ctx.fillRect(s.x - 0.5, s.y - 1 + wob, 1, 2);
   }
   ctx.restore();
   ctx.globalAlpha = 1;
