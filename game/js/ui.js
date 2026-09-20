@@ -9,9 +9,32 @@ import { SFX } from "./audio.js";
 import { G } from "./state.js";
 
 let buttons = [];
+// Animação de interface: hover/pressão de cada botão são NÚMEROS que correm
+// atrás do estado real (0..1), então entrar e sair do botão é suave em vez de
+// piscar. A chave é o id do botão.
+const anim = new Map();
+let lastT = 0, frameDt = 1 / 60;
 
-export function uiBegin() { buttons = []; }
+export function uiBegin() {
+  buttons = [];
+  frameDt = Math.max(0.001, Math.min(0.05, G.time - lastT || 1 / 60));
+  lastT = G.time;
+}
 export function uiButtons() { return buttons; }
+
+/** Persegue o alvo com easing exponencial (independente do framerate). */
+function chase(cur, target, speed) {
+  const k = 1 - Math.pow(0.0009, frameDt * speed);
+  return cur + (target - cur) * k;
+}
+
+function animOf(id, hot, down) {
+  let a = anim.get(id);
+  if (!a) { a = { hover: 0, press: 0 }; anim.set(id, a); }
+  a.hover = chase(a.hover, hot ? 1 : 0, 1);
+  a.press = chase(a.press, down ? 1 : 0, 1.8);
+  return a;
+}
 
 export function pointInRect(px, py, x, y, w, h) {
   return px >= x && px <= x + w && py >= y && py <= y + h;
@@ -59,13 +82,13 @@ export function panel(ctx, x, y, w, h, opt = {}) {
     ctx.globalAlpha = 1;
   }
 
-  // textura de ruído sutil (Dead Cells)
+  // textura: hachura fixa (o ruído aleatório de antes piscava a cada frame —
+  // agora o painel tem granulado estável, derivado da própria posição)
   if (opt.noise !== false) {
-    ctx.fillStyle = "rgba(255,255,255,0.015)";
-    for (let i = 0; i < 3; i++) {
-      const nx = x + Math.random() * w;
-      const ny = y + Math.random() * h;
-      ctx.fillRect(nx, ny, 1, 1);
+    ctx.fillStyle = "rgba(255,255,255,0.02)";
+    for (let ny = y + 3; ny < y + h - 3; ny += 5) {
+      const nx = x + 4 + (((ny * 7 + x) | 0) % Math.max(6, (w - 12) | 0));
+      ctx.fillRect(nx, ny, 2, 1);
     }
   }
 
@@ -116,61 +139,59 @@ export function button(ctx, opt) {
   const { x, y, w, h } = opt;
   const hot = pointInRect(mouse.x, mouse.y, x, y, w, h);
   const dis = !!opt.disabled;
+  const down = hot && mouse.down && !dis;
   const clicked = hot && mouse.justDown && !dis;
+  const A = animOf(opt.id || (opt.label + x + y), hot && !dis, down);
+  const hv = dis ? 0 : A.hover;
+  const pr = dis ? 0 : A.press;
 
-  // animação de hover
-  const t = G.time * 3;
-  const pulse = hot ? 0.5 + Math.sin(t) * 0.1 : 0;
+  // o botão "levanta" no hover e afunda no clique
+  const lift = -1.6 * hv + 1.2 * pr;
+  const bx = x, by = y + lift;
+  const pulse = 0.5 + Math.sin(G.time * 3) * 0.5;
 
-  let border = dis ? "#2c2440" : hot ? PAL.borderHi : PAL.border;
-  let fill = dis ? "#171222" : hot ? PAL.panelHi : PAL.panel;
+  const border = dis ? "#2c2440" : mix(PAL.border, PAL.borderHi, hv);
+  const fill = dis ? "#171222" : mix(PAL.panel, PAL.panelHi, hv * 0.9);
 
-  // variação de cor por accent
-  if (opt.accent && !dis) {
-    fill = hot ? lighten(PAL.panelHi, 0.05) : PAL.panel;
-  }
-
-  panel(ctx, x, y, w, h, {
+  panel(ctx, bx, by, w, h, {
     fill,
     border,
     r: 5,
-    glow: hot && !dis ? (opt.accent || PAL.borderHi) : null,
+    glow: hv > 0.02 ? (opt.accent || PAL.borderHi) : null,
     accentLine: opt.accent && !dis ? opt.accent : null,
   });
 
-  if (hot && !dis) {
-    // overlay de hover com gradiente
-    const hg = ctx.createLinearGradient(x, y, x, y + h);
-    hg.addColorStop(0, "rgba(255,212,121,0.06)");
-    hg.addColorStop(1, "rgba(255,212,121,0.02)");
+  // banho de luz no hover (gradiente de cima, some suave ao sair)
+  if (hv > 0.01) {
+    const hg = ctx.createLinearGradient(bx, by, bx, by + h);
+    hg.addColorStop(0, "rgba(255,212,121," + (0.10 * hv).toFixed(3) + ")");
+    hg.addColorStop(1, "rgba(255,212,121," + (0.02 * hv).toFixed(3) + ")");
     ctx.fillStyle = hg;
-    chamfer(ctx, x + 1, y + 1, w - 2, h - 2, 4);
+    chamfer(ctx, bx + 1, by + 1, w - 2, h - 2, 4);
     ctx.fill();
 
     // brilho pulsante na borda
     ctx.strokeStyle = opt.accent || PAL.amber;
-    ctx.globalAlpha = 0.15 + pulse * 0.15;
+    ctx.globalAlpha = (0.12 + pulse * 0.18) * hv;
     ctx.lineWidth = 1;
-    chamfer(ctx, x + 2, y + 2, w - 4, h - 4, 3);
+    chamfer(ctx, bx + 2, by + 2, w - 4, h - 4, 3);
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
   if (opt.accent && !dis) {
-    // barra de accent mais estilizada
-    ctx.fillStyle = opt.accent;
-    ctx.globalAlpha = hot ? 0.95 : 0.6;
-    // gradiente vertical na barra
-    const ag = ctx.createLinearGradient(x, y, x, y + h);
-    ag.addColorStop(0, opt.accent);
+    // barra de accent: cresce no hover
+    const bw = 3 + 2 * hv;
+    const ag = ctx.createLinearGradient(bx, by, bx, by + h);
+    ag.addColorStop(0, lighten(opt.accent, 0.12 * hv));
     ag.addColorStop(1, darken(opt.accent, 0.3));
     ctx.fillStyle = ag;
-    ctx.fillRect(x + 2, y + 2, 3, h - 4);
-    // glow
+    ctx.globalAlpha = 0.6 + 0.4 * hv;
+    ctx.fillRect(bx + 2, by + 2, bw, h - 4);
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = hot ? 0.4 : 0.15;
-    ctx.fillRect(x + 2, y + 2, 6, h - 4);
+    ctx.globalAlpha = 0.15 + 0.3 * hv;
+    ctx.fillRect(bx + 2, by + 2, bw + 4, h - 4);
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -178,18 +199,37 @@ export function button(ctx, opt) {
   // ícone opcional à esquerda
   if (opt.icon) {
     ctx.globalAlpha = dis ? 0.3 : 1;
-    ctx.drawImage(opt.icon, x + 10, y + h/2 - 8, 16, 16);
+    ctx.drawImage(opt.icon, bx + 10, by + h / 2 - 8, 16, 16);
     ctx.globalAlpha = 1;
   }
 
-  const col = dis ? "#5a4f78" : opt.color || PAL.text;
-  const scale = hot && !dis ? (opt.scale || 1) * 1.05 : (opt.scale || 1);
-  drawText(ctx, opt.label, x + w / 2 + (opt.icon ? 10 : 0), y + h / 2 - (opt.font === "big" ? 15 : 8) - 2,
+  // rótulo: clareia e cresce um toque no hover (o texto acompanha o botão)
+  const col = dis ? "#5a4f78" : (opt.color || mix(PAL.text, "#ffffff", hv * 0.55));
+  const scale = (opt.scale || 1) * (1 + 0.05 * hv - 0.02 * pr);
+  drawText(ctx, opt.label, bx + w / 2 + (opt.icon ? 10 : 0),
+    by + h / 2 - (opt.font === "big" ? 15 : 8) - 2,
     { font: opt.font || "small", scale, color: col, align: "center", shadow: true });
 
   buttons.push({ x, y, w, h, id: opt.id, disabled: dis });
   if (clicked) SFX.uiClick();
   return clicked;
+}
+
+/** Mistura dois "#rrggbb" (t = 0 -> a, t = 1 -> b). */
+function mix(a, b, t) {
+  if (t <= 0.001) return a;
+  if (t >= 0.999) return b;
+  const pa = hex2rgb(a), pb = hex2rgb(b);
+  if (!pa || !pb) return t < 0.5 ? a : b;
+  const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+  const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+  return "rgb(" + r + "," + g + "," + bl + ")";
+}
+function hex2rgb(hex) {
+  const h = String(hex).replace("#", "");
+  if (h.length !== 6) return null;
+  return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
 }
 
 /** Botão de ícone (loja / hotbar) refinado */
@@ -198,13 +238,17 @@ export function iconButton(ctx, opt) {
   const hot = pointInRect(mouse.x, mouse.y, x, y, w, h);
   const dis = !!opt.disabled;
   const clicked = hot && mouse.justDown && !dis;
-  let border = dis ? "#2c2440" : hot || opt.selected ? opt.frame || PAL.amber : PAL.border;
+  const A = animOf("ic" + (opt.id || "") + x + y, hot && !dis, hot && mouse.down && !dis);
+  const hv = dis ? 0 : A.hover;
+  const sel = opt.selected ? 1 : 0;
+  const lift = -1.4 * hv + 1 * A.press;
+  let border = dis ? "#2c2440" : mix(PAL.border, opt.frame || PAL.amber, Math.max(hv, sel));
 
-  panel(ctx, x, y, w, h, {
-    fill: hot && !dis ? PAL.panelHi : PAL.panel,
+  panel(ctx, x, y + lift, w, h, {
+    fill: mix(PAL.panel, PAL.panelHi, hv),
     border,
     r: 4,
-    glow: (hot || opt.selected) && !dis ? (opt.frame || PAL.amber) : null,
+    glow: (hv > 0.02 || sel) && !dis ? (opt.frame || PAL.amber) : null,
     accentLine: opt.selected ? (opt.frame || PAL.amber) : null,
   });
 
@@ -212,20 +256,20 @@ export function iconButton(ctx, opt) {
     ctx.strokeStyle = opt.frame || PAL.amber;
     ctx.globalAlpha = 0.85;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x + 2.5, y + 2.5, w - 5, h - 5);
+    ctx.strokeRect(x + 2.5, y + lift + 2.5, w - 5, h - 5);
     // inner glow
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.15;
     ctx.fillStyle = opt.frame || PAL.amber;
-    ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+    ctx.fillRect(x + 3, y + lift + 3, w - 6, h - 6);
     ctx.restore();
     ctx.globalAlpha = 1;
   }
 
-  if (hot && !dis && !opt.selected) {
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
-    ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+  if (hv > 0.01 && !opt.selected) {
+    ctx.fillStyle = "rgba(255,255,255," + (0.06 * hv).toFixed(3) + ")";
+    ctx.fillRect(x + 2, y + lift + 2, w - 4, h - 4);
   }
 
   buttons.push({ x, y, w, h, id: opt.id, disabled: dis });

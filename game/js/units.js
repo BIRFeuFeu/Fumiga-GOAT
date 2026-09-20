@@ -11,11 +11,18 @@ import { shake } from "./camera.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
 import { tutEvent } from "./tutorial.js";
+import {
+  colony, colonyTick, newBrain, think as brainThink, forget as brainForget,
+  announceFood, markDanger, markFood, dangerAt, resetColony,
+} from "./brain.js";
+
+export { resetColony };
 
 export const allies = [];          // formigas aliadas
 allies.queen = null;               // atalho para a rainha
 export const eggs = [];            // fila de chocagem
 let grid = new SpatialGrid(56);
+let resourceList = [];           // recursos disponíveis no frame (ver brain.js)
 
 // ------------------------------------------------------------------ rainha --
 export function spawnQueen() {
@@ -112,6 +119,8 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     healTarget: null, healFxT: 0,
     bob: rand(0, 6.28), hitT: 0, stunT: 0, slowT: 0, weakT: 0,
     lunge: 0, spawnT: opts.spawnT || 0,
+    // cérebro individual: traços estáveis + foco atual (ver brain.js)
+    brain: newBrain(typeId),
     selected: false, pack: 0,
     dead: false, dying: 0,
     takeDamage(dmg, from, attacker) {
@@ -129,6 +138,8 @@ export function spawnAnt(typeId, x, y, opts = {}) {
       dmg *= mm.muts.dmgTaken * (1 - mm.armor);
       this.hp -= dmg;
       this.hitT = 0.12;
+      // ESTIGMERGIA: quem apanha perfuma o chão de alarme — as irmãs desviam
+      markDanger(this.x, this.y, 0.55);
       if (chance(0.3)) SFX.hurt();
       // trabalhadoras e curandeiras fogem ao serem atacadas
       if ((this.def.role === "worker" || this.type === "healer") && this.state !== "flee") {
@@ -161,6 +172,9 @@ export function killAnt(a) {
   a.dying = 0.45;
   a.dead = true;
   a.selected = false;
+  // o cérebro libera a vaga no recurso que ela ia buscar e grita "perigo"
+  brainForget(a);
+  markDanger(a.x, a.y, 1.1);
   bloodSplatter(a.x, a.y, "#c94f2e");
   burst(a.x, a.y, { n: 12, color: ["#ff7a3d", "#c94f2e", "#5a3a4a"], spMin: 20, spMax: 110, life: 0.55, sizeMin: 1.2, sizeMax: 3.2, g: 80 });
   dustPoof(a.x, a.y, 6);
@@ -273,6 +287,23 @@ export function updateAllies(dt, foes) {
   grid.clear();
   for (const a of allies) if (!a.dead) grid.insert(a);
 
+  // ------------------------------------------------------- pulso do cérebro
+  // A colônia mede as próprias necessidades e o feromônio evapora. A lista de
+  // recursos é montada 1x por frame e compartilhada por todas as decisões (é
+  // assim que uma formiga "vê" a fila de cada pilha sem varrer o mundo).
+  colonyTick(dt, allies, foes, G2);
+  resourceList.length = 0;
+  for (const p of world.piles) {
+    if (p.amount <= 0 || p.blocked) continue;
+    if (Math.hypot(p.x - world.anthill.x, p.y - world.anthill.y) < 150) continue;
+    resourceList.push(p);
+  }
+  for (const nd of world.nodes) {
+    if (nd.amount <= 0 || nd.blocked) continue;
+    if (Math.hypot(nd.x - world.anthill.x, nd.y - world.anthill.y) < 150) continue;
+    resourceList.push(nd);
+  }
+
   for (let i = allies.length - 1; i >= 0; i--) {
     const a = allies[i];
     if (a.dying) {
@@ -305,7 +336,6 @@ function moveToward(a, tx, ty, dt, speedMult = 1) {
   a.x += a.vx * dt; a.y += a.vy * dt;
   a.angle = angLerp(a.angle, Math.atan2(dy, dx), 1 - Math.pow(0.0001, dt));
   a.bob += dt * sp * 0.11;
-  if (a.type === "worker" && Math.random() < dt * 7) scent(a.x, a.y, "#37e6c8");
   return d < 14;
 }
 
@@ -369,6 +399,125 @@ function attackMelee(a, target, dt) {
   }
 }
 
+// ------------------------------------------------------ cérebro individual --
+// Cada formiga repensa a própria vida a cada ~0,25s (com jitter individual,
+// para a colônia não pensar em sincronia) e o cérebro devolve um "desejo".
+// Quem executa continua sendo a máquina de estados abaixo — o cérebro só
+// escolhe para onde apontar.
+let guardSlot = 0;               // próxima vaga no anel de guarda do formigueiro
+
+function brainCtx(foes, m) {
+  return { foes, allies, m, run: window.__run, piles: resourceList };
+}
+
+/** Pensa agora (forçado) e aplica o desejo. Devolve o desejo ou null. */
+function askBrain(a, foes, m) {
+  if (!a.brain) return null;
+  const wish = brainThink(a, brainCtx(foes, m));
+  if (wish) applyWish(a, wish);
+  return wish;
+}
+
+/** Pensa no ritmo próprio da formiga (histerese + jitter de personalidade). */
+function brainTick(a, dt, foes, m) {
+  const b = a.brain;
+  if (!b) return;
+  b.thinkIn -= dt;
+  if (b.thinkIn > 0) return;
+  b.thinkIn = 0.18 + (b.diligence || 1) * 0.09 + Math.random() * 0.12;
+  askBrain(a, foes, m);
+}
+
+/** Traduz o desejo do cérebro em estado da máquina existente. */
+function applyWish(a, wish) {
+  const A = world.anthill;
+  switch (wish.act) {
+    case "gather": {
+      const t = wish.target;
+      if (!t) return;
+      if (a.pile === t || a.node === t) return;      // já está indo: não atrapalha
+      a.pile = t.kind === "food" ? t : null;
+      a.node = t.kind === "food" ? null : t;
+      a.cmdPos = null;
+      a.gotoT = 0; a.gotoBest = undefined;
+      a.state = "goto";
+      break;
+    }
+    case "haul": {
+      // boca cheia: larga tudo e vai entregar no formigueiro
+      a.pile = a.node = null;
+      a.cmdPos = null;
+      a.state = "return";
+      break;
+    }
+    case "explore": {
+      // vaga no mundo, seguindo o rastro de comida das irmãs
+      a.cmdPos = null; a.pile = null; a.node = null;
+      a.tx = wish.pos.x; a.ty = wish.pos.y;
+      if (wish.ang !== undefined && a.brain) a.brain.wanderAng = wish.ang;
+      a.state = "move";
+      break;
+    }
+    case "engage": {
+      if (a.forcedTarget) return;                    // ordem do jogador manda
+      a.target = wish.target;
+      if (a.state !== "chase" && a.state !== "attack") a.state = "chase";
+      break;
+    }
+    case "guard": {
+      // sem posto definido pela jogadora, a colônia dá uma vaga no anel:
+      // é isso que mantém a guarda organizada em vez de um bolo no ninho.
+      if (!a.guardPos) {
+        const ring = a.def && a.def.projSpeed ? 250 : 195;
+        const slot = guardSlot++;
+        const ang = slot * 2.399963;                 // ângulo áureo: espalha bem
+        a.guardPos = { x: A.x + Math.cos(ang) * ring, y: A.y + Math.sin(ang) * ring };
+      }
+      break;
+    }
+    case "intercept": {
+      if (a.forcedTarget) return;
+      a.cmdPos = null;
+      a.tx = wish.pos.x; a.ty = wish.pos.y;
+      a.state = "move";
+      break;
+    }
+    case "support": {
+      // fica perto da irmã mais próxima (fome coletiva)
+      let best = null, bd = Infinity;
+      for (const o of allies) {
+        if (o === a || o.dead || o.dying) continue;
+        const d = dist2(a.x, a.y, o.x, o.y);
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (best && bd > 70 * 70) { a.tx = best.x; a.ty = best.y; a.state = "move"; }
+      break;
+    }
+    case "heal": {
+      a.healTarget = wish.target;
+      break;
+    }
+    case "fallBack": {
+      // ferida: volta para o ninho e NÃO reaquire alvo até se recuperar
+      if (a.brain) a.brain.recovering = (a.hp / a.maxHp) < 0.72;
+      a.cmdPos = null;
+      a.tx = A.x + rand(-70, 70); a.ty = A.y + rand(-70, 70);
+      a.state = "move";
+      break;
+    }
+    case "move": {
+      if (wish.pos) { a.tx = wish.pos.x; a.ty = wish.pos.y; a.state = "move"; }
+      break;
+    }
+    case "flee": {
+      a.cmdPos = null; a.pile = null; a.node = null;
+      a.state = "flee"; a.fleeT = Math.max(a.fleeT || 0, 1.4);
+      break;
+    }
+    default: break;   // "idle": a máquina de estados já cuida
+  }
+}
+
 function updateAnt(a, dt, foes, m) {
   a.mm = m;
   a.atkT = Math.max(0, a.atkT - dt);
@@ -382,10 +531,40 @@ function updateAnt(a, dt, foes, m) {
   const c = collide(a.x, a.y, a.bodyR);
   a.x = c.x; a.y = c.y;
 
+  // quem carrega deixa rastro: é o cheiro que guia as irmãs (estigmergia)
   const role = a.def.role || (a.type === "worker" ? "worker" : "fighter");
+  if (role === "worker" && a.brain) {
+    announceFood(a, dt);
+    if (a.carry > 0 && Math.random() < dt * 6) scent(a.x, a.y, "#37e6c8");
+  }
+
+  brainTick(a, dt, foes, m);
+
   if (role === "worker") updateWorker(a, dt, foes, true, m, window.__run);
   else if (role === "healer") updateHealer(a, dt, foes, m);
+  else if (a.def.attack === false) updateScout(a, dt, foes, m);
   else updateFighter(a, dt, foes, true, m);
+}
+
+// -------------------------------------------------------------- batedora ---
+// A BATEDORA não ataca: o trabalho dela é farejar o mapa. Ela anda, explora e,
+// se um inimigo chega perto, dispara de volta para o ninho.
+function updateScout(a, dt, foes, m) {
+  if (a.state === "flee") {
+    a.fleeT -= dt;
+    const A = world.anthill;
+    moveToward(a, A.x, A.y, dt, 1.2);
+    if (a.fleeT <= 0 && !nearestFoe(a, foes, 160)) { a.state = "idle"; a.tx = a.ty = null; }
+    return;
+  }
+  if (nearestFoe(a, foes, 130)) { a.state = "flee"; a.fleeT = 1.4; return; }
+
+  if (a.state === "move" && a.tx != null) {
+    if (moveToward(a, a.tx, a.ty, dt, 1.1)) { a.state = "idle"; a.tx = a.ty = null; }
+    return;
+  }
+  // parada: o cérebro sugere o próximo ponto de batedura
+  a.bob += dt * 2;
 }
 
 // ------------------------------------------------------------- trabalhadora -
@@ -415,6 +594,10 @@ function updateWorker(a, dt, foes, think, m, G2) {
       // escolhe pilha/nó
       if (a.carry >= a.st.carry) { a.state = "return"; break; }
       if (a.cmdPos) { a.tx = a.cmdPos.x; a.ty = a.cmdPos.y; a.state = "move"; break; }
+      // o cérebro decide primeiro (cota da colônia, fila na pilha, perigo);
+      // acquireResource fica como rede de segurança se ele não quiser nada
+      const wish = askBrain(a, foes, m);
+      if (wish && (wish.act === "gather" || wish.act === "explore" || wish.act === "move" || wish.act === "haul")) break;
       acquireResource(a);
       break;
     }
@@ -428,6 +611,7 @@ function updateWorker(a, dt, foes, think, m, G2) {
     case "goto": {
       const tgt = a.pile || a.node;
       if (!tgt || tgt.amount <= 0 || tgt.blocked) {
+        brainForget(a);
         a.state = "idle"; a.pile = a.node = null; a.gotoT = 0; a.gotoBest = undefined;
         break;
       }
@@ -449,6 +633,7 @@ function updateWorker(a, dt, foes, think, m, G2) {
         a.gotoT = (a.gotoT || 0) + dt;
         if (a.gotoT > 3.5) {
           tgt.blocked = true;
+          brainForget(a);
           a.pile = a.node = null;
           a.gotoT = 0; a.gotoBest = undefined;
           a.state = "idle";
@@ -490,8 +675,14 @@ function updateWorker(a, dt, foes, think, m, G2) {
     }
   }
 
-  // defesa fraca mas existente se um inimigo encostar
-  if (a.atkT <= 0 && a.state !== "flee" && a.st.dmg > 0) {
+  // castas de trabalho não mordem: se um inimigo encosta, só fogem.
+  // As guerreiras de verdade (soldado/cuspidora/bombeira/guarda/gigante) é que
+  // atacam — ver updateFighter e o campo `attack` em config.js.
+  if (a.def.attack === false) {
+    if (a.state !== "flee" && nearestFoe(a, foes, a.st.range + 26)) {
+      a.state = "flee"; a.fleeT = 1.4;
+    }
+  } else if (a.atkT <= 0 && a.state !== "flee" && a.st.dmg > 0) {
     const close = nearestFoe(a, foes, a.st.range + 14);
     if (close && dist2(a.x, a.y, close.x, close.y) < (a.st.range + 10) * (a.st.range + 10)) {
       a.angle = Math.atan2(close.y - a.y, close.x - a.x);
@@ -524,6 +715,7 @@ function acquireResource(a) {
 }
 
 function finishGather(a, m) {
+  brainForget(a);              // devolve a vaga na fila da pilha
   a.pile = a.node = null;
   if (a.carry >= a.st.carry) { a.state = "return"; }
   else acquireResource(a);
@@ -638,12 +830,22 @@ function updateFighter(a, dt, foes, think, m) {
   if (a.forcedTarget && (a.forcedTarget.dead || a.forcedTarget.dying)) a.forcedTarget = null;
 
   if (think) {
-    if (!a.forcedTarget && a.state !== "move") {
+    // Sem cérebro (teste isolado, formiga antiga) o comportamento clássico
+    // continua valendo. Com cérebro, quem escolhe o alvo é ele — o foco
+    // "engage" vem de brain.js, que pesa distância, ameaça ao ninho e coragem.
+    const focus = a.brain ? a.brain.focus : null;
+    if (!a.forcedTarget && a.state !== "move" && (!a.brain || focus === "engage")) {
       const base = a.st.aggro > 0 ? a.st.aggro : 260;
       const aggro = a.state === "chase" || a.state === "attack" ? base * 1.2 : base;
       a.target = nearestFoe(a, foes, aggro) || (a.pursue && !a.pursue.dead ? a.pursue : null);
       if (a.target) a.state = "chase";
       else if (a.state === "chase" || a.state === "attack") a.state = "home";
+    }
+    // perdeu o alvo do cérebro: volta ao posto
+    if (a.brain && focus !== "engage" && !a.forcedTarget &&
+        (a.state === "chase" || a.state === "attack")) {
+      a.target = null;
+      a.state = "home";
     }
   }
 
@@ -666,9 +868,17 @@ function updateFighter(a, dt, foes, think, m) {
       break;
     }
     case "move": {
-      if (moveToward(a, a.tx, a.ty, dt)) { a.state = "home"; }
-      if (!a.target) a.target = nearestFoe(a, foes, 135);
-      if (a.target) a.state = "chase";
+      if (moveToward(a, a.tx, a.ty, dt)) {
+        a.state = "home";
+        if (a.brain) a.brain.recovering = false;
+      }
+      // quem está se recompondo não entra em combate no caminho
+      const rec = a.brain && a.brain.recovering && a.hp < a.maxHp * 0.72;
+      if (!rec) {
+        if (!a.target) a.target = nearestFoe(a, foes, 135);
+        if (a.target && !a.forcedTarget && a.brain && a.brain.focus === "engage") a.state = "chase";
+        else if (a.target && a.forcedTarget) a.state = "chase";
+      }
       break;
     }
     case "chase": {
@@ -807,7 +1017,7 @@ export function rallyDefenders(anthill) {
 export function orderAttackSelected(foe) {
   let n = 0;
   for (const a of allies) {
-    if (!a.selected || a.dead || a.dying || a.def.role === "worker" || a.def.role === "healer") continue;
+    if (!a.selected || a.dead || a.dying || a.def.role === "worker" || a.def.role === "healer" || a.def.attack === false) continue;
     a.forcedTarget = foe;
     a.state = "chase";
     n++;

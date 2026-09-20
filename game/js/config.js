@@ -41,6 +41,26 @@ export const PAL = {
 // o assado (main.js) e o desenho (render.js) se ajustam sozinhos.
 export const GIANT_SCALE = 20;
 
+// ---------------------------------------------------------------------------
+// TAMANHO DE ASSADO dos sprites de formiga (em pixels do sprite girado).
+// Fonte única: main.js assa com estes números e os testes (assets.mjs,
+// layout.mjs) conferem contra eles — antes cada um tinha a própria cópia e
+// podiam divergir em silêncio.
+//
+// A GIGANTE tem uma amarra extra: o "pad" dela precisa ser exatamente 5x o da
+// soldado para que o fator de desenho saia inteiro (test/assets.mjs confere).
+//   soldado 64 -> pad 83   |   gigante 326 -> pad 415 = 5x83  ✓
+// ---------------------------------------------------------------------------
+export const ANT_SIZES = {
+  worker: 45, soldier: 64, spitter: 58, tank: 72, queen: 189,
+  scout: 48, healer: 53, bomber: 61,
+  giant: 326,                       // 5x o pad da soldado (ver conta acima)
+  e_runner: 40, e_swarm: 45, e_warrior: 64, e_spitter: 61, e_reaper: 58,
+  e_matron: 106, e_sentinel: 82,
+};
+/** A COLETORA é a operária tingida de jade — assa no mesmo tamanho. */
+export const GATHERER_SIZE = ANT_SIZES.worker;
+
 export const UNITS = {
   worker: {
     id: "worker", key: null, name: "OPERÁRIA",
@@ -48,6 +68,7 @@ export const UNITS = {
     cost: 12, costGrow: 0.06, hatchTime: 2.0,
     hp: 26, dmg: 2.5, speed: 98, range: 13, atkCd: 0.7,
     gatherRate: 2.1, carry: 5, sprite: "worker", role: "worker",
+    attack: false,
   },
   gatherer: {
     id: "gatherer", key: null, name: "COLETORA",
@@ -55,6 +76,7 @@ export const UNITS = {
     cost: 18, costGrow: 0.06, hatchTime: 2.2,
     hp: 24, dmg: 1.5, speed: 110, range: 12, atkCd: 0.9,
     gatherRate: 3.0, carry: 8, sprite: "gatherer", role: "worker",
+    attack: false,
   },
   soldier: {
     id: "soldier", key: null, name: "SOLDADO",
@@ -83,6 +105,7 @@ export const UNITS = {
     cost: 22, costGrow: 0.06, hatchTime: 2.4,
     hp: 52, dmg: 6.5, speed: 152, range: 13, atkCd: 0.4,
     aggro: 430, sprite: "scout", role: "fighter",
+    attack: false,
   },
   healer: {
     id: "healer", key: null, name: "CURANDEIRA",
@@ -90,6 +113,7 @@ export const UNITS = {
     cost: 46, costGrow: 0.06, hatchTime: 4.2,
     hp: 44, dmg: 0, speed: 92, range: 26, atkCd: 1,
     healRate: 13, healRange: 230, sprite: "healer", role: "healer",
+    attack: false,
   },
   bomber: {
     id: "bomber", key: null, name: "BOMBEIRA",

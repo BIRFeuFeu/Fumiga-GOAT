@@ -195,19 +195,12 @@ await loadFonts();
 await loadAll();
 // mesmo "bake" do boot real (main.js): sprites girados e sheets de chefe
 const { bakeRot, bakeRotTinted, dupSprite, setRotDrawScale, rotDrawSize } = await import(BASE + "assets.js");
-const { GIANT_SCALE } = await import(BASE + "config.js");
+const { GIANT_SCALE, ANT_SIZES, GATHERER_SIZE } = await import(BASE + "config.js");
 const { bakeBossSheets } = await import(BASE + "render.js");
-const ANT_SIZES = {
-  worker: 34, soldier: 48, spitter: 44, tank: 54, queen: 142,
-  scout: 36, healer: 40, bomber: 46,
-  giant: 247,   // mesmo assado do main.js (5x o da soldado)
-  e_runner: 30, e_swarm: 34, e_warrior: 48, e_spitter: 46, e_reaper: 44,
-  e_matron: 80, e_sentinel: 62,
-};
 dupSprite("soldier", "giant");
 for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
 setRotDrawScale("giant", "soldier", GIANT_SCALE);
-bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
+bakeRotTinted("worker", "gatherer", GATHERER_SIZE, "#7fd6c0", 0.5);
 bakeBossSheets();
 boot();
 G.save.tutorial = 1;

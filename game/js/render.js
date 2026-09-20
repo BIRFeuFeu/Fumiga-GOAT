@@ -10,9 +10,10 @@ import { allies, eggs } from "./units.js";
 import { foes, boss } from "./enemies.js";
 import { orbs, projectiles, drawProjectiles, drawOrbs } from "./combat.js";
 import { drawDecals, drawTrails, drawParts, drawGlows, drawRings, drawFloats } from "./particles.js";
-import { drawText, textWidth } from "./font.js";
+import { drawText, textWidth, lineWidth, FONT } from "./font.js";
 import { clamp, TAU, lerp } from "./utils.js";
 import { fogDraw, fogVisible } from "./fog.js";
+import { SFX } from "./audio.js";
 
 let vignette = null;
 
@@ -112,28 +113,51 @@ export function drawRun(ctx, dt) {
   }
   drawList.sort((a, b) => a.y - b.y);
 
-  // sombras e anéis
+  // sombras e anéis — a formiga tem que se destacar do chão em qualquer zoom:
+  // sombra em duas camadas (contato + dispersa) e anel de time sempre legível
   for (const d of drawList) {
     if (d.kind !== "ant") continue;
     const u = d.ref;
     const s = w2s(u.x, u.y);
     const z = cam.zoom;
-    ctx.fillStyle = "rgba(10,7,16,0.5)";
+    // sombra dispersa
+    ctx.fillStyle = "rgba(10,7,16,0.3)";
     ctx.beginPath();
-    ctx.ellipse(s.x, s.y + 3 * z, u.bodyR * 0.95 * z, u.bodyR * 0.42 * z, 0, 0, TAU);
+    ctx.ellipse(s.x, s.y + 3 * z, u.bodyR * 1.25 * z, u.bodyR * 0.55 * z, 0, 0, TAU);
+    ctx.fill();
+    // contato com o chão
+    ctx.fillStyle = "rgba(8,5,12,0.62)";
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y + 3 * z, u.bodyR * 0.88 * z, u.bodyR * 0.38 * z, 0, 0, TAU);
     ctx.fill();
     if (u.dead) continue;
-    ctx.strokeStyle = u.faction === "ally" ? "rgba(55,230,200,0.55)" : "rgba(255,77,90,0.5)";
-    ctx.lineWidth = Math.max(1, 1.4 * z);
+    const ally = u.faction === "ally";
+    ctx.strokeStyle = ally ? "rgba(55,230,200,0.7)" : "rgba(255,77,90,0.62)";
+    ctx.lineWidth = Math.max(1, 1.5 * z);
     ctx.beginPath();
     ctx.ellipse(s.x, s.y + 3 * z, (u.bodyR + 2.5) * z, (u.bodyR + 2.5) * 0.52 * z, 0, 0, TAU);
     ctx.stroke();
     if (u.selected) {
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.lineWidth = Math.max(1, 1.6 * z);
+      // anel de seleção: tracejado girando + halo (impossível perder de vista)
+      const R = (u.bodyR + 6) * z;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = "rgba(255,212,121,0.28)";
+      ctx.lineWidth = Math.max(2, 4 * z);
       ctx.beginPath();
-      ctx.ellipse(s.x, s.y + 3 * z, (u.bodyR + 5) * z, (u.bodyR + 5) * 0.52 * z, 0, 0, TAU);
+      ctx.ellipse(s.x, s.y + 3 * z, R, R * 0.52, 0, 0, TAU);
       ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = "#ffe9a8";
+      ctx.lineWidth = Math.max(1, 1.8 * z);
+      if (ctx.setLineDash) {
+        ctx.setLineDash([5 * z, 4 * z]);
+        ctx.lineDashOffset = -G.time * 26 * z;
+      }
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y + 3 * z, R, R * 0.52, 0, 0, TAU);
+      ctx.stroke();
+      if (ctx.setLineDash) { ctx.setLineDash([]); ctx.lineDashOffset = 0; }
     }
   }
 
@@ -555,6 +579,73 @@ export function drawTitleBg(ctx) {
   ctx.fillStyle = rg;
   ctx.beginPath(); ctx.arc(VIEW_W - 140, 200, 80, 0, TAU); ctx.fill();
   ctx.restore();
+}
+
+// ------------------------------------------------------------------ logo ---
+// O título era desenhado com 6 camadas de brilho ROXO atrás das letras: no
+// escuro até impressionava, mas o halo sujava o contorno e o "FUMIGA" ficava
+// difícil de ler. Agora é metal dourado de verdade:
+//   1. sombra projetada (dá peso, não atrapalha);
+//   2. contorno preto duro de 2px — leitura máxima em qualquer fundo;
+//   3. gradiente em faixas (a fonte é bitmap, então o metal sai de recortes
+//      horizontais: ouro claro no topo, âmbar no meio, bronze embaixo);
+//   4. um brilho que atravessa as LETRAS de tempos em tempos.
+// Nada é pintado atrás do texto.
+export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 4.2) {
+  const str = "FUMIGA";
+  const h = FONT.big.ch * scale;
+  const w = lineWidth(str.length, { font: "big", scale });
+  const base = { font: "big", scale, align: "left", shadow: false };
+
+  // 1) sombra projetada
+  drawText(ctx, str, x + 5, y + 7, { ...base, color: "rgba(0,0,0,0.55)" });
+
+  // 2) contorno preto duro (2px, sem cantos vazados)
+  const ring = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2],
+                [-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (const [dx, dy] of ring) drawText(ctx, str, x + dx, y + dy, { ...base, color: "#0a0713" });
+
+  // 3) metal em faixas horizontais
+  const bands = [
+    [0.00, 0.31, "#fff0bd"],
+    [0.29, 0.55, "#ffc44d"],
+    [0.53, 0.79, "#e08c22"],
+    [0.77, 1.01, "#96591a"],
+  ];
+  for (const [a, b, col] of bands) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - 4, y + h * a, w + 8, h * (b - a) + 1);
+    ctx.clip();
+    drawText(ctx, str, x, y, { ...base, color: col });
+    ctx.restore();
+  }
+
+  // 4) brilho varrendo as letras (só as letras: o recorte é a própria tinta)
+  const period = 4.6;
+  const ph = (time % period) / period;
+  if (ph < 0.42) {
+    const t = ph / 0.42;
+    const bx = x - 90 + (w + 180) * t;
+    const fade = Math.sin(t * Math.PI);            // entra e sai suave
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(bx - 30, y - 6, 60, h + 12);
+    ctx.clip();
+    ctx.globalCompositeOperation = "lighter";
+    drawText(ctx, str, x, y, { ...base, color: "rgba(255,247,220," + (0.5 * fade).toFixed(3) + ")" });
+    ctx.restore();
+  }
+
+  // filete de luz fixo no topo das letras (metal polido)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x - 4, y + h * 0.04, w + 8, Math.max(2, h * 0.07));
+  ctx.clip();
+  drawText(ctx, str, x, y, { ...base, color: "rgba(255,255,255,0.5)" });
+  ctx.restore();
+
+  return { x, y, w, h };
 }
 
 export function drawPreTitleBg(ctx) {
@@ -985,13 +1076,93 @@ export function drawModeCards(ctx, modes, hoverIdx, time) {
 
   return rects;
 }
+// ================================================= TRANSIÇÕES DE TELA =======
+// Referências que guiaram este sistema (pesquisa na web):
+//   • "game feel" divulgado pelo ex-lead de Dead Cells (Gwénaël Masson):
+//     transição CURTA e com peso — nada de fade linear; a tela que sai
+//     acelera para fora e a que entra chega rápida e assenta devagar.
+//   • Legibilidade de pixel art (2dwillneverdie / style guides): bordas e
+//     valores definidos, sem borrão — por isso o dissolve é em blocos
+//     alinhados à grade (dither de Bayer) e não um fade suave.
+//   • Gramática por par de telas: cada mudança tem a sua assinatura
+//     (menu→jogo = dissolve, menu→árvore = zoom para dentro, ajuda = íris),
+//     então o jogador aprende onde está sem ler nada.
+//
+// Estrutura: duas metades (COBRIR / REVELAR) com easings diferentes, mais um
+// deslocamento/escala aplicado à tela (ver transitionFx, usado no render()).
 
-// ================================================= TRANSIÇÕES DE TELA ==
-let transition = null; // { type, t, dur, from, to, cb }
+const ease = {
+  outExpo:   (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -9 * t)),
+  inQuart:   (t) => t * t * t * t,
+  outQuint:  (t) => 1 - Math.pow(1 - t, 5),
+  inOutQuint:(t) => (t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2),
+  outBack:   (t) => { const c = 1.35; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+};
+
+// linguagem de cada par de telas. dir: +1 entra pela direita, -1 pela esquerda
+const TRANS_LANG = {
+  "PRETITLE>TITLE": { type: "bloom",    dur: 0.55, tint: "#ffd479" },
+  "TITLE>MODE":     { type: "swipe",    dur: 0.40, dir:  1, tint: "#37e6c8" },
+  "MODE>TITLE":     { type: "swipe",    dur: 0.34, dir: -1, tint: "#8f6fd6" },
+  "TITLE>TREE":     { type: "zoom",     dur: 0.44, dir:  1, tint: "#c77dff" },
+  "TREE>TITLE":     { type: "zoom",     dur: 0.40, dir: -1, tint: "#c77dff" },
+  "RUN>TREE":       { type: "zoom",     dur: 0.44, dir:  1, tint: "#c77dff" },
+  "TREE>RUN":       { type: "zoom",     dur: 0.40, dir: -1, tint: "#c77dff" },
+  "TITLE>HELP":     { type: "iris",     dur: 0.34, dir:  1, tint: "#6db7ff" },
+  "HELP>TITLE":     { type: "iris",     dur: 0.30, dir: -1, tint: "#6db7ff" },
+  "RUN>HELP":       { type: "iris",     dur: 0.32, dir:  1, tint: "#6db7ff" },
+  "HELP>RUN":       { type: "iris",     dur: 0.30, dir: -1, tint: "#6db7ff" },
+  "MODE>RUN":       { type: "dissolve", dur: 0.50, tint: "#ffb347" },
+  "TITLE>RUN":      { type: "dissolve", dur: 0.50, tint: "#ffb347" },
+  "RUN>MODE":       { type: "dissolve", dur: 0.50, tint: "#ffb347" },
+  "RUN>TITLE":      { type: "dissolve", dur: 0.55, tint: "#ff4d5a" },
+};
+const DEFAULT_LANG = { type: "fade", dur: 0.36, tint: "#8f6fd6" };
+
+let transition = null;   // { type, t, dur, from, to, cb, dir, tint }
+let maskCv = null;       // canvas auxiliar (dissolve / íris)
+
+// matriz de Bayer 8x8: ordem "aleatória" mas determinística para o dissolve
+const BAYER = (() => {
+  const m = new Float32Array(64);
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      let v = 0;
+      for (let b = 0; b < 3; b++) {
+        const bx = (x >> b) & 1, by = (y >> b) & 1;
+        v = v * 4 + (bx ^ by ? 2 : 0) + (by ? 1 : 0);
+      }
+      m[y * 8 + x] = (v % 64) / 64;
+    }
+  }
+  return m;
+})();
+
+function ensureMask() {
+  if (maskCv) return maskCv;
+  maskCv = document.createElement("canvas");
+  maskCv.width = VIEW_W / 4; maskCv.height = VIEW_H / 4;
+  return maskCv;
+}
 
 export function startTransition(type, from, to, dur, cb) {
-  transition = { type, t: 0, dur, from, to, cb, midFired: false };
+  const lang = TRANS_LANG[from + ">" + to] || DEFAULT_LANG;
+  const kind = (type && type !== "auto") ? type : lang.type;
+  transition = {
+    type: kind,
+    dur: dur || lang.dur,
+    t: 0, from, to, cb, midFired: false,
+    dir: lang.dir || 1,
+    tint: lang.tint || "#8f6fd6",
+    // o foco da íris/dissolve nasce onde o jogador clicou (feedback direto)
+    fx: lastPointer.x, fy: lastPointer.y,
+  };
+  if (SFX && SFX.whoosh) SFX.whoosh();
 }
+
+// último clique conhecido — usado como centro da íris e origem do swipe
+const lastPointer = { x: VIEW_W / 2, y: VIEW_H / 2 };
+export function notePointer(x, y) { lastPointer.x = x; lastPointer.y = y; }
 
 export function updateTransition(dt) {
   if (!transition) return null;
@@ -1009,37 +1180,184 @@ export function updateTransition(dt) {
   return null;
 }
 
+/** Quanto da tela já está coberto (0 = limpa, 1 = totalmente coberta). */
+function coverOf(p) {
+  if (p < 0.5) return ease.inQuart(p * 2);        // fecha acelerando
+  return 1 - ease.outQuint((p - 0.5) * 2);        // abre de estalo e assenta
+}
+
+/**
+ * Transformação da tela que está sendo desenhada agora — é o que dá "peso":
+ * a tela sai empurrada/encolhida e a nova entra deslizando/assentando.
+ */
+export function transitionFx() {
+  const id = { scale: 1, ox: 0, oy: 0, alpha: 1 };
+  if (!transition) return id;
+  const p = clamp(transition.t / transition.dur, 0, 1);
+  const out = p < 0.5;
+  const c = out ? ease.inQuart(p * 2) : 1 - ease.outQuint((p - 0.5) * 2);
+  switch (transition.type) {
+    case "swipe": {
+      const push = 38 * transition.dir;
+      if (out) { id.ox = -push * c; id.scale = 1 - 0.012 * c; }
+      else { id.ox = push * c; id.scale = 1 - 0.012 * c; }
+      break;
+    }
+    case "zoom": {
+      const into = transition.dir > 0;
+      if (out) {
+        id.scale = into ? 1 + 0.09 * c : 1 - 0.06 * c;
+        id.alpha = 1 - 0.45 * c;
+      } else {
+        id.scale = into ? 1 - 0.05 * c : 1 + 0.07 * c;
+        id.alpha = 1 - 0.35 * c;
+      }
+      break;
+    }
+    case "dissolve": {
+      if (out) { id.scale = 1 + 0.03 * c; id.alpha = 1 - 0.2 * c; }
+      else { id.scale = 1 - 0.03 * c; id.alpha = 1 - 0.2 * c; }
+      break;
+    }
+    case "fade": case "iris": case "bloom": {
+      id.alpha = 1 - (out ? 0.25 * c : 0.2 * c);
+      break;
+    }
+  }
+  return id;
+}
+
 export function drawTransition(ctx) {
   if (!transition) return;
   const p = clamp(transition.t / transition.dur, 0, 1);
-  let alpha = 0;
-  if (transition.type === "fade") {
-    // fade in/out
-    if (p < 0.5) alpha = p * 2;
-    else alpha = (1 - p) * 2;
-    // actually we want fade to black at middle
-    const fadeAlpha = p < 0.5 ? p * 2 : (1 - p) * 2;
-    const blackAlpha = 1 - fadeAlpha;
-    ctx.fillStyle = `rgba(0,0,0,${blackAlpha})`;
+  const c = coverOf(p);                       // 0 -> 1 -> 0
+  const t = transition.type;
+
+  ctx.save();
+  if (t === "fade") {
+    ctx.fillStyle = "rgba(5,4,10," + (0.97 * c).toFixed(3) + ")";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  } else if (transition.type === "slide") {
-    const slideP = p < 0.5 ? p * 2 : (p - 0.5) * 2;
-    const x = p < 0.5 ? -slideP * VIEW_W : (1 - slideP) * VIEW_W;
-    ctx.fillStyle = `rgba(10,8,18,${0.85 * (1 - Math.abs(p - 0.5)*2)})`;
-    ctx.fillRect(x, 0, VIEW_W, VIEW_H);
-  } else if (transition.type === "wipe") {
-    const wipeW = VIEW_W * (p < 0.5 ? p * 2 : 2 - p * 2);
-    ctx.fillStyle = "#0a0812";
-    if (p < 0.5) {
-      ctx.fillRect(0, 0, wipeW, VIEW_H);
-    } else {
-      ctx.fillRect(VIEW_W - wipeW, 0, wipeW, VIEW_H);
+    // vinheta que respira: o escuro vem das bordas, não de um véu uniforme
+    const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 60, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.9);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(0,0,0," + (0.5 * c).toFixed(3) + ")");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  } else if (t === "bloom") {
+    // clarão curto no meio + escuro nas pontas (usado no PRETITLE -> TITLE)
+    const flash = Math.pow(1 - Math.abs(p * 2 - 1), 2.2);
+    ctx.fillStyle = "rgba(5,4,10," + (0.9 * c).toFixed(3) + ")";
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2 - 30, 10, VIEW_W / 2, VIEW_H / 2 - 30, 520);
+    g.addColorStop(0, "rgba(255,212,121," + (0.5 * flash).toFixed(3) + ")");
+    g.addColorStop(1, "rgba(255,140,40,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  } else if (t === "swipe") {
+    const dir = transition.dir;
+    // duas barras que varrem a tela (a principal + uma fina atrasada)
+    for (let k = 0; k < 2; k++) {
+      const lag = k * 0.12;
+      const cc = clamp(c - lag, 0, 1);
+      const w = VIEW_W * cc;
+      const x = dir > 0 ? (k ? VIEW_W - w : 0) : (k ? 0 : VIEW_W - w);
+      ctx.globalAlpha = k ? 0.35 : 1;
+      ctx.fillStyle = "#08060f";
+      ctx.fillRect(x, 0, w, VIEW_H);
     }
-    // linha brilhante na borda do wipe
-    ctx.fillStyle = "#8f6fd6";
-    const lineX = p < 0.5 ? wipeW : VIEW_W - wipeW;
-    ctx.fillRect(lineX, 0, 3, VIEW_H);
+    ctx.globalAlpha = 1;
+    const edge = dir > 0 ? VIEW_W * c : VIEW_W * (1 - c);
+    // fio de luz na frente da barra + rastro
+    const g = ctx.createLinearGradient(edge - 46 * dir, 0, edge + 6 * dir, 0);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(0.7, hexA(transition.tint, 0.28));
+    g.addColorStop(1, hexA(transition.tint, 0.9));
+    ctx.fillStyle = g;
+    ctx.fillRect(edge - 48 * dir, 0, 54 * dir, VIEW_H);
+    ctx.fillStyle = hexA(transition.tint, 0.95);
+    ctx.fillRect(edge - 1, 0, 3, VIEW_H);
+    // fagulhas na borda (determinísticas: mesma semente a cada frame)
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 10; i++) {
+      const yy = ((i * 97 + 31) % VIEW_H) + Math.sin(G.time * 9 + i) * 6;
+      const xx = edge - dir * (6 + ((i * 53) % 40));
+      ctx.globalAlpha = 0.25 + 0.35 * Math.abs(Math.sin(G.time * 7 + i * 1.7));
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(xx, yy, 2, 2);
+    }
+  } else if (t === "dissolve") {
+    // blocos de 4px ligados pela ordem de Bayer: some/aparece em pixel art
+    const m = ensureMask();
+    const mc = m.getContext("2d");
+    const mw = m.width, mh = m.height;
+    mc.clearRect(0, 0, mw, mh);
+    mc.fillStyle = "#08060f";
+    const th = c * 1.05 - 0.02;
+    for (let y = 0; y < mh; y++) {
+      for (let x = 0; x < mw; x++) {
+        if (BAYER[((y * 4) & 7) * 8 + ((x * 4) & 7)] < th) mc.fillRect(x, y, 1, 1);
+      }
+    }
+    const wasSmooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(m, 0, 0, VIEW_W, VIEW_H);
+    ctx.imageSmoothingEnabled = wasSmooth;
+    // borda dos blocos mais recente brilha (a "frente" do dissolve)
+    if (c > 0.02 && c < 0.98) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = transition.tint;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+  } else if (t === "iris") {
+    const m = ensureMask();
+    const mc = m.getContext("2d");
+    // a máscara é 1/4 da tela: desenha nela e amplia (economiza fillrate)
+    const sx = m.width / VIEW_W, sy = m.height / VIEW_H;
+    mc.globalCompositeOperation = "source-over";
+    mc.fillStyle = "#08060f";
+    mc.fillRect(0, 0, m.width, m.height);
+    const maxR = Math.hypot(VIEW_W, VIEW_H) * 0.62;
+    const r = maxR * c * sx;
+    if (r > 0.5) {
+      mc.globalCompositeOperation = "destination-out";
+      mc.beginPath();
+      mc.arc(transition.fx * sx, transition.fy * sy, r, 0, TAU);
+      mc.fill();
+      mc.globalCompositeOperation = "source-over";
+    }
+    const wasSmooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(m, 0, 0, VIEW_W, VIEW_H);
+    ctx.imageSmoothingEnabled = wasSmooth;
+    // anel de luz na boca da íris
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = hexA(transition.tint, 0.55);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(transition.fx, transition.fy, Math.max(1, maxR * c), 0, TAU);
+    ctx.stroke();
+  } else if (t === "wipe") {
+    // compatibilidade com chamadas antigas
+    const w = VIEW_W * c;
+    ctx.fillStyle = "#08060f";
+    ctx.fillRect(0, 0, w, VIEW_H);
+    ctx.fillStyle = hexA(transition.tint, 0.9);
+    ctx.fillRect(w - 2, 0, 3, VIEW_H);
   }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/** "#rrggbb" + alfa -> "rgba(r,g,b,a)" */
+function hexA(hex, a) {
+  const h = String(hex).replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16) || 0;
+  const g = parseInt(h.substring(2, 4), 16) || 0;
+  const b = parseInt(h.substring(4, 6), 16) || 0;
+  return "rgba(" + r + "," + g + "," + b + "," + a.toFixed(3) + ")";
 }
 
 export function hasTransition() { return !!transition; }

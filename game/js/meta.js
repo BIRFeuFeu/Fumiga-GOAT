@@ -324,17 +324,19 @@ export function drawTree(ctx, dt) {
   // tooltip
   if (hoverNode) drawNodeTip(ctx, hoverNode);
 
-  // HUD superior refinado
-  drawTreeHUD(ctx);
+  // HUD superior refinado — o retorno do VOLTAR precisa SUBIR: antes o
+  // drawTreeHUD devolvia "back" e o drawTree jogava fora (sempre `return null`),
+  // então o botão era decorativo e só o ESC funcionava.
+  const hud = drawTreeHUD(ctx);
 
   // dica inferior
   const hintBg = "rgba(10,8,16,0.7)";
   ctx.fillStyle = hintBg;
   ctx.fillRect(0, VIEW_H - 32, VIEW_W, 32);
-  drawText(ctx, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA: ZOOM (" + Math.round(zoom * 100) + "%)  •  DUPLO CLIQUE: VER TUDO",
+  drawText(ctx, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA: ZOOM (" + Math.round(zoom * 100) + "%)  •  ESC: VOLTAR",
     VIEW_W / 2, VIEW_H - 20, { color: PAL.textDim, align: "center" });
 
-  return null;
+  return hud;
 }
 
 function drawTreeBackground(ctx) {

@@ -32,9 +32,11 @@ import {
 import { rollDraft, applyMutation, mutationList } from "./mutations.js";
 import {
   drawRun, drawTitleBg, drawTitleMotes, drawPreTitle, drawPreTitleBg,
-  drawModeSelect, drawModeCards, startTransition, updateTransition, drawTransition, hasTransition
+  drawModeSelect, drawModeCards, startTransition, updateTransition, drawTransition, hasTransition,
+  transitionFx, notePointer, drawTitleLogo
 } from "./render.js";
 import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
+import { colony } from "./brain.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
 import { nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover } from "./nest.js";
@@ -198,7 +200,7 @@ function newRun(mode = null) {
   if (!G.save.tutorial) startTutorial(); else stopTutorial(false);
 
   // transição de entrada
-  startTransition("wipe", "MODE", "RUN", 0.6, null);
+  startTransition("auto", "MODE", "RUN", 0, null);
 
   return run;
 }
@@ -345,6 +347,9 @@ function uiCapture() {
 export function update(dt) {
   G.time += dt;
 
+  // a transição nasce onde o jogador clicou (feedback direto do dedo/mouse)
+  if (mouse.justDown) notePointer(mouse.x, mouse.y);
+
   // transição sempre atualiza
   const transTo = updateTransition(dt);
   if (transTo) {
@@ -377,7 +382,7 @@ export function update(dt) {
 function updatePreTitle(dt) {
   if (mouse.justDown || pressed.Enter || pressed.Space) {
     SFX.uiClick();
-    startTransition("fade", "PRETITLE", "TITLE", 0.5, () => {
+    startTransition("auto", "PRETITLE", "TITLE", 0, () => {
       G.screen = "TITLE";
     });
   }
@@ -400,7 +405,7 @@ function updateMode(dt) {
   }
   if (pressed.Escape) {
     SFX.uiClick();
-    startTransition("fade", "MODE", "TITLE", 0.4, () => { G.screen = "TITLE"; });
+    startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
   }
 }
 
@@ -409,7 +414,7 @@ function updateTreeScreen(dt) {
   if (mouse.justDown && mouse.y > 90 && !uiCapture()) treeClick();
   if (pressed.Escape) {
     SFX.uiClick();
-    startTransition("fade", "TREE", "TITLE", 0.4, () => { G.screen = "TITLE"; });
+    backFromTree();
   }
 }
 
@@ -725,6 +730,15 @@ let paused = false;
 export function render(dt) {
   ctx.imageSmoothingEnabled = false;
   uiBegin();
+  // a transição também MOVE a tela (ver transitionFx): é isso que dá peso
+  const fx = transitionFx();
+  ctx.save();
+  if (fx.alpha < 1) ctx.globalAlpha = fx.alpha;
+  if (fx.scale !== 1 || fx.ox || fx.oy) {
+    ctx.translate(VIEW_W / 2 + fx.ox, VIEW_H / 2 + fx.oy);
+    ctx.scale(fx.scale, fx.scale);
+    ctx.translate(-VIEW_W / 2, -VIEW_H / 2);
+  }
   switch (G.screen) {
     case "BOOT": break;
     case "PRETITLE": renderPreTitleScreen(); break;
@@ -732,14 +746,13 @@ export function render(dt) {
     case "MODE": renderModeScreen(); break;
     case "HELP": renderHelp(); break;
     case "TREE": {
-      const r = drawTree(ctx, dt);
-      if (r === "back") {
-        startTransition("fade", "TREE", "TITLE", 0.4, () => { G.screen = "TITLE"; });
-      }
+      if (drawTree(ctx, dt) === "back") backFromTree();
       break;
     }
     case "RUN": renderRun(); break;
   }
+  ctx.restore();
+  ctx.globalAlpha = 1;
   // transição por cima de tudo
   if (hasTransition()) drawTransition(ctx);
   cursorCustom();
@@ -770,30 +783,15 @@ function renderTitle() {
   drawTitleBg(ctx);
   drawTitleMotes(ctx, G.time);
 
-  // título estilizado Dead Cells
-  const tY = 56 + Math.sin(G.time * 0.7) * 2;
-  const logo = (x, y, str, font, scale) => {
-    // glow externo
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.18;
-    for (let r = 12; r > 0; r -= 2) {
-      drawText(ctx, str, x, y, { font, scale: scale * (1 + r*0.02), color: "#c77dff", align: "left" });
-    }
-    ctx.restore();
-    // contorno
-    for (const [dx, dy] of [[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-      drawText(ctx, str, x + dx, y + dy, { font, scale, color: "#0a0812", align: "left" });
-    }
-    drawText(ctx, str, x, y, { font, scale, color: "#efe9ff", align: "left" });
-    // brilho topo
-    ctx.globalAlpha = 0.7;
-    drawText(ctx, str, x, y - 1.5, { font, scale: scale * 0.98, color: "#fff", align: "left" });
-    ctx.globalAlpha = 1;
-  };
-  logo(56, tY, "FUMIGA", "big", 4.2);
-  drawText(ctx, "COLÔNIA ETERNA", 60, tY + 128, { font: "small", scale: 2, color: "#8f6fd6" });
-  drawText(ctx, "um roguelite de colônia • estilo dead cells", 60, tY + 158, { color: "#5a4f78" });
+  // título em metal dourado (respira 2px — o resto da animação é o brilho que
+  // atravessa as letras; ver drawTitleLogo em render.js)
+  const tY = 54 + Math.sin(G.time * 0.7) * 2;
+  drawTitleLogo(ctx, G.time, 56, tY, 4.2);
+  // placa escura atrás do subtítulo: separa do fundo sem tocar no título
+  ctx.fillStyle = "rgba(8,6,14,0.55)";
+  ctx.fillRect(56, tY + 124, 340, 22);
+  drawText(ctx, "COLÔNIA ETERNA", 60, tY + 128, { font: "small", scale: 2, color: "#ffd479", shadow: false });
+  drawText(ctx, "um roguelite de colônia • estilo dead cells", 60, tY + 158, { color: "#8f7bb5" });
 
   // menu lateral
   const bx = 56, bw = 280;
@@ -807,15 +805,16 @@ function renderTitle() {
     if (button(ctx, { x: bx, y: by, w: bw, h: b.h, label: b.label, font: b.font || "small", scale: 1, id: b.id, accent: b.accent })) {
       if (b.id === "start") {
         initAudio();
-        startTransition("wipe", "TITLE", "MODE", 0.5, () => { G.screen = "MODE"; });
+        startTransition("auto", "TITLE", "MODE", 0, () => { G.screen = "MODE"; });
         return;
       } else if (b.id === "tree") {
         enterTree();
-        startTransition("fade", "TITLE", "TREE", 0.4, () => { G.screen = "TREE"; });
+        treeReturn = "TITLE";
+        startTransition("auto", "TITLE", "TREE", 0, () => { G.screen = "TREE"; });
         return;
       } else if (b.id === "help") {
         helpReturn = "TITLE";
-        startTransition("fade", "TITLE", "HELP", 0.3, () => { G.screen = "HELP"; });
+        startTransition("auto", "TITLE", "HELP", 0, () => { G.screen = "HELP"; });
         return;
       }
     }
@@ -835,7 +834,7 @@ function renderModeScreen() {
   modeRects = drawModeCards(ctx, GAME_MODES, modeHover, G.time);
 
   if (button(ctx, { x: 20, y: VIEW_H - 46, w: 140, h: 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
-    startTransition("fade", "MODE", "TITLE", 0.4, () => { G.screen = "TITLE"; });
+    startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
   }
   drawText(ctx, "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR", VIEW_W/2, VIEW_H - 20, { color: "#5a4f78", align: "center" });
 }
@@ -887,10 +886,10 @@ function renderHelp() {
   }
 
   if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 44, w: 200, h: 36, label: "VOLTAR", id: "helpBack", accent: "#8f6fd6" })) {
-    startTransition("fade", "HELP", helpReturn, 0.3, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
+    startTransition("auto", "HELP", helpReturn, 0, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
   }
   if (pressed.Escape) {
-    startTransition("fade", "HELP", helpReturn, 0.3, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
+    startTransition("auto", "HELP", helpReturn, 0, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
   }
 }
 
@@ -954,7 +953,7 @@ function drawHUD() {
   // painel jogador
   const pw = 272;
   const baseH = 82;
-  const extraH = hudExpanded ? 78 : 0;
+  const extraH = hudExpanded ? 134 : 0;
   const ph = baseH + 22 + extraH;
   panel(ctx, 10, 8, pw, ph, { border: "#4a3a6e", accentLine: run.modeDef ? run.modeDef.color : "#37e6c8" });
 
@@ -992,6 +991,21 @@ function drawHUD() {
     drawText(ctx, "POPULAÇÃO " + used + "/" + cap, 22, yy, { color: used >= cap ? "#ff4d5a" : PAL.textDim });
     drawText(ctx, "ABATES " + run.kills, 164, yy, { color: PAL.textDim });
     yy += 18;
+    // ---------------- cérebro da colônia (vê a IA decidindo em tempo real) ----
+    const cy = yy + 2;
+    drawText(ctx, "COLÔNIA PENSANDO", 22, cy, { color: "#8f7bb5" });
+    const n = colony.needs, hc = colony.headcount;
+    let bx = 22;
+    const needBar = (label, v, col) => {
+      drawText(ctx, label, bx, cy + 16, { color: col });
+      bar(ctx, bx, cy + 30, 60, 6, v, { c1: col, c2: col, segments: 0 });
+      bx += 74;
+    };
+    needBar("FOME", n.food, "#ffd479");
+    needBar("GUERRA", n.defense, "#ff4d5a");
+    needBar("CURA", n.medical, "#7fd6a0");
+    drawText(ctx, "COLETANDO " + hc.gather + "  •  EXPLORANDO " + hc.explore, 22, cy + 44, { color: PAL.textDim });
+    yy += 56;
     if (run.mutationLog.length > 0) {
       let ix = 22;
       for (const mm of run.mutationLog.slice(0, 7)) {
@@ -1330,7 +1344,7 @@ function drawPause() {
   if (button(ctx, { x: VIEW_W / 2 - 130, y: 218, w: 260, h: 42, label: "COMO JOGAR", id: "pauseHelp", accent: "#6db7ff" })) {
     paused = false;
     helpReturn = "RUN";
-    startTransition("fade", "RUN", "HELP", 0.3, () => { G.screen = "HELP"; });
+    startTransition("auto", "RUN", "HELP", 0, () => { G.screen = "HELP"; });
     return;
   }
   if (button(ctx, { x: VIEW_W / 2 - 130, y: 270, w: 260, h: 42, label: "REINICIAR EXPEDIÇÃO", id: "restart", accent: "#ffb347" })) {
@@ -1342,7 +1356,7 @@ function drawPause() {
   if (button(ctx, { x: VIEW_W / 2 - 130, y: 322, w: 260, h: 42, label: "SAIR PARA O MENU", id: "quit", accent: "#ff4d5a" })) {
     paused = false;
     settleAbandon();
-    startTransition("fade", "RUN", "TITLE", 0.5, () => { G.screen = "TITLE"; });
+    startTransition("auto", "RUN", "TITLE", 0, () => { G.screen = "TITLE"; });
     return;
   }
   drawText(ctx, "ESC: VOLTAR AO JOGO", VIEW_W / 2, 396, { color: PAL.textDim, align: "center" });
@@ -1356,6 +1370,18 @@ function settleAbandon() {
 }
 
 let helpReturn = "TITLE";
+let treeReturn = "TITLE";
+
+/**
+ * VOLTAR da árvore da evolução. Vai para a tela de onde ela foi aberta —
+ * antes o botão nem respondia (o retorno do drawTreeHUD morria no drawTree) e
+ * o ESC jogava o jogador no menu mesmo quando a árvore tinha sido aberta do
+ * fim de expedição.
+ */
+function backFromTree() {
+  const to = treeReturn;
+  startTransition("auto", "TREE", to, 0, () => { G.screen = to; });
+}
 
 // ------------------------------------------------------------------- fim ----
 function drawEnd(run) {
@@ -1435,11 +1461,13 @@ function drawEnd(run) {
   }
   if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
     enterTree();
-    startTransition("fade", "RUN", "TREE", 0.4, () => { G.screen = "TREE"; });
+    // a expedição já acabou: voltar da árvore leva ao menu, não ao placar
+    treeReturn = "TITLE";
+    startTransition("auto", "RUN", "TREE", 0, () => { G.screen = "TREE"; });
     return;
   }
   if (button(ctx, { x: VIEW_W / 2 - 110, y: by + 48, w: 220, h: 32, label: "MENU PRINCIPAL", id: "menu" })) {
-    startTransition("fade", "RUN", "TITLE", 0.5, () => { G.screen = "TITLE"; });
+    startTransition("auto", "RUN", "TITLE", 0, () => { G.screen = "TITLE"; });
     return;
   }
 }

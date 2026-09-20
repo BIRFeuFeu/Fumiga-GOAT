@@ -155,12 +155,89 @@ export function loadAll(onProgress) {
 // Formigas são top-down: pré-renderizamos 24 ângulos para girar com nitidez.
 const ROT_ANGLES = 24;
 
+// ------------------------------------------------------ acabamento visual ---
+// As artes-fonte têm 19–56px e eram ampliadas cruas: no meio do mato e do
+// chão texturizado as formigas sumiam. Agora cada sprite sai do forno com
+//   1. contraste esticado (sombra mais funda, luz mais viva) — separa do chão;
+//   2. contorno escuro de 1px em toda a silhueta — leitura imediata;
+//   3. sombra quente no lado oposto à luz e rim light no topo — dá volume.
+// Tudo é aplicado ANTES da rotação, então gira junto com a formiga e continua
+// alinhado à grade de pixels (nada de halo borrado).
+const OUTLINE_COL = "#08060f";
+const RIM_COL = "#ffe6b8";
+const SHADE_COL = "#150d1c";
+// 8 direções: contorno de 1px ao redor da silhueta
+const OUT_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+const FINISHED = new Map();
+
+/** Silhueta sólida de um sprite (para contorno / rim / sombra). */
+function silhouette(img, color) {
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const c = cv.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.drawImage(img, 0, 0);
+  c.globalCompositeOperation = "source-in";
+  c.fillStyle = color;
+  c.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}
+
+/**
+ * Estica o contraste do sprite sem mudar as dimensões (o pad do assado depende
+ * delas). Se o canvas não der acesso aos pixels (contexto bloqueado, teste
+ * headless), devolve o original — o jogo segue, só sem o retoque.
+ */
+function contrasted(img, gamma = 0.94, sat = 1.14, lift = -6) {
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  const c = cv.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.drawImage(img, 0, 0);
+  try {
+    const d = c.getImageData(0, 0, cv.width, cv.height);
+    const p = d.data;
+    let touched = false;
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] === 0) continue;
+      touched = true;
+      let r = p[i], g = p[i + 1], b = p[i + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      // contraste em volta do meio-tom + gamma leve
+      let k = (lum - 128) * 0.22 + 128 + lift;
+      k = 255 * Math.pow(Math.max(0, k) / 255, gamma);
+      const f = lum > 0.001 ? k / lum : 1;
+      r = lum + (r - lum) * sat; g = lum + (g - lum) * sat; b = lum + (b - lum) * sat;
+      p[i] = Math.max(0, Math.min(255, r * f));
+      p[i + 1] = Math.max(0, Math.min(255, g * f));
+      p[i + 2] = Math.max(0, Math.min(255, b * f));
+    }
+    if (touched) c.putImageData(d, 0, 0);
+  } catch (e) { /* sem acesso aos pixels: usa o sprite cru */ }
+  return cv;
+}
+
+/** Sprite pronto para assar: contraste + silhuetas auxiliares (com cache). */
+function finishSprite(key) {
+  let f = FINISHED.get(key);
+  if (f) return f;
+  const src = IMG[key];
+  const body = contrasted(src);
+  f = { body, out: silhouette(body, OUTLINE_COL), rim: silhouette(body, RIM_COL), shade: silhouette(body, SHADE_COL) };
+  FINISHED.set(key, f);
+  return f;
+}
+
 export function bakeRot(key, outSize) {
   if (ROT[key]) return ROT[key];
-  const img = IMG[key];
+  const F = finishSprite(key);
+  const img = F.body;
   const scale = outSize / Math.max(img.width, img.height);
   const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
   const pad = Math.ceil(Math.hypot(w, h)) + 2;
+  // espessura do contorno cresce junto com o sprite (1px a cada ~28px assados)
+  const o = Math.max(1, Math.round(scale * 0.9));
   const frames = [];
   for (let i = 0; i < ROT_ANGLES; i++) {
     const cv = document.createElement("canvas");
@@ -169,6 +246,16 @@ export function bakeRot(key, outSize) {
     c.imageSmoothingEnabled = false;
     c.translate(pad / 2, pad / 2);
     c.rotate((i / ROT_ANGLES) * Math.PI * 2 + Math.PI / 2); // sprite aponta "para cima"
+    // 1) contorno
+    for (const [ox, oy] of OUT_DIRS) c.drawImage(F.out, -w / 2 + ox * o, -h / 2 + oy * o, w, h);
+    // 2) sombra no lado oposto à luz (a luz vem do alto-esquerda)
+    c.globalAlpha = 0.5;
+    c.drawImage(F.shade, -w / 2 + o * 1.3, -h / 2 + o * 1.5, w, h);
+    // 3) rim light no topo
+    c.globalAlpha = 0.34;
+    c.drawImage(F.rim, -w / 2 - o, -h / 2 - o * 1.2, w, h);
+    // 4) o sprite em si
+    c.globalAlpha = 1;
     c.drawImage(img, -w / 2, -h / 2, w, h);
     frames.push(cv);
   }
