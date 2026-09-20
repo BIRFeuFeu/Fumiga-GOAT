@@ -97,6 +97,7 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 | [`index.html`](index.html) | Página inicial do site: leva para `game/` (é o endereço do Pages) |
 | [`game/`](game/) | **O jogo** — HTML, CSS, 24 módulos ES e sprites |
 | [`game/js/nest.js`](game/js/nest.js) | A cena de dentro do formigueiro (câmaras, túneis, IA das formigas) |
+| [`game/js/brain.js`](game/js/brain.js) | **Cérebro da colônia**: cada formiga decide sozinha (IA de utilidade) sob necessidades da colônia, cotas por tarefa e feromônio (estigmergia) |
 | [`game/test/`](game/test/) | Auditorias de assets, layout, árvore, travamentos e simulação |
 | [`deploy/github-pages.yml`](deploy/github-pages.yml) | Workflow opcional (testes + Pages enxuto) |
 | [`tools/prepare_assets.sh`](tools/prepare_assets.sh) | Regenera os sprites a partir das artes-fonte |

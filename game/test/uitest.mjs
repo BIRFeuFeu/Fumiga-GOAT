@@ -232,5 +232,36 @@ expect(!G.run.transition, "transição fechada");
 const fog = await import(BASE + "/fog.js");
 expect(fog.fogExplored(world.anthill.x, world.anthill.y) === true, "formigueiro explorado no fog");
 
+// ---- ÁRVORE DA EVOLUÇÃO: o botão VOLTAR tem que funcionar ----------------
+// Regressão do bug relatado: drawTreeHUD() devolvia "back" mas drawTree()
+// jogava o retorno fora (sempre `return null`), então só o ESC saía da árvore.
+const meta = await import(BASE + "/meta.js");
+const click = async (x, y) => {
+  mouse.x = x; mouse.y = y; mouse.down = mouse.justDown = true;
+  await wait(60);
+  mouse.down = mouse.justDown = false; mouse.justUp = true;
+  await wait(40);
+  mouse.justUp = false;
+  await wait(700);              // dá tempo da transição terminar
+};
+G.screen = "TITLE";
+await wait(120);
+meta.enterTree();
+G.screen = "TREE";
+await wait(150);
+expect(G.screen === "TREE", "entrou na árvore da evolução");
+// botão VOLTAR: x = 960-180 .. 960-24, y = 18..58 (ver drawTreeHUD em meta.js)
+await click(960 - 180 + 78, 38);
+expect(G.screen === "TITLE", "VOLTAR (clique) saiu da árvore — screen=" + G.screen);
+// e o ESC continua funcionando, voltando para a mesma tela
+meta.enterTree();
+G.screen = "TREE";
+await wait(150);
+pressed.Escape = true;
+await wait(60);
+pressed.Escape = false;
+await wait(700);
+expect(G.screen === "TITLE", "ESC saiu da árvore — screen=" + G.screen);
+
 console.log(problems.length ? "PROBLEMAS: " + problems.join(" | ") : "UI-TEST PASSOU");
 process.exit(problems.length ? 2 : 0);

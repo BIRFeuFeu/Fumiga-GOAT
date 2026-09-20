@@ -144,8 +144,9 @@ function padOf(pngPath, out) {
   const w = Math.round(w0 * sc), h = Math.round(h0 * sc);
   return Math.ceil(Math.hypot(w, h)) + 2;
 }
-const GIANT_BAKE = 247;                                    // idêntico ao main.js
-const pSold = padOf("assets/sprites/ants/soldier.png", 48);
+const { ANT_SIZES } = await import("../js/config.js");
+const GIANT_BAKE = ANT_SIZES.giant;                        // fonte única: config.js
+const pSold = padOf("assets/sprites/ants/soldier.png", ANT_SIZES.soldier);
 const pGiant = padOf("assets/sprites/ants/soldier.png", GIANT_BAKE);
 const factor = (pSold * GIANT_SCALE) / pGiant;
 const scaleOk = pGiant === 5 * pSold && Number.isInteger(factor);

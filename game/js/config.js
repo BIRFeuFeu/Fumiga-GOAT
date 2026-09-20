@@ -41,6 +41,26 @@ export const PAL = {
 // o assado (main.js) e o desenho (render.js) se ajustam sozinhos.
 export const GIANT_SCALE = 20;
 
+// ---------------------------------------------------------------------------
+// TAMANHO DE ASSADO dos sprites de formiga (em pixels do sprite girado).
+// Fonte única: main.js assa com estes números e os testes (assets.mjs,
+// layout.mjs) conferem contra eles — antes cada um tinha a própria cópia e
+// podiam divergir em silêncio.
+//
+// A GIGANTE tem uma amarra extra: o "pad" dela precisa ser exatamente 5x o da
+// soldado para que o fator de desenho saia inteiro (test/assets.mjs confere).
+//   soldado 64 -> pad 83   |   gigante 326 -> pad 415 = 5x83  ✓
+// ---------------------------------------------------------------------------
+export const ANT_SIZES = {
+  worker: 45, soldier: 64, spitter: 58, tank: 72, queen: 189,
+  scout: 48, healer: 53, bomber: 61,
+  giant: 326,                       // 5x o pad da soldado (ver conta acima)
+  e_runner: 40, e_swarm: 45, e_warrior: 64, e_spitter: 61, e_reaper: 58,
+  e_matron: 106, e_sentinel: 82,
+};
+/** A COLETORA é a operária tingida de jade — assa no mesmo tamanho. */
+export const GATHERER_SIZE = ANT_SIZES.worker;
+
 export const UNITS = {
   worker: {
     id: "worker", key: null, name: "OPERÁRIA",

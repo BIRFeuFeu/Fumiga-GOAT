@@ -2,7 +2,7 @@
 // FUMIGA-GOAT — bootstrap: carregamento, loop principal, redimensionamento V2
 // Agora começa em PRETITLE com título animado
 // ============================================================================
-import { VIEW_W, VIEW_H, PAL, GIANT_SCALE } from "./config.js";
+import { VIEW_W, VIEW_H, PAL, GIANT_SCALE, ANT_SIZES, GATHERER_SIZE } from "./config.js";
 import { G, loadSave } from "./state.js";
 import { loadAll, bakeRot, bakeRotTinted, dupSprite, setRotDrawScale } from "./assets.js";
 import { loadFonts, drawText } from "./font.js";
@@ -27,13 +27,7 @@ window.addEventListener("resize", fit);
 fit();
 
 // ------------------------------------------------------------- loading -----
-const ANT_SIZES = {
-  worker: 34, soldier: 48, spitter: 44, tank: 54, queen: 142,
-  scout: 36, healer: 40, bomber: 46,
-  giant: 247,
-  e_runner: 30, e_swarm: 34, e_warrior: 48, e_spitter: 46, e_reaper: 44,
-  e_matron: 80, e_sentinel: 62,
-};
+// Tamanhos de assado vêm de config.js (fonte única compartilhada com os testes).
 
 let progress = 0, phase = "CARREGANDO ESPOROS", ready = false, loadError = null;
 
@@ -130,7 +124,7 @@ async function bootAll() {
   dupSprite("soldier", "giant");
   for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
   setRotDrawScale("giant", "soldier", GIANT_SCALE);
-  bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
+  bakeRotTinted("worker", "gatherer", GATHERER_SIZE, "#7fd6c0", 0.5);
   bakeBossSheets();
   progress = 1;
   boot();
