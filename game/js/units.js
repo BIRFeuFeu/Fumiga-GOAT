@@ -509,7 +509,12 @@ function applyWish(a, wish) {
       if (wish.pos) { a.tx = wish.pos.x; a.ty = wish.pos.y; a.state = "move"; }
       break;
     }
-    default: break;   // "idle", "flee": a máquina de estados já cuida
+    case "flee": {
+      a.cmdPos = null; a.pile = null; a.node = null;
+      a.state = "flee"; a.fleeT = Math.max(a.fleeT || 0, 1.4);
+      break;
+    }
+    default: break;   // "idle": a máquina de estados já cuida
   }
 }
 
@@ -537,7 +542,29 @@ function updateAnt(a, dt, foes, m) {
 
   if (role === "worker") updateWorker(a, dt, foes, true, m, window.__run);
   else if (role === "healer") updateHealer(a, dt, foes, m);
+  else if (a.def.attack === false) updateScout(a, dt, foes, m);
   else updateFighter(a, dt, foes, true, m);
+}
+
+// -------------------------------------------------------------- batedora ---
+// A BATEDORA não ataca: o trabalho dela é farejar o mapa. Ela anda, explora e,
+// se um inimigo chega perto, dispara de volta para o ninho.
+function updateScout(a, dt, foes, m) {
+  if (a.state === "flee") {
+    a.fleeT -= dt;
+    const A = world.anthill;
+    moveToward(a, A.x, A.y, dt, 1.2);
+    if (a.fleeT <= 0 && !nearestFoe(a, foes, 160)) { a.state = "idle"; a.tx = a.ty = null; }
+    return;
+  }
+  if (nearestFoe(a, foes, 130)) { a.state = "flee"; a.fleeT = 1.4; return; }
+
+  if (a.state === "move" && a.tx != null) {
+    if (moveToward(a, a.tx, a.ty, dt, 1.1)) { a.state = "idle"; a.tx = a.ty = null; }
+    return;
+  }
+  // parada: o cérebro sugere o próximo ponto de batedura
+  a.bob += dt * 2;
 }
 
 // ------------------------------------------------------------- trabalhadora -
@@ -648,8 +675,14 @@ function updateWorker(a, dt, foes, think, m, G2) {
     }
   }
 
-  // defesa fraca mas existente se um inimigo encostar
-  if (a.atkT <= 0 && a.state !== "flee" && a.st.dmg > 0) {
+  // castas de trabalho não mordem: se um inimigo encosta, só fogem.
+  // As guerreiras de verdade (soldado/cuspidora/bombeira/guarda/gigante) é que
+  // atacam — ver updateFighter e o campo `attack` em config.js.
+  if (a.def.attack === false) {
+    if (a.state !== "flee" && nearestFoe(a, foes, a.st.range + 26)) {
+      a.state = "flee"; a.fleeT = 1.4;
+    }
+  } else if (a.atkT <= 0 && a.state !== "flee" && a.st.dmg > 0) {
     const close = nearestFoe(a, foes, a.st.range + 14);
     if (close && dist2(a.x, a.y, close.x, close.y) < (a.st.range + 10) * (a.st.range + 10)) {
       a.angle = Math.atan2(close.y - a.y, close.x - a.x);
@@ -984,7 +1017,7 @@ export function rallyDefenders(anthill) {
 export function orderAttackSelected(foe) {
   let n = 0;
   for (const a of allies) {
-    if (!a.selected || a.dead || a.dying || a.def.role === "worker" || a.def.role === "healer") continue;
+    if (!a.selected || a.dead || a.dying || a.def.role === "worker" || a.def.role === "healer" || a.def.attack === false) continue;
     a.forcedTarget = foe;
     a.state = "chase";
     n++;

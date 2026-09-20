@@ -82,13 +82,17 @@ A bateria headless do projeto roda sem navegador:
 ```bash
 cd game
 node test/assets.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/layout.mjs && node test/uitest.mjs
+node test/layout.mjs && node test/uitest.mjs && node test/attack.mjs
 
 FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 ```
 
 > A simulação completa (sem `FORCE`) joga os 6 mapas de uma vez e pode **empatar** por azar do
 > autopiloto — por isso a verificação usa os chefes 1, 3 e 6, que são rápidos e determinísticos.
+>
+> `test/attack.mjs` mede o dano real de uma formiga de cada casta e garante que **só** soldado,
+> cuspidora, bombeira, guarda de ébano e formiga gigante atacam — operária, coletora, batedora e
+> curandeira causam dano zero (elas trabalham e fogem).
 
 ## 🗂 Onde está o quê
 

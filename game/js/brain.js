@@ -237,18 +237,20 @@ export function think(a, ctx) {
 
   // ---------------------------------------------------- 0) ordens do jogador
   // Clique em inimigo, clique no chão e posto de guarda mandam mais que tudo.
-  if (a.forcedTarget && !a.forcedTarget.dead && !a.forcedTarget.dying) {
+  const canAtk = a.def && a.def.attack !== false;
+  if (canAtk && a.forcedTarget && !a.forcedTarget.dead && !a.forcedTarget.dying) {
     return { act: "engage", target: a.forcedTarget, why: "ordem" };
   }
   if (a.cmdPos) return { act: "move", pos: a.cmdPos, why: "ordem" };
 
   // --------------------------------------------------------- 1) sobrevivência
   const fleeU = dg * 0.45 + (1 - hpFrac) * 0.5 + colony.needs.defense * 0.1;
-  const panic = (role === "worker" || role === "healer") && (fleeU > 0.85 || hpFrac < 0.22);
+  const panic = !canAtk && (fleeU > 0.85 || hpFrac < 0.22);
   if (panic) return { act: "flee", pos: { x: A.x, y: A.y }, why: "pânico" };
 
   if (role === "worker") return thinkWorker(a, ctx, { hpFrac, dNest, dg, A });
   if (role === "healer") return thinkHealer(a, ctx, { hpFrac, dNest, dg, A, friends });
+  if (!canAtk) return thinkScout(a, ctx, { hpFrac, dNest, dg, A });
   return thinkSoldier(a, ctx, { hpFrac, dNest, dg, A, fleeU });
 }
 
@@ -337,6 +339,28 @@ function thinkWorker(a, ctx, S) {
     opts.push({ act: "idle", u, why: "esperar" });
   }
 
+  return commit(a, opts);
+}
+
+// -------------------------------------------------------------- batedora ---
+// A batedora não luta: o "trabalho" dela é abrir mapa e farejar. Utilidades só
+// de exploração/fuga — nenhum "engage", então ela jamais entra em combate.
+function thinkScout(a, ctx, S) {
+  const b = a.brain, tr = b.traits || b;
+  const n = colony.needs;
+  const opts = [];
+  {
+    let u = 0.45 + 0.30 * n.explore + 0.25 * tr.curiosity;
+    const [fwd, lft, rgt] = sniff(a.x, a.y, b.wanderAng, 170);
+    u += 0.15 * clamp(Math.max(fwd, lft, rgt), 0, 1);
+    u -= 0.30 * clamp(dangerAt(a.x, a.y), 0, 1.5);
+    let ang = b.wanderAng;
+    if (lft > fwd && lft > rgt) ang -= 0.8;
+    else if (rgt > fwd && rgt > lft) ang += 0.8;
+    const reach = 260 + tr.curiosity * 220;
+    opts.push({ act: "explore", pos: { x: a.x + Math.cos(ang) * reach, y: a.y + Math.sin(ang) * reach }, u, ang, why: "batedura" });
+  }
+  opts.push({ act: "idle", u: 0.12 + 0.1 * (1 - n.explore), why: "esperar" });
   return commit(a, opts);
 }
 
