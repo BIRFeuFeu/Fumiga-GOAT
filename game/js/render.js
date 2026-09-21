@@ -523,6 +523,8 @@ let titleMotes = [];
 let titlePollen = []; // Celeste style - caindo
 let titleClouds = [];
 let titleAnts = []; // formigas andando no menu
+let titleFireflies = []; // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo
+let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formigueiro
 let torchFlicker = 0;
 let dayPhase = 0;
 
@@ -555,7 +557,7 @@ function ensureMotes() {
       sway: Math.random() * 1.5 + 0.3,
     });
   }
-  // nuvens parallax (5 camadas)
+  // nuvens parallax (4 camadas - FASE 1 FINAL: 4 camadas não 5)
   for (let i = 0; i < 8; i++) {
     titleClouds.push({
       x: Math.random() * VIEW_W,
@@ -577,13 +579,43 @@ function ensureMotes() {
       type: Math.random() < 0.5 ? "worker" : Math.random() < 0.7 ? "soldier" : "scout",
     });
   }
+  // FASE 1 FINAL - vaga-lumes azul #37e6c8 + amarelo #ffd479 voando baixo sobre gramado (escolha azul_amarelo)
+  for (let i = 0; i < 10; i++) {
+    const isBlue = i % 2 === 0;
+    titleFireflies.push({
+      x: 120 + Math.random() * (VIEW_W - 240),
+      y: 300 + Math.random() * 120, // baixo sobre gramado 300-420
+      vx: (Math.random() - 0.5) * 18,
+      vy: (Math.random() - 0.5) * 10,
+      size: 1.5 + Math.random() * 2.2,
+      alpha: 0.5 + Math.random() * 0.5,
+      col: isBlue ? "#37e6c8" : "#ffd479",
+      phase: Math.random() * TAU,
+      sway: 0.6 + Math.random() * 1.2,
+      blinkSpeed: 1.2 + Math.random() * 2.0,
+    });
+  }
+  // FASE 1 FINAL - partículas essência subindo do formigueiro central (escolha particulas)
+  for (let i = 0; i < 12; i++) {
+    titleEssence.push({
+      x: VIEW_W * 0.72 + (Math.random() - 0.5) * 30,
+      y: VIEW_H * 0.62 + Math.random() * 20,
+      vx: (Math.random() - 0.5) * 8,
+      vy: - (12 + Math.random() * 18),
+      size: 0.8 + Math.random() * 1.6,
+      alpha: 0.3 + Math.random() * 0.5,
+      col: Math.random() < 0.5 ? "#c77dff" : Math.random() < 0.75 ? "#ffd479" : "#37e6c8",
+      phase: Math.random() * TAU,
+      life: Math.random(),
+    });
+  }
 }
 
-/** Partículas híbridas: motes subindo (Dead Cells) + pollen caindo (Celeste) + formigas */
+/** Partículas híbridas: motes subindo (Dead Cells) + pollen caindo (Celeste) + formigas + FASE 1 FINAL: vaga-lumes + essência */
 export function drawTitleMotes(ctx, time) {
   ensureMotes();
   torchFlicker = Math.sin(time * 7) * 0.15 + Math.sin(time * 3.2) * 0.1;
-  dayPhase = (time * 0.012) % 1; // ciclo dia/noite ~ 80s
+  dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: ciclo dia/noite 60s exatos (escolha tint_forte)
 
   // motes subindo
   for (const m of titleMotes) {
@@ -610,6 +642,48 @@ export function drawTitleMotes(ctx, time) {
     ctx.globalAlpha = a;
     ctx.fillStyle = p.col;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+  }
+  // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo sobre gramado (escolha azul_amarelo)
+  for (const f of titleFireflies) {
+    f.x += (f.vx + Math.sin(time * f.sway + f.phase) * 6) * 0.016;
+    f.y += (f.vy + Math.cos(time * f.sway * 0.7 + f.phase) * 4) * 0.016;
+    if (f.y < 280) { f.y = 280; f.vy = Math.abs(f.vy); }
+    if (f.y > 440) { f.y = 440; f.vy = -Math.abs(f.vy); }
+    if (f.x < 60) { f.x = 60; f.vx = Math.abs(f.vx); }
+    if (f.x > VIEW_W - 60) { f.x = VIEW_W - 60; f.vx = -Math.abs(f.vx); }
+    const blink = 0.4 + 0.6 * Math.abs(Math.sin(time * f.blinkSpeed + f.phase));
+    const a = f.alpha * blink;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = f.col;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, TAU); ctx.fill();
+    // glow
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = a * 0.35;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size * 3.5, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  // FASE 1 FINAL - partículas essência subindo do formigueiro (escolha particulas) - luz pulsando
+  for (const e of titleEssence) {
+    e.x += e.vx * 0.016;
+    e.y += e.vy * 0.016;
+    e.life += 0.016 * 0.3;
+    if (e.y < VIEW_H * 0.35 || e.life > 1) {
+      e.x = VIEW_W * 0.72 + (Math.random() - 0.5) * 30;
+      e.y = VIEW_H * 0.62 + Math.random() * 20;
+      e.vx = (Math.random() - 0.5) * 8;
+      e.vy = - (12 + Math.random() * 18);
+      e.life = 0;
+    }
+    const a = e.alpha * (1 - e.life) * (0.6 + 0.4 * Math.sin(time * 2 + e.phase));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = e.col;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, TAU); ctx.fill();
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = a * 0.4;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size * 2.2, 0, TAU); ctx.fill();
+    ctx.restore();
   }
   // formigas andando no chão do menu
   for (const ant of titleAnts) {
@@ -645,26 +719,24 @@ export function drawTitleMotes(ctx, time) {
 // mouse.x/y + time para movimento real
 export function drawTitleBg(ctx) {
   const time = G.time;
-  dayPhase = (time * 0.012) % 1;
+  dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: 60s exatos (escolha tint_forte + 4 camadas)
   ensureMotes();
 
   const hasParallax = IMG.parallax_sky && IMG.parallax_main && IMG.parallax_mountains && IMG.parallax_foreground;
   
   if (hasParallax) {
-    // parallax real com mouse direto (não lastPointer hack)
+    // parallax real com mouse direto - 4 CAMADAS (não 5)
     const mx = (mouse && mouse.x ? mouse.x : VIEW_W/2);
     const my = (mouse && mouse.y ? mouse.y : VIEW_H/2);
-    const offsetX = (mx - VIEW_W/2); // -480..+480
-    const offsetY = (my - VIEW_H/2); // -270..+270
+    const offsetX = (mx - VIEW_W/2);
+    const offsetY = (my - VIEW_H/2);
     
     ctx.imageSmoothingEnabled = false;
 
-    // ----- CAMADA 5: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, mais lenta) -----
+    // ----- CAMADA 5: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, 0.01x) -----
     const skyImg = IMG.parallax_sky;
-    // céu cobre tudo, movimento mínimo 0.01x + auto drift sin
     const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
     const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
-    // desenha maior que tela para permitir deslocamento sem borda
     ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
 
     // ----- CAMADA 4: Montanhas silhueta (meio-fundo, 0.03x) -----
@@ -672,59 +744,73 @@ export function drawTitleBg(ctx) {
     const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
     const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
     ctx.globalAlpha = 0.96;
-    // montanhas ficam no terço superior, mas com overflow para parallax
     ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, VIEW_H * 0.62);
     ctx.globalAlpha = 1;
 
     // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
-    // Esta já vem com transparência no topo (céu removido), perfeita para parallax
     const mainImg = IMG.parallax_main;
     const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
     const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;
     ctx.drawImage(mainImg, mainOffX - 30, mainOffY, VIEW_W + 60, VIEW_H - 5);
 
-    // brilho suave nas ruínas e formigueiro (fim de tarde) - Dead Cells tochas
+    // FASE 1 FINAL - luz formigueiro pulsante com partículas (escolha particulas) - sem tochas, só cristais
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    const flick = 0.85 + torchFlicker;
-    for (let i = 0; i < 2; i++) {
-      const fx = 160 + i * 500 + Math.sin(time * 0.3 + i) * 10 + mainOffX;
-      const fy = 280 + Math.cos(time * 0.4 + i) * 5 + mainOffY * 0.2;
-      const rg = ctx.createRadialGradient(fx, fy, 2, fx, fy, 32);
-      rg.addColorStop(0, `rgba(255,212,121,${0.09 * flick})`);
-      rg.addColorStop(1, "rgba(255,160,60,0)");
-      ctx.fillStyle = rg;
-      ctx.beginPath(); ctx.arc(fx, fy, 32, 0, TAU); ctx.fill();
-    }
+    // luz pulsante amarela quente na entrada do formigueiro
+    const pulse = 0.75 + Math.sin(time * 1.6) * 0.22;
+    const anthillFx = VIEW_W * 0.72 + mainOffX * 0.3;
+    const anthillFy = VIEW_H * 0.62 + mainOffY * 0.2;
+    const rg = ctx.createRadialGradient(anthillFx, anthillFy, 2, anthillFx, anthillFy, 52);
+    rg.addColorStop(0, `rgba(255,212,121,${0.22 * pulse})`);
+    rg.addColorStop(0.4, `rgba(255,160,60,${0.12 * pulse})`);
+    rg.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(anthillFx, anthillFy, 52, 0, TAU); ctx.fill();
+    // segundo anel maior sutil
+    const rg2 = ctx.createRadialGradient(anthillFx, anthillFy, 10, anthillFx, anthillFy, 90);
+    rg2.addColorStop(0, `rgba(199,125,255,${0.08 * pulse})`);
+    rg2.addColorStop(1, "rgba(199,125,255,0)");
+    ctx.fillStyle = rg2;
+    ctx.beginPath(); ctx.arc(anthillFx, anthillFy, 90, 0, TAU); ctx.fill();
     ctx.restore();
 
-    // ----- CAMADA 1: Vinhas no inferior, resto transparente (FRENTE, 0.15x mais rápida) -----
+    // ----- CAMADA 1: Vinhas no inferior, resto transparente (FRENTE, 0.15x) -----
     const fgImg = IMG.parallax_foreground;
     const fgOffX = offsetX * 0.15 + Math.sin(time * 0.02) * 4;
     const fgOffY = offsetY * 0.04;
     ctx.drawImage(fgImg, fgOffX - 40, fgOffY, VIEW_W + 80, VIEW_H);
 
-    // ciclo dia/noite tint sobre parallax alta resolução
-    const dp = (time * 0.012) % 1;
+    // FASE 1 FINAL - ciclo dia/noite 60s tint FORTE (escolha tint_forte): dia laranja quente / noite azul escuro 0.75 + estrelas
+    const dp = (time * 0.016666) % 1; // 60s exatos
     const isDay = Math.sin(dp * TAU);
     const dayT = (isDay * 0.5 + 0.5);
     if (dayT < 0.45) {
-      // noite - escurece azul + estrelas piscando
-      ctx.fillStyle = `rgba(10,8,22,${(0.45 - dayT) * 0.75})`;
+      // noite FORTE - azul escuro 0.75 max + estrelas piscando
+      const nightAlpha = (0.45 - dayT) * 1.65; // 0.45*1.65=0.7425 max ~0.75
+      ctx.fillStyle = `rgba(8,10,28,${nightAlpha})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      for (let i = 0; i < 18; i++) {
+      // estrelas mais visíveis na noite forte
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let i = 0; i < 24; i++) {
         const sx = (i * 137.5 + time * 2.5) % VIEW_W;
-        const sy = (i * 73.3) % 90 + 4;
-        const tw = 0.25 + Math.sin(time * 2.2 + i * 1.3) * 0.25;
-        ctx.globalAlpha = tw * (0.45 - dayT) * 1.5;
-        ctx.fillRect(sx, sy, 1.8, 1.8);
+        const sy = (i * 73.3) % 110 + 4;
+        const tw = 0.35 + Math.sin(time * 2.2 + i * 1.3) * 0.35;
+        ctx.globalAlpha = tw * (0.45 - dayT) * 2.2;
+        const sz = i % 3 === 0 ? 2.2 : 1.6;
+        ctx.fillRect(sx, sy, sz, sz);
       }
       ctx.globalAlpha = 1;
-    } else if (dayT > 0.75) {
-      // dia - brilho quente fim de tarde sutil
-      ctx.fillStyle = `rgba(255,180,60,${(dayT - 0.75) * 0.12})`;
+    } else if (dayT > 0.72) {
+      // dia FORTE - laranja quente fim de tarde
+      const dayAlpha = (dayT - 0.72) * 0.38; // max 0.28*0.38=0.106
+      ctx.fillStyle = `rgba(255,156,58,${dayAlpha})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      // brilho extra no horizonte
+      const hg = ctx.createLinearGradient(0, VIEW_H * 0.5, 0, VIEW_H * 0.75);
+      hg.addColorStop(0, `rgba(255,180,80,0)`);
+      hg.addColorStop(1, `rgba(255,140,40,${dayAlpha * 0.6})`);
+      ctx.fillStyle = hg;
+      ctx.fillRect(0, VIEW_H * 0.5, VIEW_W, VIEW_H * 0.25);
     }
 
     // acessibilidade highContrast - borda mais forte sobre parallax high-res
