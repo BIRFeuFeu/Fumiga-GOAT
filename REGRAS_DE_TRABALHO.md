@@ -9,6 +9,7 @@ deve seguir em **todas** as interações e alterações feitas no jogo **FUMIGA 
 
 > **Sempre fazer perguntas com opções de respostas para saber como o usuário quer que as novas alterações sejam implementadas.**
 
+- A **pesquisa da Regra 2 acontece ANTES** destas perguntas: perguntar já citando as inspirações.
 - Antes de escrever qualquer código, apresentar **perguntas objetivas com opções claras** (ex.: A, B, C),
   permitindo também resposta personalizada.
 - As opções devem descrever **o impacto de cada escolha** (visual, gameplay, desempenho, complexidade).
@@ -31,6 +32,7 @@ D) Outro: (descreva)
 
 > **Sempre pesquisar na Web buscando inspirações em jogos indies para as alterações que forem pedidas.**
 
+- Esta é a **primeira etapa** do fluxo: pesquisar **antes mesmo das perguntas** da Regra 1.
 - Para cada mudança solicitada, realizar **pesquisa na Web** buscando referências de **jogos indies**
   reconhecidos (ex.: *Dead Cells*, *Hollow Knight*, *Vampire Survivors*, *Slay the Spire*, *Stardew Valley*, etc.).
 - Registrar no retorno ao usuário **quais jogos serviram de inspiração** e **o que foi aproveitado** de cada um
@@ -121,8 +123,8 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
-1. PERGUNTAR  → opções de implementação (Regra 1)
-2. PESQUISAR  → inspirações em jogos indies na Web (Regra 2)
+1. PESQUISAR  → inspirações em jogos indies na Web (Regra 2)
+2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
 4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6)
 5. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)

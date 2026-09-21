@@ -8,37 +8,7 @@ sem build e sem dependências — todo o texto do jogo está em português.
 ### **https://feufeup.github.io/Fumiga-GOAT/**
 
 O endereço acima cai direto no jogo (a página inicial só leva você para [`game/`](game/)).
-É o mesmo código que roda no seu computador — o GitHub Pages publica a pasta `game/` como
-um site estático, sem passo de build.
-
-<details open>
-<summary><b>O link ainda não abre? Ligar o GitHub Pages — uma única vez, ~30 segundos</b></summary>
-
-1. Abra **Settings** → **Pages** (nas configurações deste repositório)
-2. Em *Build and deployment* → **Source**, escolha **Deploy from a branch**
-3. **Branch:** `main` · **pasta:** `/ (root)` → clique em **Save**
-4. Espere ~1 minuto e recarregue o link
-
-A partir daí **todo merge na `main` republica o jogo automaticamente** — o site é o próprio
-repositório, então não existe build, servidor, ferramenta externa nem IA no caminho.
-</details>
-
-<details>
-<summary><b>Opcional — publicar só o jogo (site mais enxuto, com os testes como porteiro)</b></summary>
-
-O arquivo [`deploy/github-pages.yml`](deploy/github-pages.yml) é um workflow pronto que
-(a) roda a bateria de testes headless do jogo e (b) publica **apenas** a pasta `game/`,
-deixando as artes-fonte fora do site.
-
-Para usar:
-
-1. No GitHub, crie o arquivo `.github/workflows/pages.yml` com o conteúdo de
-   [`deploy/github-pages.yml`](deploy/github-pages.yml)
-   (*Add file* → *Create new file*, colando o conteúdo);
-2. Em **Settings → Pages → Source**, troque para **GitHub Actions**.
-
-Os dois modos não funcionam ao mesmo tempo: o Source é um ou outro.
-</details>
+Para jogar no seu computador, veja [Rodar localmente](#-rodar-localmente) abaixo.
 
 ## 🐜 O jogo
 
@@ -122,7 +92,6 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 | [`game/js/nest.js`](game/js/nest.js) | A cena de dentro do formigueiro (câmaras, túneis, IA das formigas) |
 | [`game/js/brain.js`](game/js/brain.js) | **Cérebro da colônia**: cada formiga decide sozinha (IA de utilidade) sob necessidades da colônia, cotas por tarefa e feromônio (estigmergia) |
 | [`game/test/`](game/test/) | Auditorias de assets, layout, árvore, travamentos e simulação |
-| [`deploy/github-pages.yml`](deploy/github-pages.yml) | Workflow opcional (testes + Pages enxuto) |
 | [`tools/prepare_assets.sh`](tools/prepare_assets.sh) | Regenera os sprites a partir das artes-fonte |
 | `animais/`, `arvores/`, `arbustos/`, `pedras/`, `cristais/`, `cenarios/`, `icones/` | Artes-fonte |
 
