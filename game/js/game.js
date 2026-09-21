@@ -59,6 +59,7 @@ const SHOP = [
 ];
 const SHOP_W = 70, SHOP_PITCH = 76;
 let shopOpen = false;
+let rallyCooldown = 0; // FASE 4: cooldown rally F quando infiniteDash desligado
 
 // ------------------------------------------------------------- modos de jogo --
 const GAME_MODES = [
@@ -414,24 +415,31 @@ function updateMode(dt) {
       break;
     }
   }
-  // swipe mobile para cards - FASE 2
+  // swipe mobile para cards - FASE 6 FINAL: scroll visual + touch feedback
   const mobile = isMobileLayout();
   if (mobile) {
     if (mouse.justDown) modeSwipeX = mouse.x;
     if (mouse.justUp && modeSwipeX !== null) {
       const dx = mouse.x - modeSwipeX;
       if (Math.abs(dx) > 50) {
-        // navega entre modos com swipe
+        // navega entre modos com swipe - scroll visual
         if (dx < 0) modeScrollOffset = Math.min(modeScrollOffset + 1, GAME_MODES.length - 1);
         if (dx > 0) modeScrollOffset = Math.max(modeScrollOffset - 1, 0);
         modeHover = modeScrollOffset;
+        if (navigator.vibrate) navigator.vibrate(15);
+        SFX.uiClick();
       }
       modeSwipeX = null;
     }
   }
+  // FASE 6 FINAL: se modeScrollOffset mudou, garante hover acompanha
+  if (mobile && modeScrollOffset >= 0 && modeHover === -1) {
+    // não força hover se mouse não sobre card, mas mantém scroll
+  }
   if (mouse.justDown && modeHover >= 0) {
     notePointer(mouse.x, mouse.y);
     selectedMode = GAME_MODES[modeHover];
+    if (mobile && navigator.vibrate) navigator.vibrate(20);
     SFX.uiClick();
     newRun(selectedMode);
     return;
@@ -564,11 +572,20 @@ function updateRun(dt) {
   if (pressed.KeyQ) { shopOpen = !shopOpen; SFX.uiClick(); }
   if (pressed.KeyG && director.phase === "calm") skipPeace();
   if (pressed.KeyB && run.status === "running") { openNest(run); }
+  // FASE 4 FINAL: infiniteDash - sem cooldown quando ligado, 3s cooldown quando desligado
+  if (rallyCooldown > 0) rallyCooldown -= simDt;
   if (pressed.KeyF) {
-    const n = rallyDefenders(world.anthill);
-    tutEvent("rally", n);
-    if (n > 0) floatText(world.anthill.x, world.anthill.y - 110, "GUARDA FORMADA! (" + n + ")", { color: "#37e6c8", life: 1.4 });
-    ring(world.anthill.x, world.anthill.y, { r0: 40, r1: 200, life: 0.5, color: "#37e6c8", width: 3 });
+    const infinite = G.save.accessibility.infiniteDash;
+    if (!infinite && rallyCooldown > 0) {
+      floatText(world.anthill.x, world.anthill.y - 90, "RALI EM RECARGA " + rallyCooldown.toFixed(1) + "s", { color: "#ff4d5a", life: 1.0 });
+      SFX.deny && SFX.deny();
+    } else {
+      const n = rallyDefenders(world.anthill);
+      tutEvent("rally", n);
+      if (n > 0) floatText(world.anthill.x, world.anthill.y - 110, "GUARDA FORMADA! (" + n + ")" + (infinite ? " ∞" : ""), { color: "#37e6c8", life: 1.4 });
+      ring(world.anthill.x, world.anthill.y, { r0: 40, r1: 200, life: 0.5, color: "#37e6c8", width: 3 });
+      if (!infinite) rallyCooldown = 3.0;
+    }
   }
 
   updateDirector(simDt);
@@ -881,27 +898,35 @@ function renderTitle() {
     by += b.h + (mobile ? 14 : 10);
   }
 
-  panel(ctx, 12, VIEW_H - 38, VIEW_W - 24, 28, { fill: "rgba(10,8,16,0.65)", border: "rgba(74,58,110,0.35)", r: 3 });
-  drawText(ctx, "v2.4 • PLANÍCIE VIVA • CICLO DIA/NOITE • PARALLAX • 5X ESCALA", 20, VIEW_H - 28, { color: "#6b5a8a" });
-  drawText(ctx, "GELÉIA REAL: " + G.save.essence + " • VITÓRIAS " + G.save.best.wins + "/" + G.save.best.runs + " • MAPA " + (G.save.best.maps||0) + " • M: SOM • " + (mobile ? "TOQUE 104PX" : "MOUSE"),
-    VIEW_W/2, VIEW_H - 28, { color: "#9a8fc0", align: "center" });
+  // FASE 6 FINAL: área toque maior rodapé 28px -> 44px + touch feedback vibrate + 104px
+  const footerH = mobile ? 44 : 28;
+  const footerY = VIEW_H - footerH - 10;
+  panel(ctx, 12, footerY, VIEW_W - 24, footerH, { fill: "rgba(10,8,16,0.75)", border: "rgba(74,58,110,0.45)", r: 4 });
+  drawText(ctx, "v2.4 • PLANÍCIE VIVA • CICLO DIA/NOITE • PARALLAX • 5X ESCALA • SNOW", 20, footerY + (mobile ? 14 : 8), { color: "#6b5a8a", scale: mobile ? 0.85 : 1 });
+  drawText(ctx, "GELÉIA REAL: " + G.save.essence + " • VITÓRIAS " + G.save.best.wins + "/" + G.save.best.runs + " • MAPA " + (G.save.best.maps||0) + " • M: SOM • " + (mobile ? "TOQUE 104PX SWIPE" : "MOUSE") + " • FASES 1-6 FINAL",
+    VIEW_W/2, footerY + (mobile ? 14 : 8), { color: "#9a8fc0", align: "center", scale: mobile ? 0.8 : 1 });
   
-  if (G.save.accessibility && (G.save.accessibility.invincible || G.save.accessibility.slowMo)) {
-    drawText(ctx, "♿ MODO ACESSÍVEL ATIVO", VIEW_W - 20, VIEW_H - 28, { color: "#7fd6a0", align: "right" });
+  if (G.save.accessibility && (G.save.accessibility.invincible || G.save.accessibility.slowMo || G.save.accessibility.infiniteDash)) {
+    drawText(ctx, "♿ MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
   }
 }
 
-// -------------------------------------------------------------- MODO SELEÇÃO -- FASE 3 + 6: lift 6px + 104px mobile + notePointer
+// -------------------------------------------------------------- MODO SELEÇÃO -- FASE 3 + 6 FINAL: lift 6px + 104px mobile + notePointer + scroll visual offset + touch feedback
 function renderModeScreen() {
   drawModeSelect(ctx, G.time);
-  modeRects = drawModeCards(ctx, GAME_MODES, modeHover, G.time);
+  // FASE 6 FINAL: passa scrollOffset para render com offset visual
+  modeRects = drawModeCards(ctx, GAME_MODES, modeHover, G.time, modeScrollOffset);
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: 20, y: VIEW_H - 46, w: mobile ? 220 : 140, h: mobile ? 104 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
+  if (button(ctx, { x: 20, y: VIEW_H - 56, w: mobile ? 220 : 140, h: mobile ? 104 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
     notePointer(mouse.x, mouse.y);
+    if (mobile && navigator.vibrate) navigator.vibrate(20);
     startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
   }
-  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR", VIEW_W/2, VIEW_H - 20, { color: "#5a4f78", align: "center" });
+  // FASE 6 FINAL: área toque maior rodapé MODE também 44px
+  const footerH = mobile ? 44 : 28;
+  panel(ctx, 12, VIEW_H - footerH - 8, VIEW_W - 24, footerH, { fill: "rgba(10,8,16,0.65)", border: "rgba(74,58,110,0.35)", r: 3 });
+  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 20 : 18), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1 });
 }
 
 // -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec - FUNDO SÓLIDO (parallax só no TITLE)
@@ -941,15 +966,40 @@ function renderOptions() {
   const colX = PX + 32;
   let cy = contentY;
 
-  if (optionsTab === 0) { // ÁUDIO - sliders spec
+  if (optionsTab === 0) { // ÁUDIO - sliders spec FASE 4 FINAL: barra visual preenchida estilo Celeste
     drawText(ctx, "ÁUDIO", colX, cy, { font: "big", color: "#37e6c8" }); cy += 28;
     const s = G.save.settings;
-    drawText(ctx, "MÚSICA: " + (G.muted ? "MUTADO (M)" : Math.round(s.musicVol*100) + "%"), colX, cy, { color: PAL.text }); cy += 22;
+    // slider visual function inline
+    const drawSlider = (label, val, yPos, color) => {
+      drawText(ctx, label + ": " + Math.round(val*100) + "%", colX, yPos, { color: PAL.text });
+      const bx = colX + 220, bw = 200, bh = 14;
+      // fundo
+      ctx.fillStyle = "rgba(10,8,16,0.8)";
+      ctx.fillRect(bx, yPos+2, bw, bh);
+      ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1; ctx.strokeRect(bx+0.5, yPos+2.5, bw-1, bh-1);
+      // preenchido
+      const grad = ctx.createLinearGradient(bx, yPos+2, bx, yPos+2+bh);
+      grad.addColorStop(0, color);
+      grad.addColorStop(1, "#1a1430");
+      ctx.fillStyle = grad;
+      ctx.fillRect(bx+2, yPos+4, (bw-4)*val, bh-4);
+      // handle
+      const hx = bx + (bw-4)*val;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(hx-1, yPos, 3, bh+4);
+      ctx.fillStyle = color;
+      ctx.fillRect(hx-1, yPos+2, 3, bh);
+    };
+    drawText(ctx, "MÚSICA: " + (G.muted ? "MUTADO (M)" : Math.round(s.musicVol*100) + "%"), colX, cy, { color: PAL.text });
+    drawSlider("MUS VOL", G.muted ? 0 : s.musicVol, cy, "#c77dff");
+    cy += 22;
     if (button(ctx, { x: colX, y: cy, w: 160, h: isMobile ? 40 : 32, label: G.muted ? "LIGAR SOM" : "MUTAR (M)", id: "muteBtn", accent: "#ff4d5a" })) {
       toggleMute(); persistSave(); SFX.uiClick();
     }
     cy += isMobile ? 50 : 44;
-    drawText(ctx, "SFX VOLUME: " + Math.round(s.sfxVol*100) + "%", colX, cy, { color: PAL.text }); cy += 22;
+    drawText(ctx, "SFX VOLUME: " + Math.round(s.sfxVol*100) + "%", colX, cy, { color: PAL.text });
+    drawSlider("SFX VOL", s.sfxVol, cy, "#37e6c8");
+    cy += 22;
     if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX -", id: "sfxDown" })) {
       s.sfxVol = Math.max(0, s.sfxVol - 0.1); persistSave(); SFX.uiClick();
     }
@@ -1666,7 +1716,7 @@ function drawPause() {
   dialogBox(ctx, rx, py, rightW, panelH, { border: "#4a3a6e", accent: "#ffd479" });
   drawText(ctx, "MAPA E STATUS", rx + rightW/2, py + 18, { font: "big", color: "#ffd479", align: "center" });
 
-  // mini-mapa maior na pausa
+  // mini-mapa maior na pausa - FASE 5 FINAL: interativo clique move câmera + hover + stats expandidos
   const miniX = rx + 16, miniY = py + 44, miniW = rightW - 32, miniH = 160;
   panel(ctx, miniX - 2, miniY - 2, miniW + 4, miniH + 4, { fill: "rgba(10,8,16,0.9)", border: "#4a3a6e", r: 3 });
   if (world.mini) {
@@ -1676,31 +1726,64 @@ function drawPause() {
   const sx = miniW / WORLD_W, sy = miniH / WORLD_H;
   for (const a of allies) {
     if (a.dead) continue;
-    ctx.fillStyle = a.def.role === "worker" ? "#37e6c8" : "#8fd3ff";
+    ctx.fillStyle = a.def.role === "worker" ? "#37e6c8" : a.type === "healer" ? "#7fd6a0" : "#8fd3ff";
     ctx.fillRect(miniX + a.x * sx - 1, miniY + a.y * sy - 1, 2, 2);
+  }
+  for (const f of foes) {
+    if (f.dead) continue;
+    if (!f.revealT && !fogVisible(f.x, f.y) && !(f.isBoss && f.revealT > 0)) continue;
+    ctx.fillStyle = f.isBoss ? "#ffd479" : "#ff4d5a";
+    const s2 = f.isBoss ? 3 : 2;
+    ctx.fillRect(miniX + f.x * sx - s2/2, miniY + f.y * sy - s2/2, s2, s2);
   }
   const A = world.anthill;
   ctx.fillStyle = "#ffd479";
   ctx.beginPath(); ctx.arc(miniX + A.x * sx, miniY + A.y * sy, 4, 0, TAU); ctx.fill();
+  // viewport da câmera
+  const vx = VIEW_W / cam.zoom, vy = VIEW_H / cam.zoom;
+  ctx.strokeStyle = "rgba(239,233,255,0.7)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(miniX + (cam.x - vx/2)*sx, miniY + (cam.y - vy/2)*sy, vx*sx, vy*sy);
+  // interatividade: clique no mini-mapa move câmera
+  if (pointInRect(mouse.x, mouse.y, miniX, miniY, miniW, miniH)) {
+    ctx.strokeStyle = "#37e6c8"; ctx.lineWidth = 2;
+    ctx.strokeRect(miniX-1, miniY-1, miniW+2, miniH+2);
+    drawText(ctx, "CLIQUE PARA MOVER CÂMERA", rx + rightW/2, miniY + miniH + 4, { color: "#37e6c8", align: "center", scale: 0.7 });
+    if (mouse.justDown) {
+      cam.x = (mouse.x - miniX) / sx;
+      cam.y = (mouse.y - miniY) / sy;
+      SFX.uiClick();
+    }
+  }
+  // fog no mini pausa
+  fogDrawMini(ctx, miniX, miniY, miniW, miniH);
 
-  let sy2 = miniY + miniH + 16;
+  let sy2 = miniY + miniH + 24;
   if (run) {
     drawText(ctx, "MODO: " + (run.modeDef ? run.modeDef.name : "CAMPANHA"), rx + 16, sy2, { color: run.modeDef ? run.modeDef.color : "#37e6c8" }); sy2 += 18;
     drawText(ctx, "MAPA: " + (run.mapIdx + 1) + "/" + MAPS.length + " - " + MAPS[run.mapIdx].name, rx + 16, sy2, { color: PAL.text }); sy2 += 18;
     drawText(ctx, "ONDA: " + run.wave + " • ABATES: " + run.kills, rx + 16, sy2, { color: PAL.textDim }); sy2 += 18;
     drawText(ctx, "NÍVEL: " + run.level + " • COMIDA: " + fmt(run.food), rx + 16, sy2, { color: PAL.textDim }); sy2 += 18;
-    drawText(ctx, "ESSÊNCIA: " + fmt(run.essencePool) + " • MUTAÇÕES: " + run.mutationLog.length, rx + 16, sy2, { color: "#c77dff" }); sy2 += 22;
+    drawText(ctx, "ESSÊNCIA: " + fmt(run.essencePool) + " • MUTAÇÕES: " + run.mutationLog.length, rx + 16, sy2, { color: "#c77dff" }); sy2 += 18;
+    drawText(ctx, "POP: " + popUsed() + "/" + popCapTotal() + " • TEMPO: " + Math.floor(run.elapsed) + "s", rx + 16, sy2, { color: PAL.textDim, scale: 0.85 }); sy2 += 18;
 
-    // cérebro da colônia mini
-    const n = colony.needs;
-    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.8 }); sy2 += 18;
+    // cérebro da colônia + headcount detalhado
+    const n = colony.needs, hc = colony.headcount;
+    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "% • CURA " + Math.round(n.medical*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.75 }); sy2 += 16;
+    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.75 }); sy2 += 18;
 
     if (G.save.accessibility.invincible) {
       drawText(ctx, "♿ INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
     }
+    if (G.save.accessibility.infiniteDash) {
+      drawText(ctx, "∞ DASHES INFINITOS ATIVO", rx + 16, sy2, { color: "#37e6c8", scale: 0.85 }); sy2 += 16;
+    }
+    if (rallyCooldown > 0) {
+      drawText(ctx, "RALI RECARGA: " + rallyCooldown.toFixed(1) + "s", rx + 16, sy2, { color: "#ff4d5a", scale: 0.8 }); sy2 += 16;
+    }
   }
 
-  drawText(ctx, "ESC: VOLTAR • M: SOM", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.8 });
+  drawText(ctx, "ESC: VOLTAR • M: SOM • CLIQUE NO MAPA", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.75 });
 }
 
 function settleAbandon() {

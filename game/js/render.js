@@ -521,6 +521,7 @@ let titleBg = null;
 let preTitleBg = null;
 let titleMotes = [];
 let titlePollen = []; // Celeste style - caindo
+let titleSnow = []; // FASE 3 - neve Celeste parallax lenta
 let titleClouds = [];
 let titleAnts = []; // formigas andando no menu
 let titleFireflies = []; // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo
@@ -555,6 +556,22 @@ function ensureMotes() {
       col: Math.random() < 0.4 ? "#fff6c8" : Math.random() < 0.7 ? "#ffd479" : "#bfffa8",
       phase: Math.random() * TAU,
       sway: Math.random() * 1.5 + 0.3,
+    });
+  }
+  // FASE 3 FINAL - neve Celeste: flakes caindo com sway maior, parallax lenta, brilho
+  for (let i = 0; i < 18; i++) {
+    titleSnow.push({
+      x: Math.random() * VIEW_W,
+      y: Math.random() * VIEW_H,
+      vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 14 + 8, // 8-22 px/s mais lenta que pollen mas com sway
+      size: Math.random() * 2.2 + 1.0,
+      alpha: Math.random() * 0.4 + 0.15,
+      col: Math.random() < 0.6 ? "#e8f4ff" : "#c8e6ff",
+      phase: Math.random() * TAU,
+      sway: 1.2 + Math.random() * 2.5, // sway maior que pollen
+      rot: Math.random() * TAU,
+      rotSpeed: (Math.random() - 0.5) * 0.8,
     });
   }
   // nuvens parallax (4 camadas - FASE 1 FINAL: 4 camadas não 5)
@@ -642,6 +659,27 @@ export function drawTitleMotes(ctx, time) {
     ctx.globalAlpha = a;
     ctx.fillStyle = p.col;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+  }
+  // FASE 3 FINAL - neve Celeste parallax: flakes com sway maior, rotação, brilho
+  for (const s of titleSnow) {
+    s.x += (s.vx + Math.sin(time * s.sway + s.phase) * 5) * 0.016;
+    s.y += s.vy * 0.016;
+    s.rot += s.rotSpeed * 0.016;
+    if (s.y > VIEW_H + 12) { s.y = -12; s.x = Math.random() * VIEW_W; }
+    if (s.x < -24) s.x = VIEW_W + 24;
+    if (s.x > VIEW_W + 24) s.x = -24;
+    const a = s.alpha * (0.5 + 0.5 * Math.sin(time * 0.6 + s.phase));
+    ctx.globalAlpha = a;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    ctx.fillStyle = s.col;
+    // floco em cruz (Celeste style)
+    ctx.fillRect(-s.size, -0.5, s.size*2, 1);
+    ctx.fillRect(-0.5, -s.size, 1, s.size*2);
+    ctx.globalAlpha = a * 0.4;
+    ctx.beginPath(); ctx.arc(0,0,s.size*1.4,0,TAU); ctx.fill();
+    ctx.restore();
   }
   // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo sobre gramado (escolha azul_amarelo)
   for (const f of titleFireflies) {
@@ -1324,10 +1362,12 @@ export function drawModeSelect(ctx, time) {
   ctx.fillRect(VIEW_W/2 - 180, 98, 360, 1);
 }
 
-export function drawModeCards(ctx, modes, hoverIdx, time) {
+export function drawModeCards(ctx, modes, hoverIdx, time, scrollOffset = 0) {
   const cardW = 210, cardH = 340, gap = 18;
   const totalW = modes.length * cardW + (modes.length - 1) * gap;
-  const startX = VIEW_W/2 - totalW/2;
+  // FASE 6 FINAL: scroll visual offset para mobile swipe - cards deslizam horizontalmente
+  const scrollVisual = scrollOffset * (cardW + gap);
+  const startX = VIEW_W/2 - totalW/2 - scrollVisual;
   const y = 116;
 
   const rects = [];
@@ -1411,6 +1451,19 @@ export function drawModeCards(ctx, modes, hoverIdx, time) {
     drawText(ctx, "JOGAR", x + cardW/2, btnY + 6, { color: btnHot ? "#000" : "#efe9ff", align: "center", font: "small", scale: 1 });
 
     rects.push({ x, y: y - lift, w: cardW, h: cardH, idx: i });
+  }
+
+  // FASE 6 FINAL: indicador de scroll para mobile (bolinhas)
+  if (scrollOffset !== undefined) {
+    const dotsY = y + cardH + 14;
+    const dotGap = 12;
+    const dotsW = modes.length * 8 + (modes.length-1)*dotGap;
+    const dotsX0 = VIEW_W/2 - dotsW/2;
+    for (let i = 0; i < modes.length; i++) {
+      const dx = dotsX0 + i * (8 + dotGap);
+      ctx.fillStyle = i === Math.round(scrollOffset) ? "#ffd479" : "rgba(255,255,255,0.25)";
+      ctx.beginPath(); ctx.arc(dx+4, dotsY, i === Math.round(scrollOffset) ? 5 : 3, 0, TAU); ctx.fill();
+    }
   }
 
   return rects;
