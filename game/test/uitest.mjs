@@ -91,20 +91,21 @@ en.spawnBoss(G.run ? waves.mapDef().boss : "hare", G.run.wave);
 await wait(400);
 expect(!!en.boss, "chefe presente: " + (en.boss && en.boss.kind));
 
-// ---- HUD loja
-const FOOT_Y = 540 - 100, SHOP_TOGGLE_X = 10 + 52, GIANT_X = 10 + 104 + 6 + 8 * 76 + 35;
+// ---- HUD loja (coordenadas espelham o HUD compacto do rework: toggle 92 px,
+// cards de 38 px em pitch 42, fileira de 64 px de altura colada no rodapé)
+const FOOT_Y = 540 - 64, SHOP_TOGGLE_X = 10 + 46, GIANT_X = 10 + 92 + 6 + 8 * 42 + 19;
 expect(units.eggs.length === 0, "loja começa recolhida (sem encomenda pendente)");
-mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40); mouse.justUp = false; await wait(60);
 expect(units.eggs.length === 0, "clicar onde ficaria a gigante não compra nada com a loja fechada");
 
-mouse.x = SHOP_TOGGLE_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = SHOP_TOGGLE_X; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40); mouse.justUp = false; await wait(60);
 
 G.run.food = 999;
-mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60);
 mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40);
@@ -113,7 +114,7 @@ await wait(60);
 expect(units.eggs.some(e => e.type === "giant"), "gigante encomendada no 9º slot da loja aberta");
 const foodAfterGiant = G.run.food;
 G.run.food = 999;
-mouse.x = GIANT_X; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = GIANT_X; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60);
 mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40);
@@ -128,7 +129,7 @@ expect(G.run.status === "running", "run segue viva com o colosso em campo");
 
 // ---- FORMIGUEIRO
 const nestMod = await import(BASE + "/nest.js");
-mouse.x = 960 - 10 - 132 + 66; mouse.y = FOOT_Y + 44; mouse.down = mouse.justDown = true;
+mouse.x = 960 - 10 - 132 + 66; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40); mouse.justUp = false; await wait(120);
 expect(G.run.baseOpen === true && nestMod.nest.open === true, "formigueiro aberto pelo botão do canto");

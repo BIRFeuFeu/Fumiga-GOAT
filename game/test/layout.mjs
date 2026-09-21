@@ -369,14 +369,14 @@ flushTransition();
 if (G.screen !== "RUN") { console.error("não entrou na RUN após modo (screen=" + G.screen + ")"); process.exit(3); }
 auditFrame("RUN hud", frame(), { uiStart: "auto" });
 
-// HUD expandido
-clickAt(58, G.run ? 108 : 108);
+// HUD expandido (botão "+" no canto superior direito do painel slim)
+clickAt(293, 20);
 auditFrame("RUN hud expandido", frame(), { uiStart: "auto" });
 
 // botão FORMIGAS: abre a fileira das 9 classes no rodapé (recolhida por padrão)
-clickAt(62, 540 - 100 + 44);
+clickAt(56, 540 - 64 + 32);
 auditFrame("RUN formigas abertas", frame(), { uiStart: "auto" });
-clickAt(62, 540 - 100 + 44);   // fecha de novo
+clickAt(56, 540 - 64 + 32);   // fecha de novo
 
 // GIGANTE em campo: colosso de 20x a soldado, arte assada 5x e ampliada no
 // desenho. Fica com comida sobrando para a loja mostrar o slot habilitado.

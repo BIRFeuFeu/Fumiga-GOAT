@@ -5,13 +5,16 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const src = fs.readFileSync("js/nest.js", "utf8");
+// caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório
+const GAME = decodeURIComponent(new URL("..", import.meta.url).pathname);
+
+const src = fs.readFileSync(GAME + "/js/nest.js", "utf8");
 const rooms = [...src.matchAll(/\{ id: "(\w+)",\s+x: (\d+),\s*y: (\d+),\s*w: (\d+),\s*h: (\d+),\s*accent: "([^"]+)" \}/g)]
   .map((m) => ({ id: m[1], x: +m[2], y: +m[3], w: +m[4], h: +m[5], accent: m[6] }));
 const edges = [...src.matchAll(/\["(\w+)", "(\w+)"\]/g)].map((m) => [m[1], m[2]]);
 const BOTTOM = +src.match(/const BOTTOM = (\d+)/)[1];
 
-const game = fs.readFileSync("js/game.js", "utf8");
+const game = fs.readFileSync(GAME + "/js/game.js", "utf8");
 const SHOP_N = (game.match(/const SHOP = \[([\s\S]*?)\];/)[1].match(/type:/g) || []).length;
 const [, SHOP_W, SHOP_PITCH] = game.match(/const SHOP_W = (\d+), SHOP_PITCH = (\d+)/).map(Number);
 const VIEW_W = 960, VIEW_H = 540, MINI = { w: 180, h: 135 };

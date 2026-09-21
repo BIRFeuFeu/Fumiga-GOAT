@@ -16,7 +16,9 @@ export const director = {
   mapIdx: 0,           // mapa atual (0..MAPS.length-1)
   waveInMap: 0,        // onda atual dentro do mapa (0 = calmaria inicial)
   timer: CALM_START,
+  timerMax: CALM_START, // duração total da calmaria atual (anel de contagem do HUD)
   budget: 0,
+  budgetMax: 0,        // orçamento total da onda (barra de progresso do HUD)
   spawnT: 0,
   pendingDrafts: 0,
   bossSpawned: false,
@@ -28,11 +30,36 @@ export function resetDirector() {
   director.mapIdx = 0;
   director.waveInMap = 0;
   director.timer = CALM_START;
+  director.timerMax = CALM_START;
   director.budget = 0;
+  director.budgetMax = 0;
   director.spawnT = 0;
   director.pendingDrafts = 0;
   director.bossSpawned = false;
   director.inactivity = 0;
+}
+
+// "peso" de cada tipo de inimigo no orçamento/ameaça da onda (usado no spawn
+// e na barra de progresso do HUD — quanto falta varrer da invasão)
+const THREAT_PTS = { runner: 1, swarm: 1.5, reaper: 2.5, espitter: 3, warrior: 4, sentinel: 7, matron: 14 };
+
+/** Fração da calmaria RESTANTE (1 = acabou de começar, 0 = invasão iminente). */
+export function calmFrac() {
+  return director.timerMax > 0 ? Math.max(0, Math.min(1, director.timer / director.timerMax)) : 0;
+}
+
+/** Ameaça que ainda falta enfrentar: orçamento não gasto + inimigos vivos. */
+function waveThreatLeft() {
+  let left = Math.max(0, director.budget);
+  for (const f of foes) if (!f.dead) left += f.isBoss ? 14 : (THREAT_PTS[f.type] || 1);
+  return left;
+}
+
+/** Progresso da onda (0 = início, 1 = varrida) para a barra do HUD. */
+export function waveProgress() {
+  if (director.phase !== "wave" || director.budgetMax <= 0) return 0;
+  const p = 1 - waveThreatLeft() / director.budgetMax;
+  return Math.max(0, Math.min(1, p));
 }
 
 export function mapDef() { return MAPS[Math.min(director.mapIdx, MAPS.length - 1)]; }
@@ -92,6 +119,7 @@ function startWave() {
   const w = m.waves[director.waveInMap - 1];
   director.phase = "wave";
   director.budget = w.budget;
+  director.budgetMax = w.budget;
   director.spawnT = 0.5;
   run.banner = { title: "ONDA " + director.waveInMap + "/" + m.waves.length + " — " + w.title, sub: w.tip || "", t: 3.2 };
   SFX.horn();
@@ -121,7 +149,7 @@ function spawnLogic(dt) {
 
   for (let i = 0; i < squad && director.budget > 0; i++) {
     let type = runner_pick(types, wN);
-    const pts = ({"runner":1,"swarm":1.5,"reaper":2.5,"espitter":3,"warrior":4,"sentinel":7,"matron":14})[type] || 1;
+    const pts = THREAT_PTS[type] || 1;
     if (pts > director.budget) continue;
     director.budget -= pts;
     const ex = gate.x + rand(-46, 46), ey = gate.y + rand(-46, 46);
@@ -171,6 +199,7 @@ function endWave() {
   }
   director.phase = "calm";
   director.timer = CALM_BETWEEN * mods().muts.calmMult;
+  director.timerMax = director.timer;
   director.bossSpawned = false;
   director.inactivity = 0;
 }
@@ -179,6 +208,7 @@ function endWave() {
 export function nextMapCalm() {
   director.phase = "calm";
   director.timer = 16;
+  director.timerMax = 16;
   director.waveInMap = 0;
   director.bossSpawned = false;
   director.budget = 0;

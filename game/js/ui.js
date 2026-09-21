@@ -262,7 +262,13 @@ export function iconButton(ctx, opt) {
     y = y - diff/2;
     h = 104;
   }
-  const hr = hitRect(x, y, w, h);
+  let hr = hitRect(x, y, w, h);
+  // cards compactos: limita a margem extra horizontal do toque para que as
+  // hitboxes de vizinhos (pitch pequeno) não se sobreponham
+  if (opt.maxPadX !== undefined && (hr.w - w) / 2 > opt.maxPadX) {
+    const px = (hr.w - w) / 2 - opt.maxPadX;
+    hr = { x: hr.x + px, y: hr.y, w: hr.w - px * 2, h: hr.h };
+  }
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const clicked = hot && mouse.justDown && !dis;

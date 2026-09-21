@@ -28,6 +28,7 @@ import { foes, boss, clearFoes, updateFoes, updateBoss } from "./enemies.js";
 import { projectiles, orbs, updateProjectiles, updateOrbs, clearCombat } from "./combat.js";
 import {
   director, resetDirector, updateDirector, skipPeace, mapDef, waveDef, isLastMap, nextMapCalm,
+  calmFrac, waveProgress,
 } from "./waves.js";
 import { rollDraft, applyMutation, mutationList } from "./mutations.js";
 import {
@@ -57,7 +58,7 @@ const SHOP = [
   { type: "bomber",   label: "BOMB." },
   { type: "giant",    label: "GIGANTE", iconScale: 0.13, accent: "#ffd479" },
 ];
-const SHOP_W = 70, SHOP_PITCH = 76;
+const SHOP_W = 38, SHOP_PITCH = 42; // cards compactos da loja (rework HUD minimalista)
 let shopOpen = false;
 let rallyCooldown = 0; // FASE 4: cooldown rally F quando infiniteDash desligado
 
@@ -903,8 +904,7 @@ function renderTitle() {
   const footerY = VIEW_H - footerH - 10;
   panel(ctx, 12, footerY, VIEW_W - 24, footerH, { fill: "rgba(10,8,16,0.75)", border: "rgba(74,58,110,0.45)", r: 4 });
   drawText(ctx, "v2.4 • PLANÍCIE VIVA • CICLO DIA/NOITE • PARALLAX • 5X ESCALA • SNOW", 20, footerY + (mobile ? 14 : 8), { color: "#6b5a8a", scale: mobile ? 0.85 : 1 });
-  drawText(ctx, "GELÉIA REAL: " + G.save.essence + " • VITÓRIAS " + G.save.best.wins + "/" + G.save.best.runs + " • MAPA " + (G.save.best.maps||0) + " • M: SOM • " + (mobile ? "TOQUE 104PX SWIPE" : "MOUSE") + " • FASES 1-6 FINAL",
-    VIEW_W/2, footerY + (mobile ? 14 : 8), { color: "#9a8fc0", align: "center", scale: mobile ? 0.8 : 1 });
+  // (linha de stats removida da tela de TÍTULO a pedido — só versão + acessibilidade)
   
   if (G.save.accessibility && (G.save.accessibility.invincible || G.save.accessibility.slowMo || G.save.accessibility.infiniteDash)) {
     drawText(ctx, "♿ MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
@@ -1256,7 +1256,7 @@ function drawNestScreen(run) {
 
 function hudTopSlot() {
   const tut = TUT.active ? tutorialCardRect(VIEW_W) : null;
-  return tut ? tut.y + tut.h + 6 : 66;
+  return tut ? tut.y + tut.h + 6 : 72;
 }
 
 function drawHUD() {
@@ -1265,134 +1265,161 @@ function drawHUD() {
   const q = allies.queen;
   const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
 
-  const pw = 272;
-  const baseH = 82;
-  const extraH = hudExpanded ? 134 : 0;
-  const ph = baseH + 22 + extraH;
+  // --------------------------------------- painel slim da colônia ----
+  // Rework minimalista (refs: Thronefall/Dome Keeper): só o vital na tela —
+  // vida da rainha, nível/XP, comida, essência e população. O resto fica no
+  // botão "+" e na fileira de mutações sempre visível (ref. Vampire Survivors).
+  const pw = 300;
+  const ph = run.modeDef ? 70 : 54;
   panel(ctx, 10, 8, pw, ph, { border: "#4a3a6e", accentLine: run.modeDef ? run.modeDef.color : "#37e6c8" });
 
-  let yy = 16;
-  if (run.modeDef) {
-    drawText(ctx, run.modeDef.name, 22, yy, { color: run.modeDef.color, font: "small" });
-    yy += 16;
-  }
-  drawText(ctx, "FORMIGUEIRO", 22, yy, { color: "#ffd479" });
-  const hpFrac = q && q.maxHp ? clamp(q.hp / q.maxHp, 0, 1) : 0;
-  bar(ctx, 120, yy + 4, 148, 10, hpFrac, { c1: hpFrac < 0.3 ? "#ff4d5a" : "#ffd479", c2: "#a32e3a", segments: 10 });
-  yy += 21;
-  drawText(ctx, "NÍVEL " + run.level, 22, yy, { color: "#6db7ff" });
-  const xpFrac = run.xpNext > 0 ? clamp(run.xp / run.xpNext, 0, 1) : 0;
-  bar(ctx, 94, yy + 4, 168, 10, xpFrac, { c1: "#8fd3ff", c2: "#4060a8", segments: 0 });
-  yy += 21;
-  if (IMG.i_food) ctx.drawImage(IMG.i_food, 22, yy - 2, 16, 16);
-  drawText(ctx, fmt(run.food), 42, yy + 1, { color: "#ffd479" });
-  if (IMG.i_essence) ctx.drawImage(IMG.i_essence, 108, yy - 2, 16, 16);
-  drawText(ctx, fmt(run.essencePool), 128, yy + 1, { color: "#c77dff" });
-  yy += 22;
-  const moreHot = pointInRect(mouse.x, mouse.y, 22, yy - 2, 72, 17);
+  // botão "+"/"-" — expande os detalhes da colônia (antigo VER MAIS)
+  const moreHot = pointInRect(mouse.x, mouse.y, 284, 12, 18, 16);
   ctx.fillStyle = moreHot ? "#3a3054" : "#241c38";
-  ctx.fillRect(22, yy - 2, 72, 17);
+  ctx.fillRect(284, 12, 18, 16);
   ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
-  ctx.strokeRect(22.5, yy - 1.5, 71, 16);
-  drawText(ctx, hudExpanded ? "VER MENOS" : "VER MAIS", 58, yy + 2, { color: moreHot ? "#efe9ff" : PAL.textDim, align: "center" });
-  uiButtons().push({ x: 22, y: yy - 2, w: 72, h: 17, id: "hudMore" });
+  ctx.strokeRect(284.5, 12.5, 17, 15);
+  drawText(ctx, hudExpanded ? "-" : "+", 293, 15, { color: moreHot ? "#efe9ff" : PAL.textDim, align: "center" });
+  uiButtons().push({ x: 284, y: 12, w: 18, h: 16, id: "hudMore" });
   if (live && moreHot && mouse.justDown) { hudExpanded = !hudExpanded; SFX.uiClick(); }
 
-  if (hudExpanded) {
-    yy += 22;
+  let yy = 14;
+  if (run.modeDef) {
+    drawText(ctx, run.modeDef.name, 20, yy, { color: run.modeDef.color, font: "small" });
+    yy += 16;
+  }
+  const hpFrac = q && q.maxHp ? clamp(q.hp / q.maxHp, 0, 1) : 0;
+  drawText(ctx, "RAINHA", 20, yy, { color: "#ffd479" });
+  bar(ctx, 80, yy + 3, 116, 9, hpFrac, { c1: hpFrac < 0.3 ? "#ff4d5a" : "#ffd479", c2: "#a32e3a", segments: 10 });
+  if (q && q.maxHp) drawText(ctx, Math.ceil(q.hp) + "/" + q.maxHp, 278, yy, { color: PAL.textDim, align: "right" });
+  yy += 20;
+  drawText(ctx, "NV " + run.level, 20, yy, { color: "#6db7ff" });
+  const xpFrac = run.xpNext > 0 ? clamp(run.xp / run.xpNext, 0, 1) : 0;
+  bar(ctx, 70, yy + 4, 38, 6, xpFrac, { c1: "#8fd3ff", c2: "#4060a8", segments: 0 });
+  if (IMG.i_food) ctx.drawImage(IMG.i_food, 114, yy - 1, 13, 13);
+  drawText(ctx, fmt(run.food), 131, yy, { color: "#ffd479" });
+  if (IMG.i_essence) ctx.drawImage(IMG.i_essence, 174, yy - 1, 13, 13);
+  drawText(ctx, fmt(run.essencePool), 191, yy, { color: "#c77dff" });
+  {
     const used = popUsed(), cap = popCapTotal();
-    drawText(ctx, "POPULAÇÃO " + used + "/" + cap, 22, yy, { color: used >= cap ? "#ff4d5a" : PAL.textDim });
-    drawText(ctx, "ABATES " + run.kills, 164, yy, { color: PAL.textDim });
-    yy += 18;
-    const cy = yy + 2;
-    drawText(ctx, "COLÔNIA PENSANDO", 22, cy, { color: "#8f7bb5" });
+    if (IMG.i_egg) ctx.drawImage(IMG.i_egg, 234, yy - 1, 13, 13);
+    drawText(ctx, used + "/" + cap, 251, yy, { color: used >= cap ? "#ff4d5a" : PAL.text });
+  }
+
+  // ---- fileira de mutações SEMPRE visível (estilo Vampire Survivors) ----
+  const mutY = 8 + ph + 6;
+  let mutTip = null;
+  const mutLog = run.mutationLog;
+  if (mutLog.length > 0) {
+    let ix = 12;
+    for (const mm of mutLog.slice(0, 10)) {
+      const icon = IMG["i_" + mm.icon];
+      ctx.fillStyle = "rgba(20,14,32,0.85)";
+      ctx.fillRect(ix, mutY, 20, 20);
+      ctx.strokeStyle = RARITY[mm.rar].color; ctx.lineWidth = 1;
+      ctx.strokeRect(ix + 0.5, mutY + 0.5, 19, 19);
+      if (icon) ctx.drawImage(icon, ix + 2, mutY + 2, 16, 16);
+      if (pointInRect(mouse.x, mouse.y, ix, mutY, 20, 20)) mutTip = mm;
+      ix += 25;
+    }
+    if (mutLog.length > 10) drawText(ctx, "+" + (mutLog.length - 10), ix + 2, mutY + 4, { color: PAL.textDim });
+  }
+  // base da pilha esquerda — a barra do chefe nunca cobre esses elementos
+  let leftStackBottom = mutLog.length > 0 ? mutY + 26 : 0;
+
+  // ---- detalhes da colônia (botão "+") ----
+  if (hudExpanded) {
+    const ey = mutY + (mutLog.length > 0 ? 26 : 6);
+    panel(ctx, 10, ey, pw, 74, { border: "#4a3a6e" });
     const n = colony.needs, hc = colony.headcount;
-    let bx = 22;
+    drawText(ctx, "COLÔNIA PENSANDO", 20, ey + 8, { color: "#8f7bb5" });
+    drawText(ctx, "ABATES " + run.kills, 290, ey + 8, { color: PAL.textDim, align: "right" });
+    const cy = ey + 26;
+    let bx = 20;
     const needBar = (label, v, col) => {
-      drawText(ctx, label, bx, cy + 16, { color: col });
-      bar(ctx, bx, cy + 30, 60, 6, v, { c1: col, c2: col, segments: 0 });
+      drawText(ctx, label, bx, cy, { color: col });
+      bar(ctx, bx, cy + 12, 56, 6, v, { c1: col, c2: col, segments: 0 });
       bx += 74;
     };
     needBar("FOME", n.food, "#ffd479");
     needBar("GUERRA", n.defense, "#ff4d5a");
     needBar("CURA", n.medical, "#7fd6a0");
-    drawText(ctx, "COLETANDO " + hc.gather + "  •  EXPLORANDO " + hc.explore, 22, cy + 44, { color: PAL.textDim });
-    yy += 56;
-    if (run.mutationLog.length > 0) {
-      let ix = 22;
-      for (const mm of run.mutationLog.slice(0, 7)) {
-        const icon = IMG["i_" + mm.icon];
-        ctx.fillStyle = PAL.panel;
-        ctx.fillRect(ix, yy - 2, 20, 20);
-        ctx.strokeStyle = RARITY[mm.rar].color; ctx.lineWidth = 1;
-        ctx.strokeRect(ix + 0.5, yy - 1.5, 19, 19);
-        if (icon) ctx.drawImage(icon, ix + 2, yy, 16, 16);
-        if (pointInRect(mouse.x, mouse.y, ix, yy - 2, 20, 20) && !shopTooltip) {
-          const lines = wrapText(mm.name + " — " + mm.desc, 220, {});
-          const th = 22 + lines.length * 15;
-          panel(ctx, ix, yy + 20, 236, th, { border: RARITY[mm.rar].color });
-          lines.forEach((L, li) => drawText(ctx, L, ix + 8, yy + 26 + li * 15, { color: PAL.text }));
-        }
-        ix += 25;
-      }
-      if (run.mutationLog.length > 7) drawText(ctx, "+" + (run.mutationLog.length - 7), ix + 2, yy + 2, { color: PAL.textDim });
-      yy += 24;
-    }
+    drawText(ctx, "COLETANDO " + hc.gather + "  •  EXPLORANDO " + hc.explore, 20, cy + 28, { color: PAL.textDim });
+    leftStackBottom = ey + 80;
   }
 
-  const cw = 280;
-  panel(ctx, VIEW_W / 2 - cw / 2, 8, cw, 56, { border: "#4a3a6e" });
+  // ------------------------------------ status da invasão (topo-centro) ----
+  const cw = 300, cx0 = VIEW_W / 2 - cw / 2;
+  panel(ctx, cx0, 8, cw, 60, { border: "#4a3a6e" });
   if (run.status === "running") {
     if (director.phase === "calm") {
-      const t = Math.max(0, Math.ceil(director.timer));
-      drawText(ctx, run.endless ? "SOBREVIVÊNCIA" : "CALMARIA", VIEW_W / 2, 14, { font: "small", scale: 1, color: "#37e6c8", align: "center" });
-      drawText(ctx, run.draft ? "ESCOLHA UMA MUTAÇÃO" : "INVASÃO EM " + t + "s", VIEW_W / 2, 36, { color: PAL.textDim, align: "center" });
+      // anel de contagem regressiva estilo Thronefall: enche até a invasão
+      const rest = calmFrac();
+      const frac = 1 - rest;
+      const rcx = cx0 + 27, rcy = 38, rr = 15;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#241c38";
+      ctx.beginPath(); ctx.arc(rcx, rcy, rr, 0, TAU); ctx.stroke();
+      if (frac > 0.004) {
+        ctx.strokeStyle = rest < 0.25 ? "#ff4d5a" : "#37e6c8";
+        ctx.beginPath(); ctx.arc(rcx, rcy, rr, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.stroke();
+      }
+      if (!run.draft) drawText(ctx, Math.max(0, Math.ceil(director.timer)), rcx, rcy - 8, { color: rest < 0.25 ? "#ff8a94" : PAL.text, align: "center" });
+      drawText(ctx, run.endless ? "SOBREVIVÊNCIA" : "CALMARIA", cx0 + 52, 14, { font: "small", color: "#37e6c8" });
+      drawText(ctx, run.draft ? "ESCOLHA UMA MUTAÇÃO" : ("ONDA " + (director.waveInMap + 1) + "/" + m.waves.length + (run.endless ? " • INF" : "")), cx0 + 52, 40, { color: PAL.textDim });
     } else if (director.phase === "mapClear") {
-      drawText(ctx, "MAPA LIMPO!", VIEW_W / 2, 14, { font: "small", scale: 1, color: "#ffd479", align: "center" });
-      drawText(ctx, m.name, VIEW_W / 2, 36, { color: PAL.textDim, align: "center" });
+      drawText(ctx, "MAPA LIMPO!", VIEW_W / 2, 18, { font: "small", color: "#ffd479", align: "center" });
+      drawText(ctx, m.name, VIEW_W / 2, 40, { color: PAL.textDim, align: "center" });
     } else {
-      drawText(ctx, "ONDA " + director.waveInMap + "/" + m.waves.length + (run.endless ? " • INF" : ""), VIEW_W / 2, 10, { font: "big", scale: 1, color: "#ff4d5a", align: "center" });
+      drawText(ctx, "ONDA " + director.waveInMap + "/" + m.waves.length + (run.endless ? " • INF" : ""), cx0 + 16, 12, { font: "big", color: "#ff4d5a" });
+      let aliveF = 0;
+      for (const f of foes) if (!f.dead) aliveF++;
+      drawText(ctx, "RESTAM " + aliveF + (director.budget > 0 ? "+" : ""), cx0 + cw - 16, 22, { color: "#ff8a94", align: "right" });
+      bar(ctx, cx0 + 16, 38, cw - 32, 10, waveProgress(), { c1: "#ff7a6a", c2: "#a32e46", segments: 0 });
       const wDef2 = waveDef();
-      drawText(ctx, wDef2 && wDef2.title ? wDef2.title : m.name, VIEW_W / 2, 38, { color: PAL.textDim, align: "center" });
+      drawText(ctx, wDef2 && wDef2.title ? wDef2.title : m.name, cx0 + 16, 50, { color: PAL.textDim });
     }
   } else {
     drawText(ctx, run.status === "won" || (run.payout && run.payout.winBonus > 0) ? "VITÓRIA!" : "A COLÔNIA CAIU",
-      VIEW_W / 2, 14, { font: "small", scale: 1, color: "#ffd479", align: "center" });
+      VIEW_W / 2, 20, { font: "small", color: "#ffd479", align: "center" });
   }
 
+  // barra larga de chefe — slot próprio no topo, sem disputar com o INVOCAR
+  const bossUp = !!(boss && !boss.dead && run.status === "running" && (boss.revealT > 0 || fogVisible(boss.x, boss.y)));
   if (live && director.phase === "calm") {
-    const by = hudTopSlot();
-    if (button(ctx, { x: VIEW_W / 2 - cw / 2, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
+    const by = hudTopSlot() + (bossUp ? 48 : 0);
+    if (button(ctx, { x: cx0, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
       skipPeace();
     }
   }
 
+  // ----------------------------------------- barra de formigas (rodapé) ----
+  // Cards compactos: sprite + custo + atalho; nome/dica completos no tooltip.
+  // (largura total da fileira aberta: ~482 px, antes 804 px — −40 %)
   shopTooltip = null;
-  const footY = VIEW_H - 100;
+  const footY = VIEW_H - (isMobileLayout() ? 84 : 64); // no toque o iconButton cresce p/ 104 px
   const shopSprite = rotFrame("worker", Math.PI / 2);
-  const rShop = iconButton(ctx, { x: 10, y: footY, w: 104, h: 88, id: "shopToggle", frame: shopOpen ? "#ffd479" : "#37e6c8", selected: shopOpen });
-  ctx.drawImage(shopSprite, 10 + 52 - shopSprite.width * 0.5 / 2, footY + 4, shopSprite.width * 0.5, shopSprite.height * 0.5);
-  drawText(ctx, "FORMIGAS", 10 + 52, footY + 50, { color: PAL.text, align: "center" });
-  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 10 + 52, footY + 66, { color: shopOpen ? "#ffd479" : "#37e6c8", align: "center" });
+  const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? "#ffd479" : "#37e6c8", selected: shopOpen, maxPadX: 12 });
+  ctx.drawImage(shopSprite, 56 - shopSprite.width * 0.17, footY + 3, shopSprite.width * 0.34, shopSprite.height * 0.34);
+  drawText(ctx, "FORMIGAS", 56, footY + 35, { color: PAL.text, align: "center" });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 48, { color: shopOpen ? "#ffd479" : "#37e6c8", align: "center" });
   if (live && rShop.clicked) { shopOpen = !shopOpen; }
 
   if (shopOpen) {
-    const x0 = 10 + 104 + 6;
+    const x0 = 10 + 92 + 6;
     for (let i = 0; i < SHOP.length; i++) {
       const sp = SHOP[i];
       const x = x0 + i * SHOP_PITCH;
       const cost = unitCost(sp.type);
       const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(sp.type);
-      const r = iconButton(ctx, { x, y: footY, w: SHOP_W, h: 88, id: "shop" + sp.type, disabled: !canBuy, frame: sp.accent });
+      const r = iconButton(ctx, { x, y: footY, w: SHOP_W, h: 64, id: "shop" + sp.type, disabled: !canBuy, frame: sp.accent, maxPadX: 2 });
       const frame = rotFrame(UNITS[sp.type].sprite, Math.PI / 2);
-      const sc2 = sp.iconScale !== undefined ? sp.iconScale : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" ? 0.5 : 0.42;
+      const sc2 = (sp.iconScale !== undefined ? sp.iconScale : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" ? 0.5 : 0.42) * 0.62;
       ctx.globalAlpha = canBuy ? 1 : 0.35;
-      ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 6, frame.width * sc2, frame.height * sc2);
+      ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 5, frame.width * sc2, frame.height * sc2);
       ctx.globalAlpha = 1;
-      drawText(ctx, sp.label, x + SHOP_W / 2, footY + 50, { color: canBuy ? PAL.text : "#5a4f78", align: "center" });
-      if (IMG.i_food) { ctx.globalAlpha = canBuy ? 1 : 0.5; ctx.drawImage(IMG.i_food, x + 4, footY + 66, 13, 13); ctx.globalAlpha = 1; }
-      drawText(ctx, cost, x + 20, footY + 68, { color: canBuy ? "#ffd479" : "#a32e46" });
-      drawText(ctx, String(i + 1), x + SHOP_W - 7, footY + 66, { color: PAL.textDim, align: "center" });
+      drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? "#ffd479" : "#a32e46", align: "center" });
+      drawText(ctx, String(i + 1), x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right" });
       if (r.hot) shopTooltip = sp;
       if (live && r.clicked) {
         const res = buyUnit(sp.type);
@@ -1413,21 +1440,21 @@ function drawHUD() {
   }
 
   const nw = 132, nx2 = VIEW_W - 10 - nw;
-  const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 88, id: "nestBtn", frame: "#ffd479" });
+  const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 64, id: "nestBtn", frame: "#ffd479" });
   const nestImg = IMG.nest || IMG.i_essence;
-  if (nestImg) ctx.drawImage(nestImg, nx2 + nw / 2 - 20, footY + 6, 40, 40);
+  if (nestImg) ctx.drawImage(nestImg, nx2 + nw / 2 - 14, footY + 2, 28, 28);
   {
     const t = G.time * 2.2;
     for (let i = 0; i < 3; i++) {
-      const ph = (t + i * 0.33) % 1;
-      const ax = nx2 + nw / 2 - 26 + ph * 52;
-      const ay = footY + 44 - Math.sin(ph * Math.PI) * 7;
+      const tp = (t + i * 0.33) % 1;
+      const ax = nx2 + nw / 2 - 26 + tp * 52;
+      const ay = footY + 28 - Math.sin(tp * Math.PI) * 5;
       ctx.fillStyle = "#ffd479";
       ctx.fillRect(ax, ay, 3, 2);
     }
   }
-  drawText(ctx, "FORMIGUEIRO", nx2 + nw / 2, footY + 50, { color: PAL.text, align: "center" });
-  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 66, { color: "#ffd479", align: "center" });
+  drawText(ctx, "FORMIGUEIRO", nx2 + nw / 2, footY + 33, { color: PAL.text, align: "center" });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 46, { color: "#ffd479", align: "center" });
   if (live && rNest.clicked) {
     openNest(run);
     return;
@@ -1435,11 +1462,22 @@ function drawHUD() {
 
   drawMinimap();
 
-  if (boss && !boss.dead && run.status === "running" && (boss.revealT > 0 || fogVisible(boss.x, boss.y))) {
-    const bw = 420, by = hudTopSlot();
-    panel(ctx, VIEW_W / 2 - bw / 2 - 8, by, bw + 16, 42, { border: "#ff4d5a" });
-    drawText(ctx, boss.def.name, VIEW_W / 2, by + 6, { font: "small", scale: 1, color: "#ff4d5a", align: "center" });
-    bar(ctx, VIEW_W / 2 - bw / 2, by + 24, bw, 12, boss.hp / boss.maxHp, { c1: "#ff7a6a", c2: "#a32e46", segments: 8 });
+  let bossBottom = 0;
+  if (bossUp) {
+    const bw = 520, bx0 = VIEW_W / 2 - bw / 2, by = Math.max(hudTopSlot(), leftStackBottom);
+    panel(ctx, bx0 - 8, by, bw + 16, 44, { border: "#ff4d5a" });
+    drawText(ctx, boss.def.name, VIEW_W / 2, by + 6, { font: "small", color: "#ff4d5a", align: "center" });
+    bar(ctx, bx0, by + 24, bw, 12, boss.hp / boss.maxHp, { c1: "#ff7a6a", c2: "#a32e46", segments: 8 });
+    bossBottom = by + 50;
+  }
+  hudFloorY = Math.max(leftStackBottom, bossBottom);
+
+  // tooltip da fileira de mutações (após a loja, para não brigar com ela)
+  if (mutTip && !shopTooltip) {
+    const lines = wrapText(mutTip.name + " — " + mutTip.desc, 220, {});
+    const th = 22 + lines.length * 15;
+    panel(ctx, 12, mutY + 24, 236, th, { border: RARITY[mutTip.rar].color });
+    lines.forEach((L, li) => drawText(ctx, L, 20, mutY + 30 + li * 15, { color: PAL.text }));
   }
 
   const sc = selectedCount();
@@ -1473,6 +1511,7 @@ function drawHUD() {
 }
 
 let hudExpanded = false;
+let hudFloorY = 0; // base da pilha de painéis do HUD — o banner da onda desce abaixo dela
 
 function drawMinimap() {
   const run = G.run;
@@ -1526,7 +1565,7 @@ function drawBanner(b) {
   ctx.globalAlpha = clamp(a, 0, 1);
   const tut = TUT.active ? tutorialCardRect(VIEW_W) : null;
   let y = tut ? tut.y + tut.h + 60 : 120;
-  if (hudExpanded) y = Math.max(y, 200);
+  y = Math.max(y, hudFloorY + 6);
 
   const bw = 600;
   dialogBox(ctx, VIEW_W/2 - bw/2, y - 14, bw, 84, { border: "#ffd479", accent: "#ffd479" });
@@ -1655,7 +1694,8 @@ function drawPause() {
   const run = G.run;
   const btnW = leftW - 32;
   const btnH = mobile ? 104 : 40;
-  let by = py + 52;
+  // o título "PAUSA" (fonte big, escala 2) tem tinta até py+68 — botões só abaixo
+  let by = py + 78;
   const gap = mobile ? 12 : 10;
 
   const pauseBtns = [
