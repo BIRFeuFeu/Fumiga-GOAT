@@ -164,16 +164,12 @@ export function loadAll(onProgress) {
 const ROT_ANGLES = 24;
 
 // ------------------------------------------------------ acabamento visual ---
-// As artes-fonte têm 19–56px e eram ampliadas cruas: no meio do mato e do
-// chão texturizado as formigas sumiam. Agora cada sprite sai do forno com
-//   1. contraste esticado (sombra mais funda, luz mais viva) — separa do chão;
-//   2. contorno escuro de 1px em toda a silhueta — leitura imediata;
-//   3. sombra quente no lado oposto à luz e rim light no topo — dá volume.
-// Tudo é aplicado ANTES da rotação, então gira junto com a formiga e continua
-// alinhado à grade de pixels (nada de halo borrado).
+// Cores ORIGINAIS do sprite, pixel a pixel: NENHUM retoque de cor (sem contraste,
+// sem sombra quente, sem rim light, sem tingeamento). A única camada adicionada
+// é o contorno escuro de 1px em toda a silhueta — leitura no meio do mato sem
+// alterar UMA cor sequer da arte. Tudo é aplicado ANTES da rotação, então gira
+// junto com a formiga e continua alinhado à grade de pixels.
 const OUTLINE_COL = "#08060f";
-const RIM_COL = "#ffe6b8";
-const SHADE_COL = "#150d1c";
 // 8 direções: contorno de 1px ao redor da silhueta
 const OUT_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
@@ -192,47 +188,12 @@ function silhouette(img, color) {
   return cv;
 }
 
-/**
- * Estica o contraste do sprite sem mudar as dimensões (o pad do assado depende
- * delas). Se o canvas não der acesso aos pixels (contexto bloqueado, teste
- * headless), devolve o original — o jogo segue, só sem o retoque.
- */
-function contrasted(img, gamma = 0.94, sat = 1.14, lift = -6) {
-  const cv = document.createElement("canvas");
-  cv.width = img.width; cv.height = img.height;
-  const c = cv.getContext("2d");
-  c.imageSmoothingEnabled = false;
-  c.drawImage(img, 0, 0);
-  try {
-    const d = c.getImageData(0, 0, cv.width, cv.height);
-    const p = d.data;
-    let touched = false;
-    for (let i = 0; i < p.length; i += 4) {
-      if (p[i + 3] === 0) continue;
-      touched = true;
-      let r = p[i], g = p[i + 1], b = p[i + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      // contraste em volta do meio-tom + gamma leve
-      let k = (lum - 128) * 0.22 + 128 + lift;
-      k = 255 * Math.pow(Math.max(0, k) / 255, gamma);
-      const f = lum > 0.001 ? k / lum : 1;
-      r = lum + (r - lum) * sat; g = lum + (g - lum) * sat; b = lum + (b - lum) * sat;
-      p[i] = Math.max(0, Math.min(255, r * f));
-      p[i + 1] = Math.max(0, Math.min(255, g * f));
-      p[i + 2] = Math.max(0, Math.min(255, b * f));
-    }
-    if (touched) c.putImageData(d, 0, 0);
-  } catch (e) { /* sem acesso aos pixels: usa o sprite cru */ }
-  return cv;
-}
-
-/** Sprite pronto para assar: contraste + silhuetas auxiliares (com cache). */
+/** Sprite pronto para assar: cores originais + silhueta do contorno (com cache). */
 function finishSprite(key) {
   let f = FINISHED.get(key);
   if (f) return f;
-  const src = IMG[key];
-  const body = contrasted(src);
-  f = { body, out: silhouette(body, OUTLINE_COL), rim: silhouette(body, RIM_COL), shade: silhouette(body, SHADE_COL) };
+  const body = IMG[key];
+  f = { body, out: silhouette(body, OUTLINE_COL) };
   FINISHED.set(key, f);
   return f;
 }
@@ -256,14 +217,7 @@ export function bakeRot(key, outSize) {
     c.rotate((i / ROT_ANGLES) * Math.PI * 2 + Math.PI / 2); // sprite aponta "para cima"
     // 1) contorno
     for (const [ox, oy] of OUT_DIRS) c.drawImage(F.out, -w / 2 + ox * o, -h / 2 + oy * o, w, h);
-    // 2) sombra no lado oposto à luz (a luz vem do alto-esquerda)
-    c.globalAlpha = 0.5;
-    c.drawImage(F.shade, -w / 2 + o * 1.3, -h / 2 + o * 1.5, w, h);
-    // 3) rim light no topo
-    c.globalAlpha = 0.34;
-    c.drawImage(F.rim, -w / 2 - o, -h / 2 - o * 1.2, w, h);
-    // 4) o sprite em si
-    c.globalAlpha = 1;
+    // 2) o sprite em si — cores originais, sem retoque
     c.drawImage(img, -w / 2, -h / 2, w, h);
     frames.push(cv);
   }
@@ -286,7 +240,6 @@ function bakeWhiteOf(frames) {
   return { frames: white, size: frames[0].width };
 }
 
-/** Assa uma variante tingida de um sprite (ex.: operária -> coletora). */
 /** Cria um apelido de sprite: mesma arte, outro tamanho de assado. */
 export function dupSprite(srcKey, dstKey) {
   if (IMG[dstKey]) return IMG[dstKey];
@@ -315,23 +268,6 @@ export function setRotDrawScale(key, refKey, times) {
 export function rotDrawSize(key) {
   const r = ROT[key];
   return r ? r.size * (r.drawScale || 1) : 0;
-}
-
-export function bakeRotTinted(srcKey, dstKey, outSize, color, alpha = 0.45) {
-  if (ROT[dstKey]) return ROT[dstKey];
-  const img = IMG[srcKey];
-  const cv = document.createElement("canvas");
-  cv.width = img.width; cv.height = img.height;
-  const c = cv.getContext("2d");
-  c.imageSmoothingEnabled = false;
-  c.drawImage(img, 0, 0);
-  c.globalCompositeOperation = "source-atop";
-  c.globalAlpha = alpha;
-  c.fillStyle = color;
-  c.fillRect(0, 0, cv.width, cv.height);
-  c.globalAlpha = 1;
-  IMG[dstKey] = cv;
-  return bakeRot(dstKey, outSize);
 }
 
 export function rotFrame(key, angle) {

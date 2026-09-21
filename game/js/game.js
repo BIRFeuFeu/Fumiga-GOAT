@@ -1498,11 +1498,16 @@ function drawHUD() {
   }
 
   if (shopTooltip) {
-    const tipLines = wrapText(UNITS[shopTooltip.type].tip, 248, {});
-    const th = 26 + tipLines.length * 16 + 8;
-    panel(ctx, 10, footY - 12 - th, 268, th, { border: "#8f6fd6" });
-    drawText(ctx, UNITS[shopTooltip.type].name, 20, footY - 12 - th + 10, { color: "#ffd479" });
-    tipLines.forEach((L, li) => drawText(ctx, L, 20, footY - 12 - th + 28 + li * 16, { color: PAL.text }));
+    const uDef = UNITS[shopTooltip.type];
+    const tipLines = wrapText(uDef.tip, 248, {});
+    const th = 58 + tipLines.length * 16;
+    const tb = footY - 12 - th;
+    panel(ctx, 10, tb, 268, th, { border: "#8f6fd6" });
+    // FUNÇÃO primeiro e em destaque, na cor do grupo — leitura de relance
+    drawText(ctx, "▶ " + (uDef.fn || ""), 20, tb + 6,
+      { font: "big", scale: 0.8, color: SHOP_GROUPS[shopTooltip.group] || "#ffd479" });
+    drawText(ctx, uDef.name, 20, tb + 32, { color: "#ffd479" });
+    tipLines.forEach((L, li) => drawText(ctx, L, 20, tb + 52 + li * 16, { color: PAL.text }));
   }
 
   const nw = 132, nx2 = VIEW_W - 10 - nw;

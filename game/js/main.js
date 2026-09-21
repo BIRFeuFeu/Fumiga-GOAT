@@ -4,7 +4,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, PAL, GIANT_SCALE, ANT_SIZES, GATHERER_SIZE } from "./config.js";
 import { G, loadSave } from "./state.js";
-import { loadAll, bakeRot, bakeRotTinted, dupSprite, setRotDrawScale } from "./assets.js";
+import { loadAll, bakeRot, dupSprite, setRotDrawScale } from "./assets.js";
 import { loadFonts, drawText } from "./font.js";
 import { initAudio } from "./audio.js";
 import { endTick } from "./input.js";
@@ -122,8 +122,9 @@ async function bootAll() {
   phase = "ASSANDO PIXELS";
   await new Promise(r => requestAnimationFrame(r));
   // DINOPONERA: a colosso é a FORMIGA-BALA tingida de violeta profundo,
-  // assada no mesmo tamanho 5x e ampliada na hora (ver setRotDrawScale)
-  bakeRotTinted("soldier", "giant", ANT_SIZES.giant, "#3a1f5e", 0.55);
+  // DINOPONERA: a arte da soldado com as MESMAS cores originais (sem tinteamento),
+  // assada no tamanho 5x e ampliada na hora (ver setRotDrawScale)
+  dupSprite("soldier", "giant");
   for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
   setRotDrawScale("giant", "soldier", GIANT_SCALE);
   // MEL: a POTE-DE-MEL tem sprite próprio (gaster dourado inchado)

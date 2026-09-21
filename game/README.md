@@ -6,9 +6,8 @@ Arte inspirada em **Dead Cells** e **Celeste**; sprites do próprio repositório
 
 ## Como jogar
 
-**No navegador, sem instalar nada:** <https://feufeup.github.io/Fumiga-GOAT/> — o GitHub Pages
-publica este repositório como site (a página inicial leva para `game/`). O *como ligar* está no
-[README da raiz](../README.md).
+**No navegador, sem instalar nada:** <https://feufeup.github.io/Fumiga-GOAT/> — o endereço acima
+cai direto no jogo.
 
 Ou sirva a pasta `game/` por HTTP (módulos ES exigem servidor; abrir o arquivo direto não funciona):
 
@@ -248,8 +247,8 @@ Cheque tudo antes de subir (é o que o CI local usa):
 ```bash
 node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
 node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/attack.mjs && node test/endless.mjs
-``` && node test/prophecy.mjs
+node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs
+```
 
 Para inspeção visual do layout das telas internas (gera PNG fora do repo):
 
