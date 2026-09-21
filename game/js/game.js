@@ -112,9 +112,9 @@ let modeHover = -1;
 let modeRects = [];
 let selectedMode = GAME_MODES[0];
 
-// ------------------------------------------------------------- options -- FASE 2: 6 abas completas
+// ------------------------------------------------------------- options -- FASE 4: 5 abas spec (Áudio/Vídeo/Controles/Acessibilidade/Idioma)
 let optionsReturn = "TITLE";
-let optionsTab = 0; // 0=audio,1=video,2=controles,3=acess,4=speed,5=idioma
+let optionsTab = 0; // 0=audio,1=video,2=controles,3=acess,4=idioma
 let optionsSwipeX = null;
 let modeSwipeX = null;
 let modeScrollOffset = 0;
@@ -123,7 +123,6 @@ const OPTIONS_TABS = [
   { id: "video", label: "VÍDEO", color: "#6db7ff", icon: "◫" },
   { id: "controles", label: "CONTROLES", color: "#ffb347", icon: "⌨" },
   { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "♿" },
-  { id: "speed", label: "VELOCIDADE", color: "#ff7a6a", icon: "▶" },
   { id: "idioma", label: "IDIOMA", color: "#ffd479", icon: "A" },
 ];
 
@@ -398,6 +397,7 @@ export function update(dt) {
 
 function updatePreTitle(dt) {
   if (mouse.justDown || pressed.Enter || pressed.Space) {
+    notePointer(mouse.x, mouse.y);
     SFX.uiClick();
     startTransition("auto", "PRETITLE", "TITLE", 0, () => {
       G.screen = "TITLE";
@@ -430,12 +430,14 @@ function updateMode(dt) {
     }
   }
   if (mouse.justDown && modeHover >= 0) {
+    notePointer(mouse.x, mouse.y);
     selectedMode = GAME_MODES[modeHover];
     SFX.uiClick();
     newRun(selectedMode);
     return;
   }
   if (pressed.Escape) {
+    notePointer(VIEW_W/2, VIEW_H/2);
     SFX.uiClick();
     startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
   }
@@ -443,6 +445,7 @@ function updateMode(dt) {
 
 function updateOptions(dt) {
   if (pressed.Escape) {
+    notePointer(VIEW_W/2, VIEW_H/2);
     SFX.uiClick();
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
@@ -841,31 +844,35 @@ function renderTitle() {
   drawText(ctx, "planície viva • ciclo dia/noite • parallax • 5x escala", 60, tY + 158, { color: "#8f7bb5" });
 
   const bx = 56, bw = mobile ? 320 : 300;
-  const btnH = mobile ? 52 : 46;
+  const btnH = mobile ? 104 : 46;
   const btns = [
     { label: "JOGAR", id: "start", accent: "#37e6c8", h: btnH, font: "big" },
-    { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: mobile ? 48 : 42, font: "big" },
-    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: mobile ? 48 : 40, font: "big" },
-    { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: mobile ? 44 : 38 },
+    { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: mobile ? 104 : 42, font: "big" },
+    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: mobile ? 104 : 40, font: "big" },
+    { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: mobile ? 104 : 38 },
   ];
   let by = 252;
   for (const b of btns) {
     if (button(ctx, { x: bx, y: by, w: bw, h: b.h, label: b.label, font: b.font || "small", scale: 1, id: b.id, accent: b.accent })) {
       if (b.id === "start") {
+        notePointer(mouse.x, mouse.y);
         initAudio();
         startTransition("auto", "TITLE", "MODE", 0, () => { G.screen = "MODE"; });
         return;
       } else if (b.id === "tree") {
+        notePointer(mouse.x, mouse.y);
         enterTree();
         treeReturn = "TITLE";
         startTransition("auto", "TITLE", "TREE", 0, () => { G.screen = "TREE"; });
         return;
       } else if (b.id === "options") {
+        notePointer(mouse.x, mouse.y);
         optionsReturn = "TITLE";
         optionsTab = 0;
         startTransition("auto", "TITLE", "OPTIONS", 0, () => { G.screen = "OPTIONS"; });
         return;
       } else if (b.id === "help") {
+        notePointer(mouse.x, mouse.y);
         helpReturn = "TITLE";
         startTransition("auto", "TITLE", "HELP", 0, () => { G.screen = "HELP"; });
         return;
@@ -884,19 +891,20 @@ function renderTitle() {
   }
 }
 
-// -------------------------------------------------------------- MODO SELEÇÃO --
+// -------------------------------------------------------------- MODO SELEÇÃO -- FASE 3 + 6: lift 6px + 104px mobile + notePointer
 function renderModeScreen() {
   drawModeSelect(ctx, G.time);
   modeRects = drawModeCards(ctx, GAME_MODES, modeHover, G.time);
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: 20, y: VIEW_H - 46, w: mobile ? 180 : 140, h: mobile ? 44 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
+  if (button(ctx, { x: 20, y: VIEW_H - 46, w: mobile ? 220 : 140, h: mobile ? 104 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
+    notePointer(mouse.x, mouse.y);
     startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
   }
   drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR", VIEW_W/2, VIEW_H - 20, { color: "#5a4f78", align: "center" });
 }
 
-// -------------------------------------------------------------- OPÇÕES -- FASE 2 completa 6 abas
+// -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec
 function renderOptions() {
   drawTitleBg(ctx);
   drawTitleMotes(ctx, G.time);
@@ -906,11 +914,11 @@ function renderOptions() {
   const PX = 24, PY = 16, PW = VIEW_W - 48, PH = VIEW_H - 32;
   dialogBox(ctx, PX, PY, PW, PH, { border: "#ffb347", accent: "#37e6c8" });
   drawText(ctx, "OPÇÕES", VIEW_W / 2, PY + 14, { font: "big", scale: 2, color: "#ffd479", align: "center" });
-  drawText(ctx, "Celeste-style: 6 abas • acessibilidade • velocidade • idioma", VIEW_W / 2, PY + 48, { color: "#9a8fc0", align: "center" });
+  drawText(ctx, "5 abas: Áudio/Vídeo/Controles/Acessibilidade/Idioma • swipe no mobile", VIEW_W / 2, PY + 48, { color: "#9a8fc0", align: "center" });
 
-  // abas - 6 abas, layout responsivo
+  // abas - 5 abas, layout responsivo
   const isMobile = isMobileLayout();
-  const tabW = isMobile ? 110 : 136, tabH = isMobile ? 32 : 36, tabGap = isMobile ? 6 : 8;
+  const tabW = isMobile ? 128 : 156, tabH = isMobile ? 36 : 36, tabGap = isMobile ? 8 : 10;
   const totalTabsW = OPTIONS_TABS.length * tabW + (OPTIONS_TABS.length - 1) * tabGap;
   const tabX0 = VIEW_W/2 - totalTabsW/2;
   for (let i = 0; i < OPTIONS_TABS.length; i++) {
@@ -918,7 +926,7 @@ function renderOptions() {
     const x = tabX0 + i * (tabW + tabGap);
     const y = PY + 72;
     const sel = optionsTab === i;
-    if (button(ctx, { x, y, w: tabW, h: tabH, label: tab.icon + " " + tab.label, id: "tab"+i, accent: tab.color, color: sel ? "#000" : undefined, scale: isMobile ? 0.7 : 0.8 })) {
+    if (button(ctx, { x, y, w: tabW, h: tabH, label: tab.icon + " " + tab.label, id: "tab"+i, accent: tab.color, color: sel ? "#000" : undefined, scale: isMobile ? 0.75 : 0.85 })) {
       optionsTab = i;
       SFX.uiClick();
     }
@@ -933,32 +941,32 @@ function renderOptions() {
   const colX = PX + 32;
   let cy = contentY;
 
-  if (optionsTab === 0) { // ÁUDIO
+  if (optionsTab === 0) { // ÁUDIO - sliders spec
     drawText(ctx, "ÁUDIO", colX, cy, { font: "big", color: "#37e6c8" }); cy += 28;
     const s = G.save.settings;
     drawText(ctx, "MÚSICA: " + (G.muted ? "MUTADO (M)" : Math.round(s.musicVol*100) + "%"), colX, cy, { color: PAL.text }); cy += 22;
-    if (button(ctx, { x: colX, y: cy, w: 160, h: 32, label: G.muted ? "LIGAR SOM" : "MUTAR (M)", id: "muteBtn", accent: "#ff4d5a" })) {
+    if (button(ctx, { x: colX, y: cy, w: 160, h: isMobile ? 40 : 32, label: G.muted ? "LIGAR SOM" : "MUTAR (M)", id: "muteBtn", accent: "#ff4d5a" })) {
       toggleMute(); persistSave(); SFX.uiClick();
     }
-    cy += 44;
+    cy += isMobile ? 50 : 44;
     drawText(ctx, "SFX VOLUME: " + Math.round(s.sfxVol*100) + "%", colX, cy, { color: PAL.text }); cy += 22;
-    if (button(ctx, { x: colX, y: cy, w: 100, h: 28, label: "SFX -", id: "sfxDown" })) {
+    if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX -", id: "sfxDown" })) {
       s.sfxVol = Math.max(0, s.sfxVol - 0.1); persistSave(); SFX.uiClick();
     }
-    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: 28, label: "SFX +", id: "sfxUp", accent: "#37e6c8" })) {
+    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX +", id: "sfxUp", accent: "#37e6c8" })) {
       s.sfxVol = Math.min(1, s.sfxVol + 0.1); persistSave(); SFX.uiClick();
     }
-    cy += 36;
-    if (button(ctx, { x: colX, y: cy, w: 100, h: 28, label: "MÚSICA -", id: "musicDown" })) {
+    cy += isMobile ? 44 : 36;
+    if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "MÚSICA -", id: "musicDown" })) {
       s.musicVol = Math.max(0, s.musicVol - 0.1); persistSave();
     }
-    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: 28, label: "MÚSICA +", id: "musicUp", accent: "#c77dff" })) {
+    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: isMobile ? 36 : 28, label: "MÚSICA +", id: "musicUp", accent: "#c77dff" })) {
       s.musicVol = Math.min(1, s.musicVol + 0.1); persistSave();
     }
     cy += 32;
-    drawText(ctx, "DICA: M no jogo muta tudo • Volume afeta gameplay", colX, cy, { color: "#6b5a8a", scale: 0.8 });
-  } else if (optionsTab === 1) { // VÍDEO
-    drawText(ctx, "VÍDEO - Planície Viva Alta Resolução", colX, cy, { font: "big", color: "#6db7ff" }); cy += 28;
+    drawText(ctx, "DICA: Sliders estilo Celeste • M muta tudo", colX, cy, { color: "#6b5a8a", scale: 0.8 });
+  } else if (optionsTab === 1) { // VÍDEO - partículas/scanline/tremor/fullscreen spec
+    drawText(ctx, "VÍDEO - Planície Viva + Fullscreen", colX, cy, { font: "big", color: "#6db7ff" }); cy += 28;
     const s = G.save.settings;
     const opts = [
       { key: "particles", label: "PARTÍCULAS (motes + pollen)", desc: "Desliga motes subindo e pollen caindo - ganha performance" },
@@ -968,77 +976,84 @@ function renderOptions() {
     for (const o of opts) {
       const on = s[o.key];
       drawText(ctx, o.label + ": " + (on ? "LIGADO" : "DESLIGADO"), colX, cy, { color: on ? "#7fd6a0" : "#5a4f78" });
-      if (button(ctx, { x: colX + 340, y: cy - 4, w: 100, h: 24, label: on ? "DESLIGAR" : "LIGAR", id: "vid_"+o.key, accent: on ? "#ff4d5a" : "#7fd6a0" })) {
+      if (button(ctx, { x: colX + 360, y: cy - 4, w: 110, h: isMobile ? 32 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "vid_"+o.key, accent: on ? "#ff4d5a" : "#7fd6a0" })) {
         s[o.key] = !s[o.key]; persistSave(); SFX.uiClick();
       }
       cy += 18;
       drawText(ctx, o.desc, colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
     }
+    cy += 4;
+    // fullscreen toggle - FASE 4
+    const isFull = !!document.fullscreenElement;
+    drawText(ctx, "TELA CHEIA: " + (isFull ? "LIGADO" : "JANELA"), colX, cy, { color: isFull ? "#7fd6a0" : "#5a4f78" });
+    if (button(ctx, { x: colX + 360, y: cy - 4, w: 130, h: isMobile ? 32 : 24, label: isFull ? "SAIR FULLSCREEN" : "ENTRAR FULLSCREEN", id: "fullscreen", accent: "#6db7ff" })) {
+      if (!isFull) document.documentElement.requestFullscreen().catch(()=>{});
+      else document.exitFullscreen().catch(()=>{});
+      SFX.uiClick();
+    }
+    cy += 18;
+    drawText(ctx, "Fullscreen nativo • F11 também funciona", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
     cy += 8;
     drawText(ctx, "PARALLAX 4 CAMADAS ALTA RESOLUÇÃO:", colX, cy, { color: "#ffd479", scale: 0.9 }); cy += 18;
     drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.75 }); cy += 20;
-    drawText(ctx, "CICLO DIA/NOITE: 80s • MOUSE move parallax 0.01/0.03/0.08/0.15", colX, cy, { color: "#9a8fc0", scale: 0.75 });
-  } else if (optionsTab === 2) { // CONTROLES
-    drawText(ctx, "CONTROLES - PC + Mobile 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
+    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.75 });
+  } else if (optionsTab === 2) { // CONTROLES - WASD+toque spec
+    drawText(ctx, "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
     for (const [k, d] of HELP_CONTROLS) {
       drawText(ctx, k, colX, cy, { color: "#37e6c8", scale: 0.9 });
       drawText(ctx, d, colX + 160, cy, { color: PAL.text, scale: 0.85 }); cy += 20;
     }
     cy += 12;
     panel(ctx, colX, cy, PW - 64, 56, { fill: "rgba(255,179,71,0.08)", border: "#ffb347", r: 4 });
-    drawText(ctx, "MOBILE: Toque = clique, Arrastar = mover câmera, 2 dedos = zoom", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
-    drawText(ctx, "SWIPE nos cards de modo: arraste horizontal para navegar", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
+    drawText(ctx, "MOBILE: Toque = clique, Arrastar = mover câmera, 2 dedos = zoom • botões 104px", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
+    drawText(ctx, "SWIPE nos cards de modo: arraste horizontal para navegar • swipe nas abas", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
     cy += 64;
-    drawText(ctx, "MODO SELEÇÃO: Toque no card + swipe horizontal + ESC volta", colX, cy, { color: "#6b5a8a", scale: 0.8 });
-  } else if (optionsTab === 3) { // ACESSIBILIDADE - Celeste style
+    drawText(ctx, "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
+  } else if (optionsTab === 3) { // ACESSIBILIDADE - Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade
     drawText(ctx, "♿ ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
-    drawText(ctx, "Inspirado no Assist Mode de Celeste - não desabilita conquistas", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
+    drawText(ctx, "Spec: Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
     const a = G.save.accessibility;
     const accOpts = [
-      { key: "invincible", label: "RAINHA INVENCÍVEL", desc: "Rainha não morre, volta com 30% de vida - para quem quer explorar", color: "#7fd6a0" },
+      { key: "invincible", label: "INVENCÍVEL - RAINHA PROTEGIDA", desc: "Rainha não morre, volta com 30% de vida - para explorar", color: "#7fd6a0" },
+      { key: "infiniteDash", label: "DASHES INFINITOS", desc: "Sem cooldown de rally (F) e habilidades - spec pedida", color: "#37e6c8" },
       { key: "slowMo", label: "CÂMERA LENTA 0.5x", desc: "Jogo roda em 50% da velocidade - mais tempo para reagir", color: "#6db7ff" },
       { key: "bigFont", label: "FONTE GRANDE", desc: "Textos 30% maiores - melhor legibilidade", color: "#ffd479" },
-      { key: "reducedParticles", label: "POUCAS PARTÍCULAS", desc: "Reduz motes, pollen e efeitos - menos distração visual", color: "#c77dff" },
-      { key: "highContrast", label: "ALTO CONTRASTE", desc: "Bordas mais grossas, cores mais vivas - acessibilidade visual", color: "#ff4d5a" },
+      { key: "reducedParticles", label: "POUCAS PARTÍCULAS", desc: "Reduz motes, pollen e efeitos - menos distração", color: "#c77dff" },
+      { key: "highContrast", label: "ALTO CONTRASTE", desc: "Bordas grossas, cores vivas - sobre parallax high-res", color: "#ff4d5a" },
     ];
     for (const o of accOpts) {
       const on = a[o.key];
-      drawText(ctx, (on ? "✓ " : "○ ") + o.label, colX, cy, { color: on ? o.color : "#5a4f78" });
-      if (button(ctx, { x: colX + 360, y: cy - 4, w: 100, h: 24, label: on ? "DESLIGAR" : "LIGAR", id: "acc_"+o.key, accent: o.color })) {
+      drawText(ctx, (on ? "✓ " : "○ ") + o.label, colX, cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
+      if (button(ctx, { x: colX + 400, y: cy - 4, w: 100, h: isMobile ? 30 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "acc_"+o.key, accent: o.color })) {
         a[o.key] = !a[o.key]; persistSave(); SFX.uiClick();
       }
       cy += 18;
-      drawText(ctx, o.desc, colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
+      drawText(ctx, o.desc, colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 24;
     }
-    if (a.invincible || a.slowMo) {
-      cy += 6;
-      panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
-      drawText(ctx, "♿ MODO ACESSÍVEL ATIVO - Sua run terá marca de acessibilidade, mas conquistas continuam valendo!", colX + 8, cy + 8, { color: "#7fd6a0", scale: 0.8 });
-    }
-  } else if (optionsTab === 4) { // GAME SPEED - FASE 2
-    drawText(ctx, "VELOCIDADE DO JOGO", colX, cy, { font: "big", color: "#ff7a6a" }); cy += 28;
-    drawText(ctx, "Controle total da velocidade - inspirado em Celeste Assist + Dead Cells custom", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 28;
+    cy += 6;
+    // Velocidade consolidada aqui - FASE 4
+    drawText(ctx, "VELOCIDADE DO JOGO:", colX, cy, { color: "#ff7a6a", font: "big" }); cy += 22;
     const s = G.save.settings;
     const speeds = [
-      { v: 0.5, label: "0.5x LENTO", desc: "Para aprender, explorar, acessibilidade", color: "#7fd6a0" },
-      { v: 1, label: "1x NORMAL", desc: "Experiência padrão, balanceada", color: "#37e6c8" },
-      { v: 1.5, label: "1.5x RÁPIDO", desc: "Para veteranos, mais desafio", color: "#ffb347" },
-      { v: 2, label: "2x MUITO RÁPIDO", desc: "Enxame frenético, só para loucos", color: "#ff4d5a" },
+      { v: 0.5, label: "0.5x LENTO", color: "#7fd6a0" },
+      { v: 1, label: "1x NORMAL", color: "#37e6c8" },
+      { v: 1.5, label: "1.5x RÁPIDO", color: "#ffb347" },
+      { v: 2, label: "2x MUITO RÁPIDO", color: "#ff4d5a" },
     ];
+    let sx = colX;
     for (const sp of speeds) {
       const sel = s.gameSpeed === sp.v;
-      drawText(ctx, (sel ? "▶ " : "  ") + sp.label, colX, cy, { color: sel ? sp.color : "#5a4f78", font: sel ? "big" : "small" });
-      drawText(ctx, sp.desc, colX + 180, cy, { color: sel ? PAL.text : "#6b5a8a", scale: 0.8 }); 
-      if (button(ctx, { x: colX + 420, y: cy - 4, w: 80, h: 24, label: sel ? "ATIVO" : "USAR", id: "speed_"+sp.v, accent: sp.color, color: sel ? "#000" : undefined })) {
+      if (button(ctx, { x: sx, y: cy, w: 110, h: isMobile ? 34 : 28, label: sp.label, id: "speed_"+sp.v, accent: sp.color, color: sel ? "#000" : undefined, scale: 0.8 })) {
         s.gameSpeed = sp.v; persistSave(); SFX.uiClick();
       }
-      cy += 30;
+      sx += 118;
     }
-    cy += 12;
-    panel(ctx, colX, cy, PW - 64, 40, { fill: "rgba(255,122,106,0.08)", border: "#ff7a6a", r: 4 });
-    drawText(ctx, "Velocidade afeta: movimento formigas, ondas, câmera, partículas", colX + 8, cy + 8, { color: "#ff7a6a", scale: 0.8 });
-    drawText(ctx, "Atual: " + s.gameSpeed + "x • Acessibilidade slowMo 0.5x multiplica por cima", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.75 });
-  } else if (optionsTab === 5) { // IDIOMA - FASE 2
+    cy += 36;
+    if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
+      panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
+      drawText(ctx, "♿ ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 8, cy + 8, { color: "#7fd6a0", scale: 0.8 });
+    }
+  } else if (optionsTab === 4) { // IDIOMA
     drawText(ctx, "IDIOMA / LANGUAGE", colX, cy, { font: "big", color: "#ffd479" }); cy += 28;
     drawText(ctx, "Selecione o idioma - menus e tutoriais", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 28;
     const s = G.save.settings;
@@ -1051,7 +1066,7 @@ function renderOptions() {
       const sel = s.language === lg.id;
       drawText(ctx, lg.flag + " " + lg.label, colX, cy, { color: sel ? lg.color : "#5a4f78", font: sel ? "big" : "small" });
       drawText(ctx, lg.desc, colX + 200, cy, { color: sel ? PAL.text : "#6b5a8a", scale: 0.8 });
-      if (button(ctx, { x: colX + 420, y: cy - 4, w: 80, h: 24, label: sel ? "ATIVO" : "USAR", id: "lang_"+lg.id, accent: lg.color, color: sel ? "#000" : undefined })) {
+      if (button(ctx, { x: colX + 420, y: cy - 4, w: 80, h: isMobile ? 34 : 24, label: sel ? "ATIVO" : "USAR", id: "lang_"+lg.id, accent: lg.color, color: sel ? "#000" : undefined })) {
         s.language = lg.id; persistSave(); SFX.uiClick();
       }
       cy += 30;
@@ -1063,10 +1078,12 @@ function renderOptions() {
   }
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W / 2 - 110, y: VIEW_H - 44, w: mobile ? 240 : 220, h: mobile ? 44 : 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 110, y: VIEW_H - 44, w: mobile ? 240 : 220, h: mobile ? 104 : 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
+    notePointer(mouse.x, mouse.y);
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
   if (pressed.Escape) {
+    notePointer(VIEW_W/2, VIEW_H/2);
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
   // swipe entre abas no mobile - FASE 2
@@ -1129,10 +1146,13 @@ function renderHelp() {
     yr += 6;
   }
 
-  if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 44, w: 200, h: 36, label: "VOLTAR", id: "helpBack", accent: "#8f6fd6" })) {
+  const helpMobile = isMobileLayout();
+  if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 44, w: 200, h: helpMobile ? 104 : 36, label: "VOLTAR", id: "helpBack", accent: "#8f6fd6" })) {
+    notePointer(mouse.x, mouse.y);
     startTransition("auto", "HELP", helpReturn, 0, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
   }
   if (pressed.Escape) {
+    notePointer(VIEW_W/2, VIEW_H/2);
     startTransition("auto", "HELP", helpReturn, 0, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
   }
 }
@@ -1564,27 +1584,28 @@ function drawMapTransition(run) {
 }
 
 // ------------------------------------------------------------------ pausa ---
-// NOVA PAUSA com mapa + stats (escolha do usuário: com_mapa + PC+Mobile 104px)
+// FASE 5: Pausa com Mapa - 2 colunas esquerda 6 botões + direita mini-mapa + stats + btnH 104px mobile
 function drawPause() {
   const mobile = isMobileLayout();
   ctx.fillStyle = "rgba(10,8,16,0.86)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
   // layout 2 colunas: esquerda botões, direita mapa+stats
-  const leftW = 360, rightW = 340;
+  const leftW = mobile ? 400 : 360, rightW = mobile ? 380 : 340;
   const totalW = leftW + rightW + 24;
   const startX = VIEW_W/2 - totalW/2;
-  const py = 48;
+  const py = mobile ? 20 : 48;
+  const panelH = mobile ? 560 : 440;
 
   // painel esquerda - botões
-  dialogBox(ctx, startX, py, leftW, 440, { border: "#8f6fd6", accent: "#37e6c8" });
+  dialogBox(ctx, startX, py, leftW, panelH, { border: "#8f6fd6", accent: "#37e6c8" });
   drawText(ctx, "PAUSA", startX + leftW/2, py + 18, { font: "big", scale: 2, color: "#ffd479", align: "center" });
 
   const run = G.run;
   const btnW = leftW - 32;
-  const btnH = mobile ? 48 : 40;
+  const btnH = mobile ? 104 : 40;
   let by = py + 52;
-  const gap = mobile ? 14 : 10;
+  const gap = mobile ? 12 : 10;
 
   const pauseBtns = [
     { label: "CONTINUAR", id: "resume", accent: "#37e6c8" },
@@ -1599,6 +1620,7 @@ function drawPause() {
     if (button(ctx, { x: startX + 16, y: by, w: btnW, h: btnH, label: b.label, id: b.id, accent: b.accent })) {
       if (b.id === "resume") { paused = false; return; }
       if (b.id === "pauseOptions") {
+        notePointer(mouse.x, mouse.y);
         paused = false;
         optionsReturn = "RUN";
         optionsTab = 0;
@@ -1606,6 +1628,7 @@ function drawPause() {
         return;
       }
       if (b.id === "pauseTree") {
+        notePointer(mouse.x, mouse.y);
         paused = false;
         enterTree();
         treeReturn = "RUN";
@@ -1613,18 +1636,21 @@ function drawPause() {
         return;
       }
       if (b.id === "pauseHelp") {
+        notePointer(mouse.x, mouse.y);
         paused = false;
         helpReturn = "RUN";
         startTransition("auto", "RUN", "HELP", 0, () => { G.screen = "HELP"; });
         return;
       }
       if (b.id === "restart") {
+        notePointer(mouse.x, mouse.y);
         paused = false;
         settleAbandon();
         newRun(G.run.modeDef);
         return;
       }
       if (b.id === "quit") {
+        notePointer(mouse.x, mouse.y);
         paused = false;
         settleAbandon();
         startTransition("auto", "RUN", "TITLE", 0, () => { G.screen = "TITLE"; });
@@ -1636,7 +1662,7 @@ function drawPause() {
 
   // painel direita - mapa + stats
   const rx = startX + leftW + 24;
-  dialogBox(ctx, rx, py, rightW, 440, { border: "#4a3a6e", accent: "#ffd479" });
+  dialogBox(ctx, rx, py, rightW, panelH, { border: "#4a3a6e", accent: "#ffd479" });
   drawText(ctx, "MAPA E STATUS", rx + rightW/2, py + 18, { font: "big", color: "#ffd479", align: "center" });
 
   // mini-mapa maior na pausa
@@ -1673,7 +1699,7 @@ function drawPause() {
     }
   }
 
-  drawText(ctx, "ESC: VOLTAR • M: SOM", rx + rightW/2, py + 440 - 12, { color: PAL.textDim, align: "center", scale: 0.8 });
+  drawText(ctx, "ESC: VOLTAR • M: SOM", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.8 });
 }
 
 function settleAbandon() {
@@ -1687,6 +1713,7 @@ let helpReturn = "TITLE";
 let treeReturn = "TITLE";
 
 function backFromTree() {
+  notePointer(mouse.x, mouse.y);
   const to = treeReturn;
   startTransition("auto", "TREE", to, 0, () => { G.screen = to; });
 }
@@ -1763,18 +1790,21 @@ function drawEnd(run) {
 
   const mobile = isMobileLayout();
   const by = btnTop;
-  if (button(ctx, { x: VIEW_W / 2 - 230, y: by, w: 220, h: mobile ? 48 : 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 230, y: by, w: 220, h: mobile ? 104 : 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
+    notePointer(mouse.x, mouse.y);
     paused = false;
     newRun(run.modeDef);
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: mobile ? 48 : 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
+  if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: mobile ? 104 : 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
+    notePointer(mouse.x, mouse.y);
     enterTree();
     treeReturn = "TITLE";
     startTransition("auto", "RUN", "TREE", 0, () => { G.screen = "TREE"; });
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 - 110, y: by + 48, w: 220, h: mobile ? 40 : 32, label: "MENU PRINCIPAL", id: "menu" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 110, y: by + 48, w: 220, h: mobile ? 104 : 32, label: "MENU PRINCIPAL", id: "menu" })) {
+    notePointer(mouse.x, mouse.y);
     startTransition("auto", "RUN", "TITLE", 0, () => { G.screen = "TITLE"; });
     return;
   }

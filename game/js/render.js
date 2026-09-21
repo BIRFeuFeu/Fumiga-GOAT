@@ -540,18 +540,18 @@ function ensureMotes() {
       phase: Math.random() * TAU,
     });
   }
-  // pollen caindo (Celeste)
-  for (let i = 0; i < 30; i++) {
+  // FASE 3 - Celeste: pollen caindo lenta + snow/parallax (style pollen do bioma)
+  for (let i = 0; i < 45; i++) {
     titlePollen.push({
       x: Math.random() * VIEW_W,
       y: Math.random() * VIEW_H,
-      vx: (Math.random() - 0.5) * 8,
-      vy: Math.random() * 12 + 6,
-      size: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.4 + 0.15,
+      vx: (Math.random() - 0.5) * 6,
+      vy: Math.random() * 8 + 3, // lenta: 3-11px/s (antes 6-18)
+      size: Math.random() * 1.8 + 0.6,
+      alpha: Math.random() * 0.5 + 0.2,
       col: Math.random() < 0.4 ? "#fff6c8" : Math.random() < 0.7 ? "#ffd479" : "#bfffa8",
       phase: Math.random() * TAU,
-      sway: Math.random() * 2 + 0.5,
+      sway: Math.random() * 1.5 + 0.3,
     });
   }
   // nuvens parallax (5 camadas)
@@ -563,7 +563,7 @@ function ensureMotes() {
       w: 60 + Math.random() * 120,
       h: 12 + Math.random() * 18,
       alpha: 0.08 + Math.random() * 0.15,
-      layer: Math.floor(Math.random() * 3), // 0 = longe, 2 = perto
+      layer: Math.floor(Math.random() * 3),
     });
   }
   // formigas andando no menu (Castle Crashers vivo)
@@ -859,6 +859,9 @@ function lerpColor(a, b, t) {
 //   4. um brilho que atravessa as LETRAS de tempos em tempos.
 // Nada é pintado atrás do texto.
 export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
+  // FASE 2 - Logo: escala 4.2->5.0 + sin(time*0.6)*0.08 respirando (pixel gigante)
+  const breathing = Math.sin(time * 0.6) * 0.08;
+  scale = scale + breathing;
   const str = "FUMIGA";
   const h = FONT.big.ch * scale;
   const w = lineWidth(str.length, { font: "big", scale });

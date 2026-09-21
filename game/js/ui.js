@@ -149,7 +149,14 @@ function chamfer(ctx, x, y, w, h, r) {
 
 /** Botão textual refinado — Dead Cells style com animação suave + mobile 104px */
 export function button(ctx, opt) {
-  const { x, y, w, h } = opt;
+  let { x, y, w, h } = opt;
+  // FASE 6: visual height 88->104 quando mobile
+  if (isTouchDevice() && h < 104 && opt.id !== "hudMore") {
+    // mantém x,y centralizado se aumentar
+    const diff = 104 - h;
+    y = y - diff/2;
+    h = 104;
+  }
   const hr = hitRect(x, y, w, h);
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
@@ -248,7 +255,13 @@ function hex2rgb(hex) {
 
 /** Botão de ícone (loja / hotbar) refinado - mobile 104px touch */
 export function iconButton(ctx, opt) {
-  const { x, y, w, h } = opt;
+  let { x, y, w, h } = opt;
+  // FASE 6: visual height 88->104 quando mobile
+  if (isTouchDevice() && h < 104) {
+    const diff = 104 - h;
+    y = y - diff/2;
+    h = 104;
+  }
   const hr = hitRect(x, y, w, h);
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
