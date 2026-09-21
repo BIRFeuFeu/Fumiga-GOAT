@@ -896,33 +896,42 @@ function lerpColor(a, b, t) {
 }
 
 // ------------------------------------------------------------------ logo ---
-// O título era desenhado com 6 camadas de brilho ROXO atrás das letras: no
-// escuro até impressionava, mas o halo sujava o contorno e o "FUMIGA" ficava
-// difícil de ler. Agora é metal dourado de verdade:
-//   1. sombra projetada (dá peso, não atrapalha);
-//   2. contorno preto duro de 2px — leitura máxima em qualquer fundo;
-//   3. gradiente em faixas (a fonte é bitmap, então o metal sai de recortes
-//      horizontais: ouro claro no topo, âmbar no meio, bronze embaixo);
-//   4. um brilho que atravessa as LETRAS de tempos em tempos.
-// Nada é pintado atrás do texto.
+// FASE 2 FINAL - Pixel Gigante 5x Escala Respirando
+// Spec: drawTitleLogo() escala 4.2 -> 5.0 + sin(time*0.6)*0.08 (pixel gigante que respira)
+// Mantém metal dourado + varredura a cada 4.6s
+// 1. sombra projetada, 2. contorno preto duro 2px, 3. gradiente faixas ouro/âmbar/bronze, 4. brilho varrendo letras + glow pulsante + sparkle
 export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
-  // FASE 2 - Logo: escala 4.2->5.0 + sin(time*0.6)*0.08 respirando (pixel gigante)
+  // FASE 2 FINAL: escala 5.0 + sin(time*0.6)*0.08 respirando (pixel gigante) + micro 0.02
   const breathing = Math.sin(time * 0.6) * 0.08;
-  scale = scale + breathing;
+  const secondary = Math.sin(time * 1.2) * 0.02;
+  scale = scale + breathing + secondary;
   const str = "FUMIGA";
   const h = FONT.big.ch * scale;
   const w = lineWidth(str.length, { font: "big", scale });
   const base = { font: "big", scale, align: "left", shadow: false };
 
+  // glow externo pulsante atrás do logo (respira junto)
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const glowPulse = 0.12 + Math.abs(breathing) * 0.8;
+  ctx.globalAlpha = glowPulse;
+  const glowGrad = ctx.createRadialGradient(x + w/2, y + h/2, 10, x + w/2, y + h/2, w*0.8);
+  glowGrad.addColorStop(0, "rgba(255,196,77,0.18)");
+  glowGrad.addColorStop(0.5, "rgba(199,125,255,0.08)");
+  glowGrad.addColorStop(1, "rgba(199,125,255,0)");
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(x - 20, y - 10, w + 40, h + 20);
+  ctx.restore();
+
   // 1) sombra projetada
   drawText(ctx, str, x + 5, y + 7, { ...base, color: "rgba(0,0,0,0.55)" });
 
-  // 2) contorno preto duro (2px, sem cantos vazados)
+  // 2) contorno preto duro 2px
   const ring = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2],
                 [-1, 0], [1, 0], [0, -1], [0, 1]];
   for (const [dx, dy] of ring) drawText(ctx, str, x + dx, y + dy, { ...base, color: "#0a0713" });
 
-  // 3) metal em faixas horizontais
+  // 3) metal dourado em faixas horizontais
   const bands = [
     [0.00, 0.31, "#fff0bd"],
     [0.29, 0.55, "#ffc44d"],
@@ -938,13 +947,13 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
     ctx.restore();
   }
 
-  // 4) brilho varrendo as letras (só as letras: o recorte é a própria tinta)
+  // 4) brilho varrendo as letras a cada 4.6s
   const period = 4.6;
   const ph = (time % period) / period;
   if (ph < 0.42) {
     const t = ph / 0.42;
     const bx = x - 90 + (w + 180) * t;
-    const fade = Math.sin(t * Math.PI);            // entra e sai suave
+    const fade = Math.sin(t * Math.PI);
     ctx.save();
     ctx.beginPath();
     ctx.rect(bx - 30, y - 6, 60, h + 12);
@@ -952,9 +961,21 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
     ctx.globalCompositeOperation = "lighter";
     drawText(ctx, str, x, y, { ...base, color: "rgba(255,247,220," + (0.5 * fade).toFixed(3) + ")" });
     ctx.restore();
+    if (fade > 0.3) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = fade * 0.6;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(bx, y + h * 0.2, 2, h * 0.6);
+      ctx.fillStyle = "#ffd479";
+      ctx.beginPath();
+      ctx.arc(bx, y + h * 0.5, 2 + fade * 2, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
-  // filete de luz fixo no topo das letras (metal polido)
+  // filete de luz fixo no topo (metal polido)
   ctx.save();
   ctx.beginPath();
   ctx.rect(x - 4, y + h * 0.04, w + 8, Math.max(2, h * 0.07));
