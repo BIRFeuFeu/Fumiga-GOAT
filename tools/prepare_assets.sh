@@ -23,11 +23,39 @@ ant () { # ant <src> <dst> <altura_px>
   echo "  ant $2 ($(identify -format '%wx%h' "$OUT/sprites/ants/$2"))"
 }
 F="$ROOT/formigas"
-ant "$F/gen-4d3ea505-a3ec-4de8-b7a9-dbd72d194464.png" worker.png      30
-ant "$F/gen-1e856e81-6689-4fac-ad52-cc38b9d8e3c7.png" soldier.png     44
-ant "$F/gen-31f4c985-4828-4f6b-b3ba-0a62d916e42f.png" spitter.png     40
-ant "$F/gen-474c2946-54af-4f66-8840-84bac5714930.png" tank.png        48
-ant "$F/gen-70743d19-eeb2-4027-b93a-8c3ec1f599a7.png" queen.png      128
+# Espécies reais (rework das classes): a arte-fonte vem em fundo branco —
+# aqui vira alfa, trim, redimensionamento pixel-perfect e canvas fixo.
+# A SOLDADO em 34x44 é requisito: o assado da DINOPONERA precisa dar pad
+# 5x o da soldado (ver game/test/assets.mjs).
+species () { # species <src> <dst> <W> <H>
+  convert "$1" \
+    -bordercolor "#ffffff" -border 2x2 \
+    -alpha set -channel RGBA -fuzz 12% \
+    -fill "rgba(0,0,0,0)" -floodfill +0+0 "#ffffff" \
+    -shave 2x2 \
+    -trim +repage -filter point -resize "$3x$4" \
+    -background none -gravity center -extent "$3x$4" \
+    "$OUT/sprites/ants/$2"
+  echo "  espécie $2 ($(identify -format '%wx%h' "$OUT/sprites/ants/$2"))"
+}
+species "$F/rework-cortadeira.png" worker.png   22 30
+species "$F/rework-bala.png"       soldier.png  34 44
+species "$F/rework-arpao.png"      trapjaw.png  34 44
+species "$F/rework-acrobata.png"   spitter.png  31 40
+species "$F/rework-fogo.png"       bomber.png   36 46
+species "$F/rework-cefalote.png"   tank.png     48 48
+species "$F/rework-mel.png"        gatherer.png 26 34
+species "$F/rework-prata.png"      scout.png    22 30
+species "$F/rework-matabele.png"   healer.png   25 34
+species "$F/rework-tecela.png"     weaver.png   22 30
+# RAINHA: arte do rework — fundo branco vira alfa, trim, altura 128 (largura livre)
+convert "$F/rework-rainha.png" \
+  -bordercolor "#ffffff" -border 2x2 \
+  -alpha set -channel RGBA -fuzz 12% \
+  -fill "rgba(0,0,0,0)" -floodfill +0+0 "#ffffff" \
+  -shave 2x2 -trim +repage -filter point -resize x128 \
+  "$OUT/sprites/ants/queen.png"
+echo "  rainha ($(identify -format '%wx%h' "$OUT/sprites/ants/queen.png"))"
 ant "$F/gen-f0b8f676-2347-4149-8649-a865599db323.png" e_runner.png    26
 ant "$F/gen-6a5cd3cd-5ec4-4ce8-be03-1292d3529de8.png" e_swarm.png     30
 ant "$F/gen-56160a10-922e-4c41-b97e-781930b8ecdc.png" e_warrior.png   44
@@ -37,13 +65,14 @@ ant "$F/gen-686ee82a-5469-4aa3-86c7-37a4cf797843.png" e_matron.png    72
 ant "$F/gen-1573e56b-2049-49a6-b04d-571d2167ba4c.png" e_sentinel.png  56
 
 # --- Novas classes aliadas (recolors) ---
-# BATEDORA: operária com matiz teal — veloz e alerta
+# BATEDORA -> FORMIGA-PRATA (Cataglyphis): operária com matiz teal — veloz e alerta
 convert "$F/gen-4d3ea505-a3ec-4de8-b7a9-dbd72d194464.png" -trim +repage -filter point -resize x30 -modulate 115,105,190 "$OUT/sprites/ants/scout.png"
-# CURANDEIRA: operária alva (brilho alto) — suporte médica
+# CURANDEIRA -> FORMIGA-MATABELE (Megaponera): operária alva (brilho alto) — médica de guerra
 convert "$F/gen-4d3ea505-a3ec-4de8-b7a9-dbd72d194464.png" -trim +repage -filter point -resize x34 -modulate 420,50 "$OUT/sprites/ants/healer.png"
-# BOMBEIRA: soldado em brasa profunda — dano em área + queimadura
+# BOMBEIRA -> FORMIGA-DE-FOGO (Solenopsis): soldado em brasa profunda — dano em área + queimadura
 convert "$F/gen-1e856e81-6689-4fac-ad52-cc38b9d8e3c7.png" -trim +repage -filter point -resize x46 -modulate 92,185,90 "$OUT/sprites/ants/bomber.png"
 echo "  ants novas: scout/healer/bomber"
+
 
 # clareia sprites muito escuras (fundo do jogo é sombrio)
 bright () { convert "$OUT/sprites/ants/$1" -modulate "$2,100" "$OUT/sprites/ants/$1"; echo "  bright $1 x$2"; }
@@ -51,13 +80,10 @@ bright e_runner.png  175
 bright e_warrior.png 150
 bright e_matron.png  140
 bright e_swarm.png   130
-bright tank.png      145
 bright e_reaper.png  125
 bright e_sentinel.png 120
 bright e_spitter.png 118
-convert "$OUT/sprites/ants/queen.png"   -modulate 108,118 "$OUT/sprites/ants/queen.png"
-convert "$OUT/sprites/ants/soldier.png" -modulate 106,112 "$OUT/sprites/ants/soldier.png"
-convert "$OUT/sprites/ants/worker.png"  -modulate 108,110 "$OUT/sprites/ants/worker.png"
+
 convert "$OUT/sprites/ants/spitter.png" -modulate 112,116 "$OUT/sprites/ants/spitter.png"
 
 # ----------------------------------------------------------------- Animais ----

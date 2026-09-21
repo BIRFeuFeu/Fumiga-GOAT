@@ -54,6 +54,7 @@ export const GIANT_SCALE = 20;
 export const ANT_SIZES = {
   worker: 45, soldier: 64, spitter: 58, tank: 72, queen: 189,
   scout: 48, healer: 53, bomber: 61,
+  trapjaw: 40, weaver: 45,
   giant: 326,                       // 5x o pad da soldado (ver conta acima)
   e_runner: 40, e_swarm: 45, e_warrior: 64, e_spitter: 61, e_reaper: 58,
   e_matron: 106, e_sentinel: 82,
@@ -62,62 +63,70 @@ export const ANT_SIZES = {
 export const GATHERER_SIZE = ANT_SIZES.worker;
 
 export const UNITS = {
+  // ── COLETA/EXPLORAÇÃO ──────────────────────────────────────────────────
+  // FORMIGA-CORTADEIRA (Atta cephalotes): corta folhas para cultivar o
+  // fungo do ninho — cada entrega apressa o FUNGÁRIO (ver deposit()).
   worker: {
-    id: "worker", key: null, name: "OPERÁRIA",
-    tip: "Coleta comida e essência. Fraca mas incansável.",
+    id: "worker", key: null, name: "FORMIGA-CORTADEIRA, A AGRICULTORA",
+    tip: "Atta cephalotes: corta folhas para cultivar o fungo do ninho. Cada entrega apressa o FUNGÁRIO.",
     cost: 12, costGrow: 0.06, hatchTime: 2.0,
     hp: 26, dmg: 2.5, speed: 98, range: 13, atkCd: 0.7,
     gatherRate: 2.1, carry: 5, sprite: "worker", role: "worker",
     attack: false,
   },
+  // FORMIGA-POTE-DE-MEL (Myrmecocystus mexicanus): operárias repletas são a
+  // despensa viva — carregam mais e, na escassez, gotejam comida no ninho.
   gatherer: {
-    id: "gatherer", key: null, name: "COLETORA",
-    tip: "Especialista em colheita: mais rápida e carrega mais comida.",
+    id: "gatherer", key: null, name: "FORMIGA-POTE-DE-MEL, A DESPENSA",
+    tip: "Myrmecocystus mexicanus: o gaster inchado de mel carrega bem mais - e, na escassez, goteja comida no formigueiro.",
     cost: 18, costGrow: 0.06, hatchTime: 2.2,
     hp: 24, dmg: 1.5, speed: 110, range: 12, atkCd: 0.9,
     gatherRate: 3.0, carry: 8, sprite: "gatherer", role: "worker",
     attack: false,
   },
-  soldier: {
-    id: "soldier", key: null, name: "SOLDADO",
-    tip: "Linha de frente com mandíbulas de sabre.",
-    cost: 30, costGrow: 0.06, hatchTime: 3.2,
-    hp: 175, dmg: 18, speed: 74, range: 17, atkCd: 0.62,
-    sprite: "soldier", role: "fighter",
-  },
-  spitter: {
-    id: "spitter", key: null, name: "CUSPIDORA",
-    tip: "Dispara ácido de cristal à distância.",
-    cost: 42, costGrow: 0.06, hatchTime: 3.8,
-    hp: 60, dmg: 15, speed: 62, range: 125, atkCd: 1.1,
-    projSpeed: 300, sprite: "spitter", role: "ranged",
-  },
-  tank: {
-    id: "tank", key: null, name: "GUARDA DE ÉBANO",
-    tip: "Muralha viva. Atrai a fúria dos inimigos.",
-    cost: 62, costGrow: 0.06, hatchTime: 5.0,
-    hp: 360, dmg: 12, speed: 48, range: 19, atkCd: 0.8,
-    taunt: 155, sprite: "tank", role: "fighter",
-  },
+  // FORMIGA-PRATA (Cataglyphis bombycina): a formiga mais rápida do mundo
+  // (855mm/s) — arrancadas relâmpago em pleno deserto (ver moveToward).
   scout: {
-    id: "scout", key: null, name: "BATEDORA",
-    tip: "Veloz e barata. Fareja inimigos de longe e intercepta.",
+    id: "scout", key: null, name: "FORMIGA-PRATA, A VELOZ",
+    tip: "Cataglyphis bombycina: a formiga mais rápida do mundo (855mm/s). Arrancadas de prata que revelam o mapa.",
     cost: 22, costGrow: 0.06, hatchTime: 2.4,
     hp: 52, dmg: 6.5, speed: 152, range: 13, atkCd: 0.4,
     aggro: 430, sprite: "scout", role: "fighter",
     attack: false,
   },
-  healer: {
-    id: "healer", key: null, name: "CURANDEIRA",
-    tip: "Restaura as feridas das irmãs em batalha. Não luta.",
-    cost: 46, costGrow: 0.06, hatchTime: 4.2,
-    hp: 44, dmg: 0, speed: 92, range: 26, atkCd: 1,
-    healRate: 13, healRange: 230, sprite: "healer", role: "healer",
-    attack: false,
+  // ── COMBATE/DEFESA ─────────────────────────────────────────────────────
+  // FORMIGA-BALA (Paraponera clavata): o ferrão mais doloroso do mundo —
+  // a poneratoxina deixa o inimigo LENTO (ver attackMelee).
+  soldier: {
+    id: "soldier", key: null, name: "FORMIGA-BALA, A ATIRADORA",
+    tip: "Paraponera clavata: o ferrão mais doloroso do mundo. Suas ferroadas deixam o inimigo LENTO.",
+    cost: 30, costGrow: 0.06, hatchTime: 3.2,
+    hp: 175, dmg: 18, speed: 74, range: 17, atkCd: 0.62,
+    sprite: "soldier", role: "fighter",
   },
+  // QUEIXO-DE-ARPÃO (Odontomachus bauri): mandíbulas a 200km/h em 0,13ms —
+  // a mordida mais rápida do reino animal. Executa feridos e salta fora.
+  trapjaw: {
+    id: "trapjaw", key: null, name: "QUEIXO-DE-ARPÃO, A ESTRONDOSA",
+    tip: "Odontomachus bauri: mandíbulas a 200km/h em 0,13ms. Golpes em rajada, executa feridos e salta longe quando atingida.",
+    cost: 48, costGrow: 0.06, hatchTime: 3.6,
+    hp: 70, dmg: 14, speed: 96, range: 24, atkCd: 0.42,
+    sprite: "trapjaw", role: "fighter",
+  },
+  // FORMIGA-ACROBATA (Crematogaster): ergue o gaster em coração e borrifa
+  // veneno espumante que corrói com o tempo (ver spitAt/combat.js).
+  spitter: {
+    id: "spitter", key: null, name: "FORMIGA-ACROBATA, A BAILARINA",
+    tip: "Crematogaster: ergue o gaster em coração e borrifa veneno que corrói o inimigo com o tempo.",
+    cost: 42, costGrow: 0.06, hatchTime: 3.8,
+    hp: 60, dmg: 15, speed: 62, range: 125, atkCd: 1.1,
+    projSpeed: 300, sprite: "spitter", role: "ranged",
+  },
+  // FORMIGA-DE-FOGO (Solenopsis invicta): o nome é o programa — brasa em
+  // área com queimadura contínua.
   bomber: {
-    id: "bomber", key: null, name: "BOMBEIRA",
-    tip: "Explode em brasa: dano em área e queimadura contínua.",
+    id: "bomber", key: null, name: "FORMIGA-DE-FOGO, A INCENDIÁRIA",
+    tip: "Solenopsis invicta: o nome é o programa - bombas de brasa em área com queimadura contínua.",
     cost: 58, costGrow: 0.06, hatchTime: 4.6,
     hp: 84, dmg: 13, speed: 66, range: 96, atkCd: 1.6,
     projSpeed: 250, aoe: 56, burnDps: 7, burnDur: 3.2,
@@ -125,13 +134,44 @@ export const UNITS = {
     // bomba é a flag abaixo (o teste por role deixava a bomba sem efeito).
     bomb: true, sprite: "bomber", role: "ranged",
   },
-  // A colosso. Vinte soldados de ponta a ponta (drawScale 4 sobre um assado
-  // 5x maior = 20x exatos o frame da soldado), lenta, cara e única por
-  // expedição: atrai a horda (taunt), esmaga com um golpe só e passa por cima
-  // do mato (smash). Ajuste GIANT_SCALE se quiser uma escala menos absurda.
+  // CEFALOTE (Cephalotes varians): a cabeça em disco fecha a porta do ninho
+  // (fragmose) — perto do formigueiro a casca quase dobra (ver takeDamage).
+  tank: {
+    id: "tank", key: null, name: "CEFALOTE, A PORTA-VIVA",
+    tip: "Cephalotes varians: a cabeça em disco fecha a porta do ninho. Perto do formigueiro sua casca quase dobra (-45% de dano).",
+    cost: 62, costGrow: 0.06, hatchTime: 5.0,
+    hp: 360, dmg: 12, speed: 48, range: 19, atkCd: 0.8,
+    taunt: 155, sprite: "tank", role: "fighter",
+  },
+  // ── CONSTRUÇÃO/CURA/CRIAÇÃO ────────────────────────────────────────────
+  // FORMIGA-MATABELE (Megaponera analis): os únicos insetos que tratam
+  // feridas com antibióticos — triagem: feridas críticas curam em dobro.
+  healer: {
+    id: "healer", key: null, name: "FORMIGA-MATABELE, A RESGATADORA",
+    tip: "Megaponera analis: os únicos insetos que tratam feridas com antibióticos. TRIAGEM: feridas críticas recebem cura em dobro.",
+    cost: 46, costGrow: 0.06, hatchTime: 4.2,
+    hp: 44, dmg: 0, speed: 92, range: 26, atkCd: 1,
+    healRate: 13, healRange: 230, sprite: "healer", role: "healer",
+    attack: false,
+  },
+  // FORMIGA-TECELÃ (Oecophylla smaragdina): costura o ninho com a seda das
+  // larvas — cada Tecelã viva acelera escavação e berçário (ver nest.js).
+  weaver: {
+    id: "weaver", key: null, name: "FORMIGA-TECELÃ, A COSTUREIRA",
+    tip: "Oecophylla smaragdina: costura o ninho com a seda das larvas. Cada Tecelã viva acelera escavação e berçário.",
+    cost: 40, costGrow: 0.06, hatchTime: 4.5,
+    hp: 55, dmg: 0, speed: 55, range: 13, atkCd: 1,
+    gatherRate: 1.5, carry: 4, sprite: "weaver", role: "worker",
+    attack: false,
+  },
+  // ── COLOSSO ────────────────────────────────────────────────────────────
+  // DINOPONERA (Dinoponera australis): a maior formiga operária real. Vinte
+  // soldados de ponta a ponta (drawScale sobre um assado 5x maior = 20x
+  // exatos o frame da soldado), lenta, cara e única por expedição: atrai a
+  // horda (taunt), esmaga com um golpe só e passa por cima do mato (smash).
   giant: {
-    id: "giant", key: null, name: "FORMIGA GIGANTE",
-    tip: "Colosso de 20 soldados de comprimento: puxa a horda, esmaga a mata e mata com um golpe. Só cabe uma por expedição.",
+    id: "giant", key: null, name: "DINOPONERA, A COLOSSA",
+    tip: "Dinoponera australis: a maior formiga operária real - 20 soldados de comprimento. Puxa a horda, esmaga a mata e mata com um golpe. Só cabe uma por expedição.",
     cost: 320, costGrow: 0.06, hatchTime: 7.0,
     hp: 3000, dmg: 95, speed: 30, range: 130, atkCd: 1.6,
     taunt: 420, sight: 720, smash: 300,
@@ -198,6 +238,74 @@ export const BOSSES = {
   },
 };
 
+// ---------------------------------------------------- PÓS-FINAL: ASCENSÃO ---
+// A Névoa nunca morre de verdade: cada vitória da CAMPANHA destrava um nível
+// a mais de desafio consciente (inspirado no Pacto do Castigo de Hades e na
+// Ascensão de Slay the Spire). ascMods(lv) é a fonte única dos modificadores.
+export const ASC_MAX = 20;
+export const ASC_MILESTONES = [
+  { lv: 2,  label: "ONDAS ROBUSTAS" },
+  { lv: 5,  label: "FUGA RÁPIDA" },
+  { lv: 8,  label: "CHEFES CRUÉIS" },
+  { lv: 11, label: "CALMARIA CURTA" },
+  { lv: 14, label: "COLHEITA MAGRA" },
+  { lv: 17, label: "MARÉ INFINITA" },
+  { lv: 20, label: "A NÉVOA PLENA" },
+];
+export function ascMods(lv = 0) {
+  lv = Math.max(0, Math.min(ASC_MAX, lv | 0));
+  return {
+    hp: 1 + 0.08 * lv,                        // horda: vida
+    dmg: 1 + 0.04 * lv,                       // horda: dano
+    speed: 1 + (lv >= 5 ? 0.06 : 0),          // horda: pressa
+    budget: 1 + (lv >= 2 ? 0.10 : 0) + (lv >= 17 ? 0.15 : 0),
+    calm: lv >= 11 ? 0.7 : 1,                 // calmaria entre ondas
+    foodMult: lv >= 14 ? 0.85 : 1,            // colheita rende menos
+    bossHp: 1 + 0.06 * lv + (lv >= 20 ? 0.25 : 0),
+    bossDmg: 1 + (lv >= 8 ? 0.15 : 0),
+    ess: 1 + 0.15 * lv,                       // essência paga o desafio
+  };
+}
+export function ascLabel(lv = 0) {
+  let label = "A BRUMA DORME";
+  for (const m of ASC_MILESTONES) if (lv >= m.lv) label = m.label;
+  return label;
+}
+
+// ----------------------------------------------- PÓS-FINAL: ERAS E PROFECIAS ---
+// As ERAS marcam as gerações do Formigueiro Eterno (uma por vitória); as
+// PROFECIAS são os vaticínios da Matriarca, cumpridos por essência.
+export const ERA_LINES = [
+  "A PRIMEIRA GERAÇÃO DESCE DA MONTANHA",
+  "O VALE APRENDE O CHEIRO DA COLÔNIA",
+  "AS TRILHAS VIRAM ESTRADAS DE MUSGO",
+  "A CHUVA ENCONTRA TÚNEIS QUE A ESPERAM",
+  "O FUNGO CANTA AS ESTAÇÕES ANTES DA HORA",
+  "A SEDA VIRA BANDEIRA NO TOPO DO MUNDO",
+  "OUTRAS RAINHAS VÊM PEDIR MEMÓRIA",
+  "A NÉVOA VOLTA — E ENCONTRA PORTAS",
+  "O MAPA JÁ NASCE COM AS TRILHAS POSTAS",
+  "A COLÔNIA JÁ É PAISAGEM",
+];
+export const PROPHECIES = [
+  { id: "p_primeira", name: "O PRIMEIRO DEGRAU",    desc: "Vença a CAMPANHA", reward: 60 },
+  { id: "p_asc5",     name: "MEMÓRIA DE BRUMA",     desc: "Vença a CAMPANHA na ASCENSÃO 5 ou mais", reward: 120 },
+  { id: "p_asc10",    name: "A TRAVESSIA REFEITA",  desc: "Vença a CAMPANHA na ASCENSÃO 10 ou mais", reward: 200 },
+  { id: "p_asc20",    name: "A NÉVOA PLENA",        desc: "Vença a CAMPANHA na ASCENSÃO 20", reward: 400 },
+  { id: "p_onze",     name: "ARCA DE NOÉ",          desc: "Choque as 11 espécies em um único run", reward: 150 },
+  { id: "p_dino",     name: "A COLOSSA VIVE",       desc: "Vença com uma DINOPONERA viva em campo", reward: 100 },
+  { id: "p_nacao",    name: "NAÇÃO EM PÉ",          desc: "Vença com 16 formigas vivas ou mais", reward: 120 },
+  { id: "p_rainha",   name: "SANGUE FRIO",          desc: "Vença sem a rainha cair de 50% de vida", reward: 100 },
+  { id: "p_imacula",  name: "FLOR IMACULADA",       desc: "Vença a CAMPANHA sem perder formigas", reward: 250 },
+  { id: "p_ciclo3",   name: "O CICLO SEMPRE VOLTA", desc: "Chegue ao CICLO 3 na SOBREVIVÊNCIA", reward: 150 },
+  { id: "p_cacada",   name: "COLÔNIA ALFA",         desc: "Vença a CAÇADA de chefões", reward: 120 },
+  { id: "p_ondas25",  name: "MARÉ QUE NÃO CESSA",   desc: "Repila 25 ondas em um único run", reward: 100 },
+  { id: "p_mil",      name: "CEIFA MIL",            desc: "Acumule 1000 abates no total", reward: 150 },
+  { id: "p_arvore",   name: "ÁRVORE EM FLOR",       desc: "Tenha 15 nós na Árvore da Evolução", reward: 120 },
+  { id: "p_keystone", name: "SANGUE DE ESPÉCIE",    desc: "Maximize um keystone lendário", reward: 150 },
+  { id: "p_era5",     name: "O REINO QUE NÃO TERMINA", desc: "Alcance a ERA 5 (cinco vitórias)", reward: 200 },
+];
+
 // ---------------------------------------------------------------- Mutações ---
 // raridade: 0 = comum, 1 = rara, 2 = épica
 export const RARITY = [
@@ -251,104 +359,171 @@ export const MAX_MUTS = 12;
 
 // --------------------------------------------------------------- Meta árvore --
 // Branches: T = TRABALHO (âmbar), G = GUERRA (vermelho), R = REAL (violeta)
+// Os MESMOS grupos e cores da fileira de formigas (loja) — a árvore e a
+// colônia falam a mesma língua visual.
 export const META_BRANCHES = {
-  T: { name: "TRABALHO", color: "#ffb347" },
-  G: { name: "GUERRA",   color: "#ff4d5a" },
-  R: { name: "REAL",     color: "#c77dff" },
-  N: { name: "NINHO",    color: "#7fd6a0" },
+  G: { name: "GUERRA",  color: "#ff4d5a" },  // ⚔️ combate/defesa
+  C: { name: "COLETA",  color: "#7fd6a0" },  // 🍃 coleta/exploração
+  H: { name: "CRIAÇÃO", color: "#6db7ff" },  // 🏥 construção/cura/criação
+  R: { name: "REAL",    color: "#ffd479" },  // 👑 espinha da rainha
 };
 
 export const META_NODES = [
   { id: "raiz", br: "R", icon: "crown", name: "COLÔNIA ANCESTRAL",
-    desc: "O coração do formigueiro eterno.", cost: [0], requires: [], x: 0, y: 0 },
+    desc: "O coração do formigueiro eterno.", cost: [0], requires: [], x: 0, y: 0,
+    tier: 2, sprite: "queen" },
 
-  // ---------------------------------------------------------------- TRABALHO
-  // economia do mundo: comida, essência, carga e ritmo das operárias
-  { id: "t_col", br: "T", icon: "food", name: "FORAGEM",
-    desc: "+15% de comida por pilha coletada.", cost: [25, 45, 70], requires: ["raiz"], x: -2.1, y: 0 },
-  { id: "t_vel", br: "T", icon: "bolt", name: "MARCHA RÁPIDA",
-    desc: "+10% de velocidade das operárias.", cost: [20, 35, 55], requires: ["t_col"], x: -3.3, y: -0.85 },
-  { id: "t_carga", br: "T", icon: "scale", name: "BOLSAS PROFUNDAS",
-    desc: "Operárias carregam +1 de carga.", cost: [30, 50, 70], requires: ["t_col"], x: -3.3, y: 0.85 },
-  { id: "t_ini", br: "T", icon: "egg", name: "PROLE INICIAL",
-    desc: "Começa a expedição com +2 operárias.", cost: [40, 75], requires: ["t_vel"], x: -4.5, y: -1.7 },
-  { id: "t_ambar", br: "T", icon: "wing_gem", name: "VEIOS DE ÂMBAR",
-    desc: "Cristais de essência rendem +2 por extração.", cost: [50, 85], requires: ["t_carga"], x: -4.5, y: 1.7 },
-  { id: "t_rap", br: "T", icon: "clover", name: "COLHEITA RÁPIDA",
-    desc: "+12% de velocidade de coleta em pilhas e veios.", cost: [35, 60, 95], requires: ["t_col"], x: -3.95, y: 0 },
-  { id: "t_rede", br: "T", icon: "sk_banner", name: "REDE DE TRILHAS",
-    desc: "+5% de velocidade para TODAS as formigas (fora do ninho).", cost: [40, 70, 110], requires: ["t_rap"], x: -5.4, y: 0 },
-  { id: "t_estoque", br: "T", icon: "lock", name: "ESTOQUE INICIAL",
-    desc: "Começa a expedição com +20 de comida.", cost: [30, 60], requires: ["t_ambar"], x: -5.6, y: 2.6 },
-  { id: "t_atalho", br: "T", icon: "hourglass", name: "ATALHO",
-    desc: "+5 de essência por invocar uma onda adiantada.", cost: [30, 55, 90], requires: ["t_rede"], x: -6.4, y: 0.9 },
-
-  // ------------------------------------------------------------------ GUERRA
-  // dano, vida, cadência, alcance e as bombas da bombeira
+  // ============================================================== ⚔️ GUERRA (combate/defesa) — as cores da fileira de formigas,
   { id: "g_dan", br: "G", icon: "fire_sword", name: "MANDÍBULA DE GUERRA",
-    desc: "+10% de dano para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.1, y: 0 },
+    desc: "+10% de dano para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.1, y: 0,
+    tier: 1, sprite: "soldier" },
   { id: "g_cri", br: "G", icon: "sk_fury", name: "FÚRIA CEGA",
-    desc: "+4% de chance de crítico (dano x2).", cost: [45, 70, 100], requires: ["g_dan"], x: 3.2, y: 1.15 },
+    desc: "+4% de chance de crítico (dano x2).", cost: [45, 70, 100], requires: ["g_dan"], x: 3.2, y: 1.15,
+    tier: 0 },
   { id: "g_cad", br: "G", icon: "sk_time", name: "CADÊNCIA DE GUERRA",
-    desc: "+8% de velocidade de ataque.", cost: [40, 65, 95], requires: ["g_cri"], x: 4.3, y: 2.3 },
+    desc: "+8% de velocidade de ataque.", cost: [40, 65, 95], requires: ["g_cri"], x: 4.3, y: 2.3,
+    tier: 0 },
   { id: "g_bomb", br: "G", icon: "sk_bomb", name: "PÓLVORA NEGRA",
-    desc: "+15% de raio da explosão da bombeira.", cost: [50, 85, 120], requires: ["g_cad"], x: 5.4, y: 3.45 },
+    desc: "+15% de raio da explosão da bombeira.", cost: [50, 85, 120], requires: ["g_cad"], x: 5.4, y: 3.45,
+    tier: 1 },
   { id: "g_vid", br: "G", icon: "sk_heart", name: "CARAPAÇA DURA",
-    desc: "+12% de vida para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.2, y: -1.4 },
+    desc: "+12% de vida para todas as aliadas.", cost: [20, 35, 50, 70, 95], requires: ["raiz"], x: 2.2, y: -1.4,
+    tier: 1 },
   { id: "g_arm", br: "G", icon: "shield", name: "CARAPAÇA BLINDADA",
-    desc: "-4% de dano recebido por todas as aliadas.", cost: [60, 100, 150], requires: ["g_vid"], x: 3.3, y: -2.5 },
+    desc: "-4% de dano recebido por todas as aliadas.", cost: [60, 100, 150], requires: ["g_vid"], x: 3.3, y: -2.5,
+    tier: 0 },
   { id: "g_esq", br: "G", icon: "sk_tornado", name: "ESQUIVA",
-    desc: "+5% de chance de esquivar por completo de um golpe.", cost: [45, 75, 110], requires: ["g_arm"], x: 4.4, y: -3.6 },
+    desc: "+5% de chance de esquivar por completo de um golpe.", cost: [45, 75, 110], requires: ["g_arm"], x: 4.4, y: -3.6,
+    tier: 0 },
   { id: "g_esp", br: "G", icon: "sk_acid", name: "ESPINHOS DE QUITINA",
-    desc: "Quem morde uma aliada leva 3 de dano por nível.", cost: [55, 90, 140], requires: ["g_esq"], x: 5.4, y: -4.5 },
+    desc: "Quem morde uma aliada leva 3 de dano por nível.", cost: [55, 90, 140], requires: ["g_esq"], x: 5.4, y: -4.5,
+    tier: 0 },
   { id: "g_grd", br: "G", icon: "spider", name: "PATRULHA INICIAL",
-    desc: "Começa a expedição com +1 soldado.", cost: [50, 90], requires: ["g_dan"], x: 3.3, y: -0.2 },
+    desc: "Começa a expedição com +1 soldado.", cost: [50, 90], requires: ["g_dan"], x: 3.3, y: -0.2,
+    tier: 0 },
   { id: "g_alc", br: "G", icon: "sk_slash", name: "MANDÍBULAS LONGAS",
-    desc: "+14 de alcance para as lutadoras.", cost: [35, 60, 90], requires: ["g_grd"], x: 4.4, y: -0.8 },
+    desc: "+14 de alcance para as lutadoras.", cost: [35, 60, 90], requires: ["g_grd"], x: 4.4, y: -0.8,
+    tier: 0 },
   { id: "g_fogo", br: "G", icon: "ember", name: "BRASA CONTÍNUA",
-    desc: "+15% de dano de queimadura.", cost: [45, 75], requires: ["g_alc"], x: 5.5, y: -1.4 },
+    desc: "+15% de dano de queimadura.", cost: [45, 75], requires: ["g_alc"], x: 5.5, y: -1.4,
+    tier: 0 },
+  { id: "k_bala", br: "G", icon: "sk_fury", name: "FERRÃO DA BALA",
+    desc: "A poneratoxina da FORMIGA-BALA reforça a ferroada: +0,35s de lentidão por nível.", cost: [55, 110, 180], requires: ["g_dan"], x: 6.4, y: 4.5,
+    tier: 2, sprite: "soldier" },
+  { id: "k_arpao", br: "G", icon: "sk_slash", name: "CEIFA DA ARPÃO",
+    desc: "O limiar da CEIFA sobe +8% por nível (de 22% a 46%), mas TODAS as aliadas perdem 5% de vida por nível.", cost: [60, 120, 190], requires: ["g_grd"], x: 6.6, y: -2.2,
+    tier: 2, sprite: "trapjaw" },
+  { id: "k_acrobata", br: "G", icon: "sk_acid", name: "VENENO DA ACROBATA",
+    desc: "O borrifo corrosivo da ACROBATA dura +20% e corrói +25% mais forte por nível.", cost: [50, 100, 160], requires: ["g_alc"], x: 6.7, y: -0.9,
+    tier: 2, sprite: "spitter" },
+  { id: "k_cefalote", br: "G", icon: "shield", name: "CABEÇA DE CEFALOTE",
+    desc: "A PORTA-VIVA aguenta mais: +5% de redução de dano e +30px de raio de guarda por nível (de 45% a 60%).", cost: [55, 105, 170], requires: ["g_esp"], x: 6.5, y: -5.3,
+    tier: 2, sprite: "tank" },
 
-  // -------------------------------------------------------------------- REAL
-  // a rainha e o que a colônia é para sempre
+  // ============================================================== 🍃 COLETA (coleta/exploração),
+  { id: "t_col", br: "C", icon: "food", name: "FORAGEM",
+    desc: "+15% de comida por pilha coletada.", cost: [25, 45, 70], requires: ["raiz"], x: -2.1, y: 0,
+    tier: 0, sprite: "worker" },
+  { id: "t_vel", br: "C", icon: "bolt", name: "MARCHA RÁPIDA",
+    desc: "+10% de velocidade das operárias.", cost: [20, 35, 55], requires: ["t_col"], x: -3.3, y: -0.85,
+    tier: 0 },
+  { id: "t_carga", br: "C", icon: "scale", name: "BOLSAS PROFUNDAS",
+    desc: "Operárias carregam +1 de carga.", cost: [30, 50, 70], requires: ["t_col"], x: -3.3, y: 0.85,
+    tier: 0 },
+  { id: "t_ini", br: "C", icon: "egg", name: "PROLE INICIAL",
+    desc: "Começa a expedição com +2 operárias.", cost: [40, 75], requires: ["t_vel"], x: -4.5, y: -1.7,
+    tier: 0 },
+  { id: "t_ambar", br: "C", icon: "wing_gem", name: "VEIOS DE ÂMBAR",
+    desc: "Cristais de essência rendem +2 por extração.", cost: [50, 85], requires: ["t_carga"], x: -4.5, y: 1.7,
+    tier: 0 },
+  { id: "t_rap", br: "C", icon: "clover", name: "COLHEITA RÁPIDA",
+    desc: "+12% de velocidade de coleta em pilhas e veios.", cost: [35, 60, 95], requires: ["t_col"], x: -3.95, y: 0,
+    tier: 0 },
+  { id: "t_rede", br: "C", icon: "sk_banner", name: "REDE DE TRILHAS",
+    desc: "+5% de velocidade para TODAS as formigas (fora do ninho).", cost: [40, 70, 110], requires: ["t_rap"], x: -5.4, y: 0,
+    tier: 1 },
+  { id: "t_estoque", br: "C", icon: "lock", name: "ESTOQUE INICIAL",
+    desc: "Começa a expedição com +20 de comida.", cost: [30, 60], requires: ["t_ambar"], x: -5.6, y: 2.6,
+    tier: 0 },
+  { id: "t_atalho", br: "C", icon: "hourglass", name: "ATALHO",
+    desc: "+5 de essência por invocar uma onda adiantada.", cost: [30, 55, 90], requires: ["t_rede"], x: -6.4, y: 0.9,
+    tier: 0 },
+  { id: "k_prata", br: "C", icon: "sun", name: "PASSO DA PRATA",
+    desc: "As arrancadas relâmpago da FORMIGA-PRATA ficam 10% mais frequentes por nível.", cost: [45, 90, 140], requires: ["t_ini"], x: -5.6, y: -2.7,
+    tier: 2, sprite: "scout" },
+  { id: "k_mel", br: "C", icon: "potion", name: "ÂMBAR DA DESPENSA",
+    desc: "O POTE-DE-MEL goteja com o estoque até +20 mais alto e 20% mais rápido por nível.", cost: [50, 100, 160], requires: ["t_estoque"], x: -6.7, y: 3.5,
+    tier: 2, sprite: "gatherer" },
+  { id: "k_cortadeira", br: "C", icon: "fungo", name: "JARDIM DA CORTADEIRA",
+    desc: "Cada entrega de comida da CORTADEIRA apressa o fungário em +0,3s extra por nível.", cost: [45, 95, 150], requires: ["t_rede"], x: -6.7, y: -0.9,
+    tier: 2, sprite: "worker" },
+
+  // ============================================================== 🏥 CRIAÇÃO (construção/cura/criação de formigas),
+  { id: "n_dig", br: "H", icon: "fist", name: "PATAS ESCAVADORAS",
+    desc: "+30% de velocidade de escavação das câmaras.", cost: [35, 60, 95], requires: ["raiz"], x: 0, y: 1.5,
+    tier: 0, sprite: "weaver" },
+  { id: "n_corr", br: "H", icon: "bolt", name: "CORREDOR RÁPIDO",
+    desc: "+10% de velocidade das formigas dentro do formigueiro.", cost: [30, 55, 85], requires: ["n_dig"], x: -1.3, y: 2.4,
+    tier: 0 },
+  { id: "n_berco", br: "H", icon: "egg", name: "BERÇÁRIO FECUNDO",
+    desc: "-12% no tempo de chocar operárias no berçário.", cost: [35, 65, 100], requires: ["n_dig"], x: 1.3, y: 2.4,
+    tier: 1 },
+  { id: "n_ovo", br: "H", icon: "hourglass", name: "POSTURA REAL",
+    desc: "A rainha bota ovos 10% mais rápido.", cost: [40, 70, 110], requires: ["n_corr"], x: -2.5, y: 3.3,
+    tier: 0 },
+  { id: "n_fung", br: "H", icon: "fungo", name: "FUNGÁRIO DO NINHO",
+    desc: "+1 comida a cada ciclo do fungário.", cost: [40, 70, 105], requires: ["n_berco"], x: 0, y: 3.3,
+    tier: 1 },
+  { id: "n_eco", br: "H", icon: "sk_rico", name: "PLANTA ECONÔMICA",
+    desc: "-8% no custo de escavar/evoluir câmaras.", cost: [35, 65, 100], requires: ["n_berco"], x: 2.5, y: 3.3,
+    tier: 0 },
+  { id: "n_desp", br: "H", icon: "food", name: "DESPENSA FUNDA",
+    desc: "+1 comida em cada entrega feita dentro do formigueiro.", cost: [45, 80, 120], requires: ["n_fung"], x: -1.3, y: 4.4,
+    tier: 0 },
+  { id: "n_zelo", br: "H", icon: "horseshoe", name: "ZELO DA COLÔNIA",
+    desc: "6% de chance da operária sobreviver a um golpe fatal (fica com 1).", cost: [45, 75, 110], requires: ["n_fung"], x: 1.3, y: 4.4,
+    tier: 0 },
+  { id: "k_tecela", br: "H", icon: "spider", name: "SEDA DA TECELÃ",
+    desc: "A seda rende mais: os bônus de cada TECELÃ valem +15% mais por nível.", cost: [50, 100, 160], requires: ["n_desp", "n_zelo"], x: 0, y: 5.5,
+    tier: 2, sprite: "weaver" },
+  { id: "k_matabele", br: "H", icon: "heal", name: "BÁLSAMO DA MATABELE",
+    desc: "A cura da MATABELE é +8% mais forte e a triagem ativa com feridas até +4% mais leves por nível.", cost: [50, 100, 160], requires: ["n_zelo"], x: 3.8, y: 4.4,
+    tier: 2, sprite: "healer" },
+
+  // ============================================================== 👑 REAL (a espinha da rainha),
   { id: "r_vida", br: "R", icon: "sk_heart", name: "SANGUE REAL",
-    desc: "Rainha: +15% de vida máxima.", cost: [25, 45, 65], requires: ["raiz"], x: 0, y: -1.5 },
+    desc: "Rainha: +15% de vida máxima.", cost: [25, 45, 65], requires: ["raiz"], x: 0, y: -1.5,
+    tier: 0 },
   { id: "r_reg", br: "R", icon: "heal", name: "NÉCTAR REAL",
-    desc: "A rainha se alimenta 30% mais rápido.", cost: [25, 45, 65], requires: ["r_vida"], x: -1.3, y: -2.4 },
+    desc: "A rainha se alimenta 30% mais rápido.", cost: [25, 45, 65], requires: ["r_vida"], x: -1.3, y: -2.4,
+    tier: 0 },
   { id: "r_ovo", br: "R", icon: "egg", name: "ÍNCUBO",
-    desc: "Tempo de chocar -12%.", cost: [30, 50, 70], requires: ["r_vida"], x: 1.3, y: -2.4 },
+    desc: "Tempo de chocar -12%.", cost: [30, 50, 70], requires: ["r_vida"], x: 1.3, y: -2.4,
+    tier: 0 },
   { id: "r_casca", br: "R", icon: "sk_frost", name: "CASCA DA RAINHA",
-    desc: "-8% de dano recebido pela rainha.", cost: [40, 70, 110], requires: ["r_reg"], x: -2.5, y: -3.3 },
+    desc: "-8% de dano recebido pela rainha.", cost: [40, 70, 110], requires: ["r_reg"], x: -2.5, y: -3.3,
+    tier: 0 },
   { id: "r_xp", br: "R", icon: "clover", name: "SABEDORIA DA COLÔNIA",
-    desc: "+10% de XP ganho (nível da colônia sobe mais rápido).", cost: [45, 80, 120], requires: ["r_ovo"], x: -0.1, y: -3.6 },
+    desc: "+10% de XP ganho (nível da colônia sobe mais rápido).", cost: [45, 80, 120], requires: ["r_ovo"], x: -0.1, y: -3.6,
+    tier: 0 },
   { id: "r_regen", br: "R", icon: "potion", name: "VITALIDADE REAL",
-    desc: "A rainha regenera 1,5 de vida por segundo.", cost: [40, 70, 110], requires: ["r_ovo"], x: 1.4, y: -3.6 },
+    desc: "A rainha regenera 1,5 de vida por segundo.", cost: [40, 70, 110], requires: ["r_ovo"], x: 1.4, y: -3.6,
+    tier: 0 },
   { id: "r_essin", br: "R", icon: "essence", name: "ESSÊNCIA ANCESTRAL",
-    desc: "Começa a expedição com +20 de essência.", cost: [30, 55, 90], requires: ["r_casca"], x: -2.5, y: -4.6 },
+    desc: "Começa a expedição com +20 de essência.", cost: [30, 55, 90], requires: ["r_casca"], x: -2.5, y: -4.6,
+    tier: 0 },
   { id: "r_pop", br: "R", icon: "spider", name: "SUPERORGANISMO",
-    desc: "+4 de população máxima.", cost: [35, 55, 80, 110], requires: ["raiz"], x: -1.35, y: -0.95 },
+    desc: "+4 de população máxima.", cost: [35, 55, 80, 110], requires: ["raiz"], x: -1.35, y: -0.95,
+    tier: 1 },
   { id: "r_ess", br: "R", icon: "sun", name: "ALMA DA COLÔNIA",
-    desc: "+15% de toda essência ganha.", cost: [30, 55, 80], requires: ["r_regen"], x: 1.5, y: -4.8 },
+    desc: "+15% de toda essência ganha.", cost: [30, 55, 80], requires: ["r_regen"], x: 1.5, y: -4.8,
+    tier: 1 },
   { id: "r_ren", br: "R", icon: "crown", name: "RENASCIMENTO",
-    desc: "1x por expedição: a rainha renasce com 50% de vida.", cost: [160], requires: ["r_xp", "r_regen"], x: 0, y: -5.4 },
-
-  // ------------------------------------------------------------------- NINHO
-  // o que acontece lá dentro: escavação, berçário, despensa e fungário
-  { id: "n_dig", br: "N", icon: "fist", name: "PATAS ESCAVADORAS",
-    desc: "+30% de velocidade de escavação das câmaras.", cost: [35, 60, 95], requires: ["raiz"], x: 0, y: 1.5 },
-  { id: "n_corr", br: "N", icon: "bolt", name: "CORREDOR RÁPIDO",
-    desc: "+10% de velocidade das formigas dentro do formigueiro.", cost: [30, 55, 85], requires: ["n_dig"], x: -1.3, y: 2.4 },
-  { id: "n_berco", br: "N", icon: "egg", name: "BERÇÁRIO FECUNDO",
-    desc: "-12% no tempo de chocar operárias no berçário.", cost: [35, 65, 100], requires: ["n_dig"], x: 1.3, y: 2.4 },
-  { id: "n_ovo", br: "N", icon: "hourglass", name: "POSTURA REAL",
-    desc: "A rainha bota ovos 10% mais rápido.", cost: [40, 70, 110], requires: ["n_corr"], x: -2.5, y: 3.3 },
-  { id: "n_fung", br: "N", icon: "fungo", name: "FUNGÁRIO DO NINHO",
-    desc: "+1 comida a cada ciclo do fungário.", cost: [40, 70, 105], requires: ["n_berco"], x: 0, y: 3.3 },
-  { id: "n_eco", br: "N", icon: "sk_rico", name: "PLANTA ECONÔMICA",
-    desc: "-8% no custo de escavar/evoluir câmaras.", cost: [35, 65, 100], requires: ["n_berco"], x: 2.5, y: 3.3 },
-  { id: "n_desp", br: "N", icon: "food", name: "DESPENSA FUNDA",
-    desc: "+1 comida em cada entrega feita dentro do formigueiro.", cost: [45, 80, 120], requires: ["n_fung"], x: -1.3, y: 4.4 },
-  { id: "n_zelo", br: "N", icon: "horseshoe", name: "ZELO DA COLÔNIA",
-    desc: "6% de chance da operária sobreviver a um golpe fatal (fica com 1).", cost: [45, 75, 110], requires: ["n_fung"], x: 1.3, y: 4.4 },
+    desc: "1x por expedição: a rainha renasce com 50% de vida.", cost: [160], requires: ["r_xp", "r_regen"], x: 0, y: -5.4,
+    tier: 2 },
+  { id: "k_dinoponera", br: "R", icon: "fist", name: "FÚRIA DA DINOPONERA",
+    desc: "A colosso nasce com +25% de vida por nível, mas cada nível custa +40 de comida extra.", cost: [60, 120, 200], requires: ["r_vida"], x: -2.6, y: -1.9,
+    tier: 2, sprite: "giant" },
 ];
 
 // ------------------------------------------------------------- Recursos iniciais
@@ -435,11 +610,11 @@ export const MAPS = [
     ambient: { colors: ["#fff6c8", "#ffd479", "#bfffa8"], style: "pollen" },
     tint: "#26301c",
     waves: [
-      { budget: 9,  title: "PRIMEIRO SANGUE",   tip: "Eles sentiram o cheiro da colônia..." },
+      { budget: 9,  title: "PRIMEIRO SANGUE",   tip: "Primeiro sangue da travessia. A Névoa ficou lá embaixo." },
       { budget: 15, title: "ENXAME RASTEJANTE" },
       { budget: 22, title: "MANDÍBULAS",         draftAfter: true },
       { budget: 30, title: "MARÉ CRESCENTE" },
-      { boss: true, budget: 10, title: "O TAMBORILADOR", tip: "A terra ressoa com pulos pesados..." },
+      { boss: true, budget: 10, title: "O TAMBORILADOR", tip: "A lebre tamborila o amanhecer. A planície cobra passagem." },
     ],
   },
   {
@@ -465,11 +640,11 @@ export const MAPS = [
     ambient: { colors: ["#bfffa8", "#8f6fd6", "#37e6c8"], style: "spores" },
     tint: "#1c2a1f",
     waves: [
-      { budget: 26, title: "SOMBRAS DO BOSQUE",  tip: "A floresta observa o formigueiro." },
+      { budget: 26, title: "SOMBRAS DO BOSQUE",  tip: "A floresta observa. Aqui a raposa caça colônias há cem gerações." },
       { budget: 34, title: "GANÂNCIA DAS SAÚVAS" },
       { budget: 42, title: "LEGIONÁRIAS",        draftAfter: true },
       { budget: 52, title: "CERCO DE MUSGO" },
-      { boss: true, budget: 12, title: "A CAÇADORA ASTUTA", tip: "Algo grande fareja a floresta..." },
+      { boss: true, budget: 12, title: "A CAÇADORA ASTUTA", tip: "Ela conhece o cheiro de rainha melhor que ninguém." },
     ],
   },
   {
@@ -495,12 +670,12 @@ export const MAPS = [
     ambient: { colors: ["#37e6c8", "#8fd3ff", "#bfffa8"], style: "wisps" },
     tint: "#16211f",
     waves: [
-      { budget: 42, title: "BOLHUM PODRE", tip: "O pântano exala velhas pegadas." },
+      { budget: 42, title: "BOLHUM PODRE", tip: "O brejo é a boca da Névoa. Atravessem depressa." },
       { budget: 50, title: "VOADORAS FAMINTAS" },
       { budget: 60, title: "PESTE CRISTALINA", draftAfter: true },
       { budget: 70, title: "LODO E SANGUE" },
       { budget: 82, title: "O CHAMADO DAS ÁGUAS" },
-      { boss: true, budget: 14, title: "A SOMBRA ALADA", tip: "Um grito corta o nevoeiro..." },
+      { boss: true, budget: 14, title: "A SOMBRA ALADA", tip: "A tetraz mergulha sem aviso. Até a Névoa recua daqui." },
     ],
   },
   {
@@ -526,12 +701,12 @@ export const MAPS = [
     ambient: { colors: ["#ffd479", "#ffb347", "#ff9a5c"], style: "sand" },
     tint: "#2c2214",
     waves: [
-      { budget: 66, title: "PÓ E MANDÍBULAS", tip: "Um formigueiro rival reclama a areia." },
+      { budget: 66, title: "PÓ E MANDÍBULAS", tip: "A areia guarda um trato antigo: filhas em troca de perdão." },
       { budget: 78, title: "CAVALCADA SECA" },
       { budget: 90, title: "DUNAS HOSTIS", draftAfter: true },
       { budget: 104, title: "LEGIONÁRIAS DA COLÔNIA RIVAL" },
       { budget: 118, title: "O EXÉRCITO DA MATRIARCA" },
-      { boss: true, budget: 16, title: "A MATRIARCA RIVAL", tip: "A falsa rainha vem cobrar tributo." },
+      { boss: true, budget: 16, title: "A MATRIARCA RIVAL", tip: "Ela beijou a Névoa para sobreviver. A rainha não perdoa." },
     ],
   },
   {
@@ -557,12 +732,12 @@ export const MAPS = [
     ambient: { colors: ["#ff9a5c", "#c07a33", "#ffd479"], style: "leaves" },
     tint: "#261d12",
     waves: [
-      { budget: 96, title: "FOLHAS E ESPINHAS", tip: "Sob as folhas, patrulhas em formação." },
+      { budget: 96, title: "FOLHAS E ESPINHAS", tip: "O último verde antes do inverno patrulha em formação." },
       { budget: 110, title: "CAÇA DE OUTONO" },
       { budget: 126, title: "CASCOS TROVEJAM", draftAfter: true },
       { budget: 142, title: "O BANDO ESTÉRI" },
       { budget: 160, title: "REI CAÍDO DO BOSQUE" },
-      { boss: true, budget: 18, title: "O GALHADA REAL", tip: "Galhos partem. Ele não foge." },
+      { boss: true, budget: 18, title: "O GALHADA REAL", tip: "O outono coroado guarda o bosque. A coroa cobra um reino." },
     ],
   },
   {
@@ -588,13 +763,13 @@ export const MAPS = [
     ambient: { colors: ["#e8f4ff", "#a8b4cc", "#7fd6ff"], style: "snow" },
     tint: "#1e2430",
     waves: [
-      { budget: 132, title: "GEADA MORDAZ", tip: "O inverno reúne as feras." },
+      { budget: 132, title: "GEADA MORDAZ", tip: "O frio é só o hálito dela. A Névoa subiu junto." },
       { budget: 148, title: "AVALANCHE DE CARAPAÇAS" },
       { budget: 166, title: "VENTO CORTANTE", draftAfter: true },
       { budget: 186, title: "MARCHA GLACIAL" },
       { budget: 206, title: "A TORA FINAL" },
       { budget: 228, title: "O CERCO FINAL" },
-      { boss: true, budget: 20, title: "O DEVASTADOR", tip: "A terra treme. O rei dos predadores despertou." },
+      { boss: true, budget: 20, title: "O DEVASTADOR", tip: "O arauto do inverno desperta. No alto do pico, algo pálido observa." },
     ],
   },
 ];
@@ -615,12 +790,12 @@ export const HELP_CONTROLS = [
   ["G", "Invocar a próxima onda (+ess)"],
   ["F", "Convocar a guarda ao formigueiro"],
   ["ESPAÇO", "Centralizar no formigueiro"],
-  ["1 A 9", "Chocar classes de formigas (9 = gigante)"],
+  ["1 A 0", "Chocar classes (0 = Tecelã). A Dinoponera é só no card"],
   ["ESC", "Pausar / voltar"],
 ];
 export const HELP_TIPS = [
-  "CURANDEIRAS curam o exército. BOMBEIRAS queimam em área.",
-  "BATEDORAS são baratas, velozes e interceptam invasores.",
+  "MATABELES curam o exército - feridas críticas em dobro.",
+  "PRATA é veloz e barata: intercepta invasores e revela o mapa.",
   "Cristais ROXOS dão essência — a moeda da evolução eterna.",
   "Mutações valem na expedição. A ÁRVORE é para sempre.",
 ];

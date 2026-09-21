@@ -17,6 +17,7 @@ import { SFX } from "./audio.js";
 import {
   allies, spawnAnt, popUsed, popCapTotal, recomputeAllies,
 } from "./units.js";
+import { colony } from "./brain.js";
 import { clamp, rand, lerp, TAU } from "./utils.js";
 
 // ------------------------------------------------------------------ salas ---
@@ -198,7 +199,10 @@ export function nestUpdate(dt) {
   // ---- escavação em andamento: o tempo corre e as escavadoras ajudam
   if (nest.dig) {
     const workers = nest.ants.filter((n) => n.job === "digger").length;
-    const speed = (1 + workers * 0.16) * (mods().digSpeed || 1);
+    // FORMIGA-TECELÃ (Oecophylla): a seda reforça as galerias recém-abertas -
+    // cada Tecelã viva (até 3) acelera a escavação
+    const weavers = Math.min(3, colony.counts.weaver || 0);
+    const speed = (1 + workers * 0.16) * (1 + 0.12 * weavers * (mods().weaverBoost || 1)) * (mods().digSpeed || 1);
     nest.dig.t += dt * speed;
     const r = roomOf(nest.dig.id);
     if (Math.random() < dt * 14) {
@@ -217,7 +221,7 @@ export function nestUpdate(dt) {
     const nursery = runRef().chambers.nursery;
     nest.growT -= dt;
     if (nest.growT <= 0) {
-      nest.growT = Math.max(9, 20 - nursery * 4) / (mods().nurserySpeed || 1);
+      nest.growT = Math.max(9, 20 - nursery * 4) / ((1 + 0.1 * Math.min(3, colony.counts.weaver || 0) * (mods().weaverBoost || 1)) * (mods().nurserySpeed || 1));
       if (popUsed() < popCapTotal()) {
         // A formiga nasce no MUNDO (junto ao formigueiro, como as chocadas na
         // loja) — o que é posicionado na entrada é só o corpo dela na cena de
@@ -234,7 +238,7 @@ export function nestUpdate(dt) {
         const i = nest.larvae.length;
         nest.larvae.push({ i, x: 0, y: 0, t: rand(0, 6.28), born: 0 });
         float(center(roomOf("nursery")).x, center(roomOf("nursery")).y - 30,
-          "NOVA OPERÁRIA!", "#7fd6a0", 1.8);
+          "NOVA CORTADEIRA!", "#7fd6a0", 1.8);
         SFX.hatch();
       }
     }
@@ -646,7 +650,7 @@ function drawNursery(ctx, time) {
   if (st.lvl > 0) {
     const grow = clamp(1 - nest.growT / Math.max(9, 20 - st.lvl * 4), 0, 1);
     bar(ctx, r.x + 26, r.y + r.h - 34, r.w - 52, 7, grow, { c1: "#7fd6a0", c2: "#33543f", segments: 0 });
-    drawText(ctx, "PRÓXIMA OPERÁRIA", r.x + r.w / 2, r.y + r.h - 46, { color: "#7fd6a0", align: "center" });
+    drawText(ctx, "PRÓXIMA CORTADEIRA", r.x + r.w / 2, r.y + r.h - 46, { color: "#7fd6a0", align: "center" });
   }
 }
 
@@ -672,7 +676,7 @@ function drawBarracks(ctx) {
   ctx.beginPath(); ctx.moveTo(r.x + r.w - 28, r.y + 24); ctx.lineTo(r.x + r.w - 40, r.y + 46); ctx.stroke();
   const g = nest.ants.find((n) => n.job === "colossus");
   if (!g) drawText(ctx, "SEM COLOSSO", c.x, r.y + r.h - 16, { color: PAL.textDim, align: "center" });
-  else drawText(ctx, "FORMIGA GIGANTE DE FOLGA", c.x, r.y + r.h - 16, { color: "#ffd479", align: "center" });
+  else drawText(ctx, "DINOPONERA DE FOLGA", c.x, r.y + r.h - 16, { color: "#ffd479", align: "center" });
 }
 
 function drawFungus(ctx, time) {

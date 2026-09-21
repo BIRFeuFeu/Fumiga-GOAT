@@ -12,6 +12,9 @@ const MANIFEST = {
   scout: "sprites/ants/scout.png",
   healer: "sprites/ants/healer.png",
   bomber: "sprites/ants/bomber.png",
+  gatherer: "sprites/ants/gatherer.png",
+  trapjaw: "sprites/ants/trapjaw.png",
+  weaver: "sprites/ants/weaver.png",
   e_runner: "sprites/ants/e_runner.png",
   e_swarm: "sprites/ants/e_swarm.png",
   e_warrior: "sprites/ants/e_warrior.png",
@@ -138,8 +141,6 @@ const MANIFEST = {
   parallax_mountains: "parallax/menu/layer4_mountains_silhouette_highres.png",
   parallax_main: "parallax/menu/layer3_main_grass_ruins_anthill_transparent.png",
   parallax_foreground: "parallax/menu/layer1_foreground_vines_bottom_final.png",
-  parallax_main_full: "parallax/menu/layer3_main_grass_ruins_anthill.png",
-  parallax_sky_old: "parallax/menu/layer5_sky_sunset_moon.png",
 };
 
 export const IMG = {};   // key -> HTMLImageElement (sprites crus)

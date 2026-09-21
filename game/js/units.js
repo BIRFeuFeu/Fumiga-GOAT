@@ -52,7 +52,7 @@ export function spawnQueen() {
 function computeAntStats(typeId) {
   const b = UNITS[typeId], m = mods();
   // bônus por nível da colônia (XP) + câmaras internas
-  const run = window.__run;
+  const run = G.run;
   const lv = run ? (run.level || 0) : 0;
   const lvHp = 1 + LEVEL_HP * lv, lvDmg = 1 + LEVEL_DMG * lv;
   const ch = run ? run.chambers : null;
@@ -67,7 +67,7 @@ function computeAntStats(typeId) {
     }
   } catch(e) {}
   return {
-    hp: Math.round(b.hp * m.hpAll * lvHp),
+    hp: Math.round(b.hp * m.hpAll * (typeId === "giant" ? m.dinoHp : 1) * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
     speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
     range: b.range + m.rangeBonus, atkCd,
@@ -109,6 +109,8 @@ export function recomputeQueen() {
 export function spawnAnt(typeId, x, y, opts = {}) {
   const m = mods();
   const st = computeAntStats(typeId);
+  // PROFECIAS: o run lembra quais espécies já nasceram nele (ARCA DE NOÉ)
+  if (G.run) { if (!G.run.hatched) G.run.hatched = new Set(); G.run.hatched.add(typeId); }
   const a = {
     id: nextId(), type: typeId, def: UNITS[typeId], faction: "ally",
     x, y, vx: 0, vy: 0, angle: rand(0, 6.28),
@@ -143,8 +145,29 @@ export function spawnAnt(typeId, x, y, opts = {}) {
         attacker.takeDamage(mm.reflect, "ally");
       }
       dmg *= mm.muts.dmgTaken * (1 - mm.armor);
+      // CEFALOTE (Cephalotes): a cabeça-escudo tapa a porta do ninho - perto
+      // do formigueiro a casca quase dobra (-45% de dano recebido)
+      if (this.type === "tank") {
+        const A = world.anthill;
+        const gateR = 280 + mm.gateRange;
+        if (A && dist2(this.x, this.y, A.x, A.y) < gateR * gateR) {
+          dmg *= 0.55 - mm.gatePower;
+          if (Math.random() < 0.18) floatText(this.x, this.y - this.bodyR - 8, "PORTA-VIVA", { color: "#ffb347", life: 0.8, scale: 0.9 });
+        }
+      }
       this.hp -= dmg;
       this.hitT = 0.12;
+      // PROFECIA: SANGUE FRIO — o run lembra o pior momento da rainha
+      if (this.type === "queen" && G.run) G.run.queenMinHp = Math.min(G.run.queenMinHp ?? 1, Math.max(0, this.hp) / this.maxHp);
+      // QUEIXO-DE-ARPÃO: escape jump - o coice da mandíbula a arremessa
+      // longe do perigo (como a formiga real foge saltando)
+      if (this.type === "trapjaw" && this.hp > 0 && attacker && Math.random() < 0.3) {
+        const ja = Math.atan2(this.y - attacker.y, this.x - attacker.x);
+        const c = collide(this.x + Math.cos(ja) * 62, this.y + Math.sin(ja) * 62, this.bodyR);
+        this.x = c.x; this.y = c.y;
+        dustPoof(this.x, this.y, 5);
+        floatText(this.x, this.y - this.bodyR - 8, "SALTO!", { color: "#8fd3ff", life: 0.7, scale: 0.9 });
+      }
       // ESTIGMERGIA: quem apanha perfuma o chão de alarme — as irmãs desviam
       markDanger(this.x, this.y, 0.55);
       if (chance(0.3)) SFX.hurt();
@@ -177,6 +200,7 @@ export function spawnAnt(typeId, x, y, opts = {}) {
 export function killAnt(a) {
   if (a.dying) return;
   a.dying = 0.45;
+  if (G.run) G.run.deaths = (G.run.deaths || 0) + 1; // PROFECIA: FLOR IMACULADA
   a.dead = true;
   a.selected = false;
   // o cérebro libera a vaga no recurso que ela ia buscar e grita "perigo"
@@ -200,7 +224,7 @@ export function unitCost(typeId) {
   const b = UNITS[typeId], m = mods();
   const alive = allies.filter(a => a.type === typeId && !a.dead).length +
                 eggs.filter(e => e.type === typeId).length;
-  return Math.max(1, Math.round(b.cost * Math.pow(1 + b.costGrow, alive) * m.muts.costMult));
+  return Math.max(1, Math.round((b.cost + (typeId === "giant" ? m.dinoCost : 0)) * Math.pow(1 + b.costGrow, alive) * m.muts.costMult));
 }
 
 export function popCapTotal() {
@@ -223,7 +247,7 @@ export function unitLimitLeft(typeId) {
 }
 
 export function buyUnit(typeId) {
-  const run = window.__run; // setado por game.js
+  const run = G.run; // setado por game.js
   const cost = unitCost(typeId);
   if (run.food < cost) { SFX.deny(); return { ok: false, why: "SEM COMIDA" }; }
   if (popUsed() >= popCapTotal()) { SFX.deny(); return { ok: false, why: "POPULAÇÃO CHEIA" }; }
@@ -238,11 +262,14 @@ export function buyUnit(typeId) {
 }
 
 function hatchTick(dt) {
-  const G2 = window.__run;
+  const run = G.run;
   if (eggs.length === 0) return;
   const e = eggs[0];
-  const nursery = G2 && G2.chambers ? G2.chambers.nursery : 0;
-  e.tLeft -= dt * (1 + 0.18 * nursery);
+  const nursery = run && run.chambers ? run.chambers.nursery : 0;
+  // FORMIGA-TECELÃ (Oecophylla): a seda das larvas agasalha os ovos -
+  // cada Tecelã viva (até 3) acelera a chocagem
+  const weavers = Math.min(3, colony.counts.weaver || 0);
+  e.tLeft -= dt * (1 + 0.18 * nursery + 0.08 * weavers * (mods().weaverBoost || 1));
   if (Math.random() < 0.1) {
     const A = world.anthill;
     spawnPart({ x: A.x + rand(-22, 22), y: A.y + rand(-18, 18), life: 0.6, size: 1.8, sizeEnd: 0.4, color: "#ffe9a8", drag: 1 });
@@ -268,7 +295,7 @@ function hatchTick(dt) {
 // ----------------------------------------------------------------- update ---
 export function updateAllies(dt, foes) {
   const m = mods();
-  const G2 = window.__run;
+  const run = G.run;
 
   // rainha
   const q = allies.queen;
@@ -278,8 +305,8 @@ export function updateAllies(dt, foes) {
     if (m.queenRegen > 0) q.hp = Math.min(q.maxHp, q.hp + m.queenRegen * dt);
     // alimentação da rainha (cura com comida)
     q.eatT -= dt;
-    if (q.eatT <= 0 && q.hp < q.maxHp && G2.food >= QUEEN.eatFood) {
-      G2.food -= QUEEN.eatFood;
+    if (q.eatT <= 0 && q.hp < q.maxHp && run.food >= QUEEN.eatFood) {
+      run.food -= QUEEN.eatFood;
       q.hp = Math.min(q.maxHp, q.hp + QUEEN.eatHp);
       q.eatT = QUEEN.eatCd * m.queenEatRate;
       const A = world.anthill;
@@ -298,7 +325,7 @@ export function updateAllies(dt, foes) {
   // A colônia mede as próprias necessidades e o feromônio evapora. A lista de
   // recursos é montada 1x por frame e compartilhada por todas as decisões (é
   // assim que uma formiga "vê" a fila de cada pilha sem varrer o mundo).
-  colonyTick(dt, allies, foes, G2);
+  colonyTick(dt, allies, foes, run);
   resourceList.length = 0;
   for (const p of world.piles) {
     if (p.amount <= 0 || p.blocked) continue;
@@ -334,6 +361,17 @@ function moveToward(a, tx, ty, dt, speedMult = 1) {
   const m = mods();
   let sp = a.st.speed * speedMult;
   if (a.slowT > 0) sp *= 0.75;
+  // FORMIGA-PRATA (Cataglyphis bombycina): a formiga mais rápida do mundo
+  // dispara arrancadas relâmpago a cada ~4s enquanto corre
+  if (a.type === "scout") {
+    a.dashT = (a.dashT || 2) - dt;
+    if (a.dashT <= 0) { a.dashT = (3.4 + rand(0, 1.6)) / m.dashFreq; a.dashBoost = 0.5; }
+    if (a.dashBoost > 0) {
+      a.dashBoost -= dt;
+      sp *= 1.9;
+      if (Math.random() < dt * 26) spawnPart({ x: a.x, y: a.y, life: 0.3, size: 1.6, sizeEnd: 0.3, color: "#c8e6ff", glow: true, drag: 1 });
+    }
+  }
   const dx = tx - a.x, dy = ty - a.y;
   const d = Math.hypot(dx, dy);
   if (d < 4) return true;
@@ -387,7 +425,15 @@ function attackMelee(a, target, dt) {
   let dmg = a.st.dmg * packBonus(a);
   const crit = mm.critChance > 0 && Math.random() < mm.critChance;
   if (crit) dmg *= 2;
+  // QUEIXO-DE-ARPÃO (Odontomachus): a mordida mais rápida do mundo CEIFA
+  // inimigos já abatidos - golpe em dobro quando a vítima está abaixo de 22%
+  if (a.type === "trapjaw" && target.hp / (target.maxHp || 1) < 0.22 + mm.ceifaBonus) {
+    dmg *= 2;
+    floatText(target.x, target.y - (target.bodyR + 12), "CEIFA!", { color: "#8fd3ff", life: 0.9, scale: 1.1, pop: 0.5 });
+  }
   target.takeDamage(dmg, "ally", a);
+  // FORMIGA-BALA (Paraponera): poneratoxina - a ferroada deixa o inimigo lento
+  if (a.type === "soldier" && !target.dead) target.slowT = Math.max(target.slowT || 0, 1.4 + mm.stingSlow);
   if (mm.muts.weakenOnHit) target.weakT = Math.max(target.weakT || 0, 3);
   if (mm.muts.thorns && target.applyThorns) target.applyThorns(mm.muts.thorns);
   a.lunge = 0.22;
@@ -414,7 +460,7 @@ function attackMelee(a, target, dt) {
 let guardSlot = 0;               // próxima vaga no anel de guarda do formigueiro
 
 function brainCtx(foes, m) {
-  return { foes, allies, m, run: window.__run, piles: resourceList };
+  return { foes, allies, m, run: G.run, piles: resourceList };
 }
 
 /** Pensa agora (forçado) e aplica o desejo. Devolve o desejo ou null. */
@@ -545,9 +591,24 @@ function updateAnt(a, dt, foes, m) {
     if (a.carry > 0 && Math.random() < dt * 6) scent(a.x, a.y, "#37e6c8");
   }
 
+  // FORMIGA-POTE-DE-MEL (Myrmecocystus): na escassez, a despensa viva
+  // goteja comida enquanto descansa perto do formigueiro
+  if (a.type === "gatherer") {
+    a.melT = (a.melT || 4) - dt;
+    if (a.melT <= 0) {
+      a.melT = 3 / m.melRate;
+      const A = world.anthill;
+      const r = G.run;
+      if (r && r.status === "running" && r.food < 60 + m.melThresh && dist2(a.x, a.y, A.x, A.y) < 240 * 240) {
+        r.food += 1;
+        spawnPart({ x: a.x + rand(-4, 4), y: a.y - 6, vx: rand(-3, 3), vy: rand(-18, -8), life: 0.5, size: 1.8, sizeEnd: 0.5, color: "#ffd479", glow: true, drag: 1 });
+      }
+    }
+  }
+
   brainTick(a, dt, foes, m);
 
-  if (role === "worker") updateWorker(a, dt, foes, true, m, window.__run);
+  if (role === "worker") updateWorker(a, dt, foes, true, m, G.run);
   else if (role === "healer") updateHealer(a, dt, foes, m);
   else if (a.def.attack === false) updateScout(a, dt, foes, m);
   else updateFighter(a, dt, foes, true, m);
@@ -575,7 +636,7 @@ function updateScout(a, dt, foes, m) {
 }
 
 // ------------------------------------------------------------- trabalhadora -
-function updateWorker(a, dt, foes, think, m, G2) {
+function updateWorker(a, dt, foes, think, m, run) {
   // detecção de perigo
   if (think && a.state !== "flee") {
     const danger = nearestFoe(a, foes, 105);
@@ -676,7 +737,7 @@ function updateWorker(a, dt, foes, think, m, G2) {
       if (!arrived) {
         moveToward(a, A.x, A.y, dt);
       } else {
-        deposit(a, m, G2);
+        deposit(a, m, run);
       }
       break;
     }
@@ -728,14 +789,19 @@ function finishGather(a, m) {
   else acquireResource(a);
 }
 
-function deposit(a, m, G2) {
+function deposit(a, m, run) {
   const K = a.carryKind;
   if (K === "food" || K === "amber") {
     let v = a.carry * (K === "amber" ? 3 : 1);
     v = Math.round(v * m.foodBonus * (K === "food" ? m.muts.foodGather : 1)) + (K === "food" ? m.muts.depositBonus : 0);
-    const pantry = G2.chambers ? G2.chambers.pantry : 0;
+    const pantry = run && run.chambers ? run.chambers.pantry : 0;
     if (pantry > 0) v = Math.round(v * (1 + 0.15 * pantry));
-    G2.food += v;
+    if (run) run.food += Math.max(1, Math.round(v * (run.ascFood || 1))); // ASCENSÃO nv14: COLHEITA MAGRA
+    // FORMIGA-CORTADEIRA (Atta): as folhas alimentam o fungário - cada
+    // entrega de comida apressa o próximo cultivo
+    if (run && a.type === "worker" && K === "food" && run.fungusT !== undefined) {
+      run.fungusT = Math.max(0.6, run.fungusT - 0.9 - m.fungusPower);
+    }
     if (v >= 6) floatText(a.x, a.y - 12, "+" + v, { color: "#ffd479", life: 0.9 });
     if (m.muts.seedDrop && Math.random() < m.muts.seedDrop) {
       dropOrb(a.x, a.y, 1);
@@ -797,7 +863,10 @@ function updateHealer(a, dt, foes, m) {
       // canaliza cura
       a.angle = angLerp(a.angle, Math.atan2(tgt.y - a.y, tgt.x - a.x), 1 - Math.pow(0.0001, dt));
       a.bob += dt * 3;
-      tgt.hp = Math.min(tgt.maxHp, tgt.hp + a.st.healRate * dt);
+      // FORMIGA-MATABELE (Megaponera): triagem de guerra - feridas críticas
+      // recebem o dobro da cura (na natureza, 90% dos resgatados sobrevivem)
+      const triage = tgt.hp / tgt.maxHp < 0.3 + m.triageBonus ? 2 : 1;
+      tgt.hp = Math.min(tgt.maxHp, tgt.hp + a.st.healRate * triage * m.healPower * dt);
       a.healFxT -= dt;
       if (a.healFxT <= 0) {
         a.healFxT = 0.22;
@@ -935,6 +1004,7 @@ function spitAt(a, tgt, m) {
     aoe: isBomb ? a.st.aoe : 0,
     burnDps: isBomb ? a.st.burnDps : 0,
     burnDur: isBomb ? a.st.burnDur : 0,
+    venom: !isBomb && a.type === "spitter", // veneno corrosivo da ACROBATA
     arc: isBomb,
   });
   if (isBomb) { SFX.whoosh(); } else { SFX.spit(); }

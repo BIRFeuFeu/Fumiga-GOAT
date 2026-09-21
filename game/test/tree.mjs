@@ -87,6 +87,15 @@ for (const br of Object.keys(META_BRANCHES)) {
   const howMany = META_NODES.filter((n) => n.br === br).length;
   if (howMany < 6) bad(`ramo ${br} só tem ${howMany} nós`);
 }
+// raridades do rework: tier válido + cada grupo tem ao menos 1 lendário
+for (const n of META_NODES) {
+  if (![0, 1, 2].includes(n.tier || 0)) bad(`${n.id}: tier inválido (${n.tier})`);
+}
+for (const br of Object.keys(META_BRANCHES)) {
+  const leg = META_NODES.filter((n) => n.br === br && (n.tier || 0) === 2).length;
+  if (!leg) bad(`grupo ${br} sem nó lendário`);
+}
+ok("raridades: " + [0, 1, 2].map((t) => META_NODES.filter((n) => (n.tier || 0) === t).length).join("/") + " nós (comum/raro/lendário)");
 ok("recursos de sprite: " + META_NODES.map((n) => n.icon).filter((v, i, a) => a.indexOf(v) === i).length + " ícones distintos");
 
 // ------------------------------------------- 2) todo nó muda algum bônus ----
@@ -106,6 +115,9 @@ const NEUTRAL = {
   aoeMult: 1, burnMult: 1, armor: 0, dodge: 0, reflect: 0, queenArmor: 0, xpGain: 1,
   queenRegen: 0, startEssence: 0, digSpeed: 1, nurserySpeed: 1, nestEgg: 1,
   fungusRate: 0, chamberCost: 1, nestDeposit: 0, nestSpeed: 1, workerSave: 0,
+  stingSlow: 0, ceifaBonus: 0, venomTime: 1, venomDps: 1, gatePower: 0, gateRange: 0,
+  dashFreq: 1, melThresh: 0, melRate: 1, fungusPower: 0, weaverBoost: 1,
+  healPower: 1, triageBonus: 0, dinoHp: 1, dinoCost: 0,
 };
 const inert = [];
 for (const n of META_NODES) {
@@ -170,6 +182,17 @@ for (const [label, pass] of checks) {
   if (pass) ok(`bônus chegou na ficha: ${label}`);
   else bad(`bônus NÃO chegou na ficha: ${label}`);
 }
+// keystones de espécie: bônus novos saem do neutro (trade-off incluso)
+G.save.nodes.k_bala = 1; G.save.nodes.k_arpao = 1; G.save.nodes.k_dinoponera = 1;
+const sp = mods();
+const spChecks = [
+  ["stingSlow (FERRÃO DA BALA)", sp.stingSlow > 0],
+  ["ceifaBonus (CEIFA DA ARPÃO)", sp.ceifaBonus > 0],
+  ["trade-off da ARPÃO no hpAll", sp.hpAll < 1 + 0.12 * metaLevel("g_vid")],
+  ["dinoHp + dinoCost (FÚRIA DA DINOPONERA)", sp.dinoHp > 1 && sp.dinoCost > 0],
+];
+for (const [label, pass] of spChecks) pass ? ok("keystone ativa: " + label) : bad("keystone NÃO ativa: " + label);
+
 // a explosão da bombeira com PÓLVORA NEGRA é maior de verdade
 if (buffed.st.aoe > baseStats.aoe && buffed.st.burnDps > baseStats.burnDps) {
   ok(`bomba com a árvore: aoe ${baseStats.aoe.toFixed(0)} -> ${buffed.st.aoe.toFixed(0)}, queimadura ${baseStats.burnDps.toFixed(1)} -> ${buffed.st.burnDps.toFixed(1)}`);

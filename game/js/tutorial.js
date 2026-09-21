@@ -46,12 +46,12 @@ const STEP_DEFS = [
   },
   {
     id: "hatch", title: "CHOQUE NOVAS FORMIGAS", icon: "i_egg",
-    desc: "Aperte 1 para chocar uma OPERÁRIA. Ela nasce no formigueiro.",
+    desc: "Aperte 6 para chocar uma CORTADEIRA. Ela nasce no formigueiro.",
     on(name) { if (name === "buy") TUT._done = true; },
   },
   {
     id: "army", title: "FORME A GUARDA", icon: "i_shield",
-    desc: "Choque uma SOLDADO (tecla 2) e aperte F para convocar a guarda.",
+    desc: "Choque uma FORMIGA-BALA (tecla 1) e aperte F para convocar a guarda.",
     on(name, data) {
       if (name === "rally") { TUT._done = true; return; }
       if (name === "buy" && data && data !== "worker") TUT._done = true;

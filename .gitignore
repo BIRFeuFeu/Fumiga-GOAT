@@ -1,0 +1,37 @@
+# ============================================================================
+# FUMIGA — o que nunca entra no repositório
+# O projeto é JavaScript puro sem build: só código, arte e testes versionados.
+# ============================================================================
+
+# lixo de sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*~
+
+# editores / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# node (testes headless rodam com node puro, sem dependências)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# caches de ferramenta (o repo tem scripts python em tools/)
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# artefatos locais de inspeção (test/nestmap.mjs e test/treemap.mjs
+# geram fora do repo por padrão — isto é rede de segurança)
+formigueiro-layout.png
+arvore-layout.png
+
+# segredos e logs
+.env
+.env.*
+*.log

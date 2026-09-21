@@ -92,8 +92,11 @@ await wait(400);
 expect(!!en.boss, "chefe presente: " + (en.boss && en.boss.kind));
 
 // ---- HUD loja (coordenadas espelham o HUD compacto do rework: toggle 92 px,
-// cards de 38 px em pitch 42, fileira de 64 px de altura colada no rodapé)
-const FOOT_Y = 540 - 64, SHOP_TOGGLE_X = 10 + 46, GIANT_X = 10 + 92 + 6 + 8 * 42 + 19;
+// cards de 38 px em pitch 42, fileira de 64 px de altura colada no rodapé;
+// 11 classes em 4 grupos com respiro de 12 px entre grupos — a DINOPONERA é
+// o 11º e último card, após combate(5) + coleta(3) + criação(2))
+const FOOT_Y = 540 - 64, SHOP_TOGGLE_X = 10 + 46,
+  GIANT_X = 10 + 92 + 6 + 5 * 42 + 12 + 3 * 42 + 12 + 2 * 42 + 12 + 19;
 expect(units.eggs.length === 0, "loja começa recolhida (sem encomenda pendente)");
 mouse.x = GIANT_X; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
@@ -263,6 +266,20 @@ await wait(60);
 pressed.Escape = false;
 await wait(700);
 expect(G.screen === "TITLE", "ESC saiu da árvore — screen=" + G.screen);
+
+// ---- PROFECIAS: botão novo no HUD da árvore abre a tela pós-final --------
+meta.enterTree();
+G.screen = "TREE";
+await wait(150);
+await click(960 - 480 + 70, 38);          // botão PROFECIAS (480..620)
+expect(G.screen === "PROPHECY", "abriu a tela de PROFECIAS — screen=" + G.screen);
+pressed.Escape = true;
+await wait(60);
+pressed.Escape = false;
+await wait(700);
+expect(G.screen === "TREE", "ESC voltou das profecias para a árvore — screen=" + G.screen);
+await click(960 - 180 + 78, 38);          // VOLTAR
+expect(G.screen === "TITLE", "VOLTAR saiu da árvore — screen=" + G.screen);
 
 console.log(problems.length ? "PROBLEMAS: " + problems.join(" | ") : "UI-TEST PASSOU");
 process.exit(problems.length ? 2 : 0);

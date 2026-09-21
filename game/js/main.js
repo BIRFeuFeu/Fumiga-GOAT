@@ -121,10 +121,13 @@ async function bootAll() {
   await loadAll((p) => { progress = p * 0.9; });
   phase = "ASSANDO PIXELS";
   await new Promise(r => requestAnimationFrame(r));
-  dupSprite("soldier", "giant");
+  // DINOPONERA: a colosso é a FORMIGA-BALA tingida de violeta profundo,
+  // assada no mesmo tamanho 5x e ampliada na hora (ver setRotDrawScale)
+  bakeRotTinted("soldier", "giant", ANT_SIZES.giant, "#3a1f5e", 0.55);
   for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
   setRotDrawScale("giant", "soldier", GIANT_SCALE);
-  bakeRotTinted("worker", "gatherer", GATHERER_SIZE, "#7fd6c0", 0.5);
+  // MEL: a POTE-DE-MEL tem sprite próprio (gaster dourado inchado)
+  bakeRot("gatherer", GATHERER_SIZE);
   bakeBossSheets();
   progress = 1;
   boot();

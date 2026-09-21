@@ -2,8 +2,8 @@
 // FUMIGA — inimigos (colônia rival + predadores) e chefes de mapa
 // Chefes: hare (mapa 1) · fox (2) · grouse (3) · matriarch (4) · deer (5) · boar (6)
 // ============================================================================
-import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS } from "./config.js";
-import { mods } from "./state.js";
+import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS, ascMods } from "./config.js";
+import { mods, G } from "./state.js";
 import { world, collide, smashProps } from "./world.js";
 import { rand, dist, dist2, clamp, angLerp, nextId, TAU, easeOutCubic } from "./utils.js";
 import { burst, ring, scent, floatText, spawnPart, impact, bloodSplatter, explosion, dustPoof, levelUpBurst } from "./particles.js";
@@ -26,11 +26,13 @@ export function spawnEnemy(typeId, x, y, wave) {
   const b = ENEMIES[typeId];
   const hpMul = 1 + ENEMY_SCALE.hp * (wave - 1);
   const dmMul = 1 + ENEMY_SCALE.dmg * (wave - 1);
+  // ASCENSÃO DA NÉVOA: a horda lembra das vitórias anteriores
+  const asc = G.run && G.run.ascension ? ascMods(G.run.ascension) : null;
   const e = {
     id: nextId(), type: typeId, def: b, faction: "enemy",
     x, y, vx: 0, vy: 0, angle: rand(0, TAU),
-    hp: Math.round(b.hp * hpMul), maxHp: Math.round(b.hp * hpMul),
-    dmg: b.dmg * dmMul, speed: b.speed * rand(0.92, 1.08),
+    hp: Math.round(b.hp * hpMul * (asc ? asc.hp : 1)), maxHp: Math.round(b.hp * hpMul * (asc ? asc.hp : 1)),
+    dmg: b.dmg * dmMul * (asc ? asc.dmg : 1), speed: b.speed * rand(0.92, 1.08) * (asc ? asc.speed : 1),
     range: b.range, atkCd: b.atkCd,
     bodyR: typeId === "matron" ? 22 : typeId === "sentinel" ? 16 : typeId === "warrior" ? 13 : 9,
     state: "hunt", target: null, atkT: rand(0, 0.5), thinkT: rand(0, 0.2),
@@ -69,7 +71,7 @@ function spawnAdds(mother, n) {
   for (let i = 0; i < n; i++) {
     const a = rand(0, TAU);
     spawnEnemy(ENEMIES[mother.def.spawns] ? mother.def.spawns : "runner",
-      mother.x + Math.cos(a) * 24, mother.y + Math.sin(a) * 24, window.__run ? window.__run.wave : 1);
+      mother.x + Math.cos(a) * 24, mother.y + Math.sin(a) * 24, G.run ? G.run.wave : 1);
   }
   burst(mother.x, mother.y, { n: 16, color: ["#a32e46", "#ff4d5a"], spMin: 30, spMax: 120, life: 0.5, sizeMin: 1, sizeMax: 3 });
   SFX.stinger();
@@ -89,7 +91,7 @@ function killEnemy(e) {
   if (e.bodyR > 15) dustPoof(e.x, e.y, 8);
   SFX.splat();
   dropOrb(e.x, e.y, e.def.ess);
-  const run = window.__run;
+  const run = G.run;
   if (run) {
     run.kills++;
     run.xp += Math.round(Math.max(2, Math.round((e.def.ess || 2) * XP_KILL_FRAC)) * mods().xpGain);
@@ -223,7 +225,7 @@ function updateEnemy(e, dt, allies) {
       e.lunge = 0.2;
       shake(0.22);
       burst(A.x + rand(-30, 30), A.y + rand(-30, 30), { n: 8, color: ["#ff4d5a", "#a32e46"], spMin: 20, spMax: 90, life: 0.4 });
-      window.__run.queenJustHit = 0.3;
+      G.run.queenJustHit = 0.3;
     }
   } else {
     // sem alvos: vagar
@@ -247,14 +249,21 @@ function walkTo(e, tx, ty, dt, spMult = 1) {
 // =============================================================== CHEFES =====
 export function spawnBoss(kind, wave) {
   const b = BOSSES[kind];
+  // ASCENSÃO DA NÉVOA: chefes mais fortes (todos os campos de golpe escalam)
+  const asc = G.run && G.run.ascension ? ascMods(G.run.ascension) : null;
+  let bd = b;
+  if (asc) {
+    bd = { ...b };
+    for (const k of Object.keys(bd)) if (k === "dmg" || k.endsWith("Dmg")) bd[k] = Math.round(bd[k] * asc.bossDmg);
+  }
   const A = world.anthill;
   const B = {
-    id: nextId(), kind, def: b, faction: "enemy", isBoss: true,
+    id: nextId(), kind, def: bd, faction: "enemy", isBoss: true,
     // nasce na borda oposta ao formigueiro
     x: clamp(A.x < WORLD_W / 2 ? WORLD_W - 320 : 320, 260, WORLD_W - 260),
     y: clamp(A.y > WORLD_H / 2 ? 260 : WORLD_H - 260, 220, WORLD_H - 220),
     vx: 0, vy: 0, angle: Math.PI / 2,
-    hp: b.hp, maxHp: b.hp,
+    hp: Math.round(b.hp * (asc ? asc.bossHp : 1)), maxHp: Math.round(b.hp * (asc ? asc.bossHp : 1)),
     bodyR: kind === "boar" || kind === "deer" ? 52 : kind === "matriarch" ? 60 : 40,
     state: "stalk", t: 0, atkT: 3, special: 2.2, sub: "walk",
     animT: 0, dir: 0, frame: 0,
@@ -285,7 +294,7 @@ export function spawnBoss(kind, wave) {
 
 function killBoss(b) {
   b.dead = true; b.dying = 2.2;
-  const run = window.__run;
+  const run = G.run;
   if (run) { run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); run.mapsCleared++; }
   dropOrb(b.x, b.y, b.def.ess);
   shake(1.2);
@@ -309,7 +318,7 @@ export function updateBoss(dt, allies) {
     if (b.dying <= 0) {
       const idx = foes.indexOf(b);
       if (idx >= 0) foes.splice(idx, 1);
-      const run = window.__run;
+      const run = G.run;
       if (run) run.bossDefeated = b.kind;
       boss = null;
     }
@@ -429,7 +438,7 @@ function dashStep(b, dt, allies, dmg, onEnd) {
     }
   }
   const A = world.anthill;
-  const q = window.__alliesQueen || (allies && allies.queen) || null;
+  const q = (allies && allies.queen) || null;
   if (q && !q.dead && dist2(b.x, b.y, A.x, A.y) < (b.bodyR + 80) * (b.bodyR + 80)) {
     if (b._qHit !== true) { b._qHit = true; q.takeDamage(dmg * 1.4); shake(0.6); }
   }
@@ -510,7 +519,7 @@ function updateHare(b, dt, allies, q, A) {
 }
 
 function hareSummon(b) {
-  const run = window.__run;
+  const run = G.run;
   SFX.roar(); shake(0.4);
   floatText(b.x, b.y - 66, "O TAMBORILADOR CHAMA A NINHADA!", { color: "#ff4d5a", life: 1.5 });
   for (let i = 0; i < 3; i++) {
@@ -659,7 +668,7 @@ function updateMatriarch(b, dt, allies, q, A) {
 }
 
 function matriarchFrenzy(b, n) {
-  const run = window.__run;
+  const run = G.run;
   shake(0.4); SFX.stinger();
   floatText(b.x, b.y - 76, "A MATRIARCA BOTA MAIS SOLDADOS!", { color: "#c86bff", life: 1.5 });
   for (let i = 0; i < n; i++) {
@@ -861,7 +870,7 @@ function updateBoar(b, dt, allies, q, A) {
 }
 
 function boarSummon(b) {
-  const run = window.__run;
+  const run = G.run;
   SFX.roar();
   shake(0.5);
   floatText(b.x, b.y - 70, "O DEVASTADOR CHAMA AS IRRITADAS!", { color: "#ff4d5a", life: 1.6, scale: 1 });
