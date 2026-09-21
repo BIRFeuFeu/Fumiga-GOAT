@@ -45,7 +45,9 @@ Os dois modos não funcionam ao mesmo tempo: o Source é um ou outro.
 A Rainha vive dentro do formigueiro e a colônia migra por **6 biomas**, estilo *Dead Cells*:
 ao fim de cada mapa há um **chefão**, e derrotá-lo abre a passagem para o próximo. Entre as
 ondas, **drafts de mutações** (escolha 1 de 3) moldam a build, e a essência coletada alimenta
-a **Árvore da Evolução** — 39 nós e 113 níveis de progresso permanente.
+a **Árvore da Evolução** — 49 nós e 143 níveis de progresso permanente, organizada nos
+mesmos grupos das formigas (⚔️ Guerra, 🍃 Coleta, 🏥 Criação e 👑 Real), com nós **lendários**
+por espécie e keystones com trade-off.
 
 | # | Mapa | Chefão |
 |---|------|--------|
@@ -56,8 +58,20 @@ a **Árvore da Evolução** — 39 nós e 113 níveis de progresso permanente.
 | 5 | Bosque Dourado | O Galhada Real |
 | 6 | Pico Congelado | O Devastador |
 
-São **9 classes de formigas** (operária, coletora, soldado, cuspidora, guarda de ébano,
-batedora, curandeira, bombeira e a **FORMIGA GIGANTE** — 20× uma soldado, uma por expedição)
+Por trás dos seis degraus espera o sétimo: **A PÁLIDA**, a Névoa-Mãe — a história
+completa, do prólogo (a Noite Branca) à derrota final, está em
+[`LORE.md`](LORE.md).
+
+**Depois do final** o jogo não acaba: cada vitória abre uma nova **ERA** do
+Formigueiro Eterno, destrava um nível da **ASCENSÃO DA NÉVOA** (até 20, estilo
+Hades/Slay the Spire — inimigos e chefes mais fortes, essência em dobro) e paga
+as **PROFECIAS** (16 conquistas permanentes com essência).
+
+São **11 classes de formigas**, todas baseadas em **espécies reais** e separadas em
+3 grupos: **⚔️ Combate/Defesa** (Formiga-Bala, Queixo-de-Arpão, Formiga-Acrobata,
+Formiga-de-Fogo, Cefalote), **🍃 Coleta/Exploração** (Formiga-Cortadeira, Formiga-Pote-de-Mel,
+Formiga-Prata), **🏥 Construção/Cura/Criação** (Formiga-Matabele, Formiga-Tecelã) — mais a
+**DINOPONERA**, a maior formiga operária real, 20× uma soldado, uma por expedição
 e uma cena viva **dentro do formigueiro**, no espírito do *Ant Colony*: as formigas escavam,
 entregam comida, cuidam das larvas e a Rainha põe ovos.
 
@@ -70,7 +84,7 @@ entregam comida, cuidam das larvas e a Rainha põe ovos.
 | Mover a câmera | arrastar com o **botão esquerdo** (ou `WASD` / setas) |
 | Ordenar (atacar / coletar / mover) | **clique esquerdo** nas formigas selecionadas |
 | Selecionar | **botão direito**: clique = 1 formiga, arrastar = caixa, duplo clique = todas do tipo |
-| Chocar formigas | `Q` abre as 9 classes · `1`–`9` chocam (`9` = gigante) |
+| Chocar formigas | `Q` abre as 11 classes · `1`–`0` chocam · a Dinoponera é só no card |
 | Entrar no formigueiro | `B` |
 | Defender / chamar onda | `F` (guarda) · `G` (próxima onda, bônus de essência) |
 | Pausa · Som · Tutorial | `Esc` · `M` · `T` |
@@ -82,7 +96,8 @@ A bateria headless do projeto roda sem navegador:
 ```bash
 cd game
 node test/assets.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/layout.mjs && node test/uitest.mjs && node test/attack.mjs
+node test/layout.mjs && node test/uitest.mjs && node test/attack.mjs && \
+node test/endless.mjs && node test/prophecy.mjs
 
 FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 ```
@@ -93,6 +108,10 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 > `test/attack.mjs` mede o dano real de uma formiga de cada casta e garante que **só** soldado,
 > cuspidora, bombeira, guarda de ébano e formiga gigante atacam — operária, coletora, batedora e
 > curandeira causam dano zero (elas trabalham e fogem).
+>
+> `test/endless.mjs` joga o modo **SOBREVIVÊNCIA** de ponta a ponta pelo fluxo real do jogo:
+> derruba o chefão, confere que o ciclo vira (sem travar em "mapa limpo"), o bônus de essência,
+> o draft de recompensa e o orçamento das ondas escalando (+30% por ciclo).
 
 ## 🗂 Onde está o quê
 

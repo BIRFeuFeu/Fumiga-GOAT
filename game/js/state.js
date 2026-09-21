@@ -1,7 +1,7 @@
 // ============================================================================
 // FUMIGA-GOAT — estado global do jogo + persistência
 // ============================================================================
-import { META_NODES } from "./config.js";
+import { META_NODES, PROPHECIES } from "./config.js";
 
 const SAVE_KEY = "fumiga_goat_save_v1";
 
@@ -16,6 +16,9 @@ export const G = {
   save: {
     essence: 0, nodes: {},
     best: { wave: 0, kills: 0, wins: 0, runs: 0, maps: 0 },
+    ascension: 0,        // PÓS-FINAL: maior ASCENSÃO DA NÉVOA vencida (campanha)
+    era: 0,              // PÓS-FINAL: gerações do Formigueiro Eterno (1 por vitória)
+    prophecies: {},      // PÓS-FINAL: vaticínios cumpridos (id -> true)
     tutorial: 0,         // 1 = tutorial concluído (ou pulado)
     accessibility: {     // ♿ modo acessível - escolha do usuário
       invincible: false,
@@ -55,6 +58,9 @@ export function loadSave() {
         G.save.essence = Math.max(0, data.essence | 0);
         G.save.nodes = data.nodes && typeof data.nodes === "object" ? data.nodes : {};
         G.save.best = Object.assign({ wave: 0, kills: 0, wins: 0, runs: 0, maps: 0 }, data.best || {});
+        G.save.ascension = Math.max(0, data.ascension | 0 || 0);
+        G.save.era = Math.max(0, data.era | 0 || 0);
+        G.save.prophecies = data.prophecies && typeof data.prophecies === "object" ? data.prophecies : {};
         G.save.tutorial = data.tutorial ? 1 : 0;
         if (data.accessibility && typeof data.accessibility === "object") {
           G.save.accessibility = Object.assign(G.save.accessibility, data.accessibility);
@@ -108,7 +114,7 @@ export function metaBonus() {
     startWorkers: 2 * L("t_ini"),
     crystalYield: 2 * L("t_ambar"),
     dmgAll: 1 + 0.10 * L("g_dan"),
-    hpAll: 1 + 0.12 * L("g_vid"),
+    hpAll: Math.max(0.6, 1 + 0.12 * L("g_vid") - 0.05 * L("k_arpao")),  // trade-off da CEIFA DA ARPÃO
     critChance: 0.04 * L("g_cri"),
     startSoldiers: L("g_grd"),
     queenHp: 1 + 0.15 * L("r_vida"),
@@ -146,7 +152,67 @@ export function metaBonus() {
     nestDeposit: L("n_desp"),
     nestSpeed: 1 + 0.10 * L("n_corr"),
     workerSave: 0.06 * L("n_zelo"),
+
+    // ---------------------------------- keystones de espécie (rework da árvore)
+    // ⚔️ GUERRA
+    stingSlow: 0.35 * L("k_bala"),            // FERRÃO DA BALA: +s de lentidão
+    ceifaBonus: 0.08 * L("k_arpao"),          // CEIFA DA ARPÃO: limiar +
+    venomTime: 1 + 0.20 * L("k_acrobata"),    // VENENO DA ACROBATA: duração
+    venomDps: 1 + 0.25 * L("k_acrobata"),     //   …e corrosão
+    gatePower: 0.05 * L("k_cefalote"),        // CABEÇA DE CEFALOTE: redução +
+    gateRange: 30 * L("k_cefalote"),          //   …e raio da PORTA-VIVA
+    // 🍃 COLETA
+    dashFreq: 1 + 0.10 * L("k_prata"),        // PASSO DA PRATA: arrancadas +
+    melThresh: 20 * L("k_mel"),               // ÂMBAR DA DESPENSA: estoque-alvo
+    melRate: 1 + 0.20 * L("k_mel"),           //   …e gotejo mais rápido
+    fungusPower: 0.30 * L("k_cortadeira"),    // JARDIM DA CORTADEIRA: fungário
+    // 🏥 CRIAÇÃO
+    weaverBoost: 1 + 0.15 * L("k_tecela"),    // SEDA DA TECELÃ: bônus da Tecelã
+    healPower: 1 + 0.08 * L("k_matabele"),    // BÁLSAMO DA MATABELE: cura
+    triageBonus: 0.04 * L("k_matabele"),      //   …e limiar da triagem
+    // 👑 REAL
+    dinoHp: 1 + 0.25 * L("k_dinoponera"),     // FÚRIA DA DINOPONERA: vida +
+    dinoCost: 40 * L("k_dinoponera"),         //   …mas custa mais (trade-off)
   };
+}
+
+// PÓS-FINAL — PROFECIAS DA COLÔNIA: vaticínios da Matriarca, recuperados do
+// coração de âmbar. Cumprir uma profecia devolve memória (e paga essência).
+// Chamada no fim de cada run (settleRun) e ao abrir a tela de profecias
+// (run = null para checar só as de estado acumulado).
+export function checkProphecies(run, won, info = {}) {
+  const P = G.save.prophecies;
+  const earned = [];
+  const grant = (id) => {
+    if (P[id]) return;
+    const pr = PROPHECIES.find((q) => q.id === id);
+    if (!pr) return;
+    P[id] = true;
+    G.save.essence += pr.reward;
+    earned.push(pr);
+  };
+  if (run && won) {
+    if (run.mode === "campanha") {
+      grant("p_primeira");
+      if (run.ascension >= 5) grant("p_asc5");
+      if (run.ascension >= 10) grant("p_asc10");
+      if (run.ascension >= 20) grant("p_asc20");
+      if (run.hatched && run.hatched.size >= 11) grant("p_onze");
+      if ((info.alive || []).includes("giant")) grant("p_dino");
+      if ((info.alive || []).length >= 16) grant("p_nacao");
+      if ((run.queenMinHp ?? 1) >= 0.5) grant("p_rainha");
+      if (!(run.deaths > 0)) grant("p_imacula");
+    }
+    if (run.mode === "cacada") grant("p_cacada");
+  }
+  if (run && run.mode === "sobrevivencia" && (info.cycle || 0) >= 2) grant("p_ciclo3");
+  if (run && (run.wave || 0) >= 25) grant("p_ondas25");
+  // de estado (valem em qualquer chamada: fim de run ou tela de profecias)
+  if (G.save.best.kills >= 1000) grant("p_mil");
+  if (META_NODES.filter((n) => metaLevel(n.id) > 0).length >= 15) grant("p_arvore");
+  if (META_NODES.some((n) => n.id.startsWith("k_") && metaLevel(n.id) >= n.cost.length)) grant("p_keystone");
+  if ((G.save.era || 0) >= 5) grant("p_era5");
+  return earned;
 }
 
 // Bônus das mutações ativas da expedição atual -------------------------------

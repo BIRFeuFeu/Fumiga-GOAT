@@ -18,6 +18,10 @@ python3 -m http.server 8080
 # abra http://localhost:8080
 ```
 
+> 📜 **História**: a saga canônica — *A Travessia da Colônia Eterna*, da Noite Branca
+> à derrota de **A PÁLIDA** no Topo do Mundo — está em [`../LORE.md`](../LORE.md).
+> As tips das ondas, a tela de título e a vitória sussurram pedaços dela.
+
 ## O jogo
 
 A Rainha vive dentro do formigueiro. Você comanda a colônia em uma **expedição por 6 mapas**
@@ -40,35 +44,111 @@ Entre as ondas, **drafts de mutações** (escolha 1 de 3) moldam a build da expe
 **essência** coletada alimenta a **Árvore da Evolução** permanente (meta-progressão, com preços
 visíveis nos próprios nós).
 
-### Árvore da Evolução — 39 nós em 4 ramos
+### Árvore da Evolução — 49 nós nos 4 grupos da colônia
 
-| Ramo | Cor | Foco |
-|------|-----|------|
-| **TRABALHO** | âmbar | comida, essência, carga, ritmo de coleta e estoque inicial |
-| **GUERRA** | vermelho | dano, vida, cadência, alcance, bombas, armadura, esquiva e espinhos |
-| **REAL** | roxo | a rainha: vida, regeneração, alimentação, XP e renascimento |
-| **NINHO** | verde | o que acontece dentro do formigueiro: escavação, berçário, despensa, fungário |
+O rework alinhou a árvore com a fileira de formigas: **mesmos grupos, mesmas cores**.
+O fundo da tela banha a região de cada grupo com a sua cor, e a raiz é a própria RAINHA.
 
-São **113 níveis compráveis** (contra 46 do começo). Todo nó tem efeito de verdade — quem garante
-é o `test/tree.mjs`. A tela abre enquadrando a árvore, tem **VER TUDO** para ver os 39 nós de
-uma vez, legenda com o progresso de cada ramo e roda do mouse para o zoom (30%–220%).
+| Grupo | Cor | Foco |
+|-------|-----|------|
+| **⚔️ GUERRA** | vermelho | dano, vida, cadência, alcance, bombas, armadura, esquiva, espinhos |
+| **🍃 COLETA** | verde | comida, essência, carga, ritmo de coleta, estoque, escavação do mundo |
+| **🏥 CRIAÇÃO** | azul | o que acontece dentro do formigueiro: escavação, berçário, despensa, fungário |
+| **👑 REAL** | dourado | a rainha: vida, regeneração, alimentação, XP, renascimento e a colosso |
 
-### As 9 classes da colônia (teclas 1–9)
+#### Raridades
 
-1. **Operária** — colhe comida e essência, linha de vida da economia.
-2. **Coletora** — variante jade da operária: mais rápida e carrega mais.
-3. **Soldado** — linha de frente de confiança.
-4. **Cuspidora** — artilharia de longo alcance.
-5. **Guarda de Ébano** — tanque que provoca os ataques.
-6. **Batedora** — rápida e faro largo, pega o que escapa.
-7. **Curandeira** — cura os feridos em combate, frágil.
-8. **Bombeira** — joga bombas em arco: explosão em área (56px) + queimadura contínua.
-   O que faz o projétil virar bomba é a flag `bomb: true` na definição (`js/config.js`) —
-   antes o teste era pelo `role`, que é `"ranged"`, e a bomba saía sem efeito nenhum.
-9. **Formiga Gigante** — o colosso: **20 soldados de ponta a ponta**
-   (`GIANT_SCALE` em `js/config.js`), 3000 de vida, atrai a horda para si,
-   derruba uma árvore em cada passo e mata com um golpe só. Custa 320 de comida,
-   demora 7s para chocar e **só cabe uma por expedição**.
+Quanto mais raro o nó, maior e mais rebuscado: **COMUM** (círculo, cor do grupo),
+**RARO** (anel duplo ciano) e **LENDÁRIO** (hexágono dourado com o **sprite da espécie**
+desenhado dentro). Trilhos para lendários são dourados e mais grossos.
+
+#### Keystones de espécie (lendários, 10 novos)
+
+| Keystone | Espécie | Efeito por nível (máx. 3) |
+|----------|---------|---------------------------|
+| FERRÃO DA BALA | Paraponera | ferroada da Bala com +0,35s de lentidão |
+| CEIFA DA ARPÃO ⚠️ | Odontomachus | limiar da CEIFA +8% (22→46%), mas TODAS com −5% de vida |
+| VENENO DA ACROBATA | Crematogaster | veneno +20% de duração e +25% de corrosão |
+| CABEÇA DE CEFALOTE | Cephalotes | PORTA-VIVA +5% de redução e +30px de raio (45→60%) |
+| PASSO DA PRATA | Cataglyphis | arrancadas 10% mais frequentes |
+| ÂMBAR DA DESPENSA | Myrmecocystus | mel goteja com estoque +20 mais alto e 20% mais rápido |
+| JARDIM DA CORTADEIRA | Atta | cada entrega apressa o fungário +0,3s extra |
+| SEDA DA TECELÃ | Oecophylla | bônus de cada Tecelã +15% melhores |
+| BÁLSAMO DA MATABELE | Megaponera | cura +8% e triagem ativa com feridas até +4% mais leves |
+| FÚRIA DA DINOPONERA ⚠️ | Dinoponera | colosso +25% de vida, mas custa +40 de comida |
+
+São **143 níveis compráveis**. Todo nó tem efeito de verdade — quem garante é o `test/tree.mjs`
+(inclusive os trade-offs ⚠️ estilo *Path of Exile 2*). A tela abre enquadrando a árvore, tem
+**VER TUDO**, legenda com o progresso de cada grupo e as raridades, e roda do mouse para o zoom.
+
+### Depois do final — o fator replay (Eras, Ascensão e Profecias)
+
+Zerar a campanha é a primeira linha do que vem depois, não a última:
+
+- **ERAS DO FORMIGUEIRO ETERNO** — cada vitória de campanha avança uma Era
+  (contador permanente no save). A tela de vitória canta a era atual.
+- **ASCENSÃO DA NÉVOA** — após a 1ª vitória, a tela de modos ganha o seletor
+  `< ASCENSÃO DA NÉVOA N/20 >` na CAMPANHA. Cada nível: horda +8% vida/+4% dano,
+  chefes +6% vida, essência **+15%** — com marcos de rampa: nv2 ondas +10% de
+  orçamento, nv5 inimigos velozes, nv8 chefes cruéis (+15% de golpe), nv11
+  calmaria 30% mais curta, nv14 colheita magra, nv17 maré infinita, nv20 a
+  **NÉVOA PLENA** (+25% de vida de chefe). Vencer no nível atual destrava o
+  seguinte (estilo Hades/Slay the Spire).
+- **PROFECIAS DA COLÔNIA** — 16 vaticínios permanentes com recompensa de
+  essência (de "O PRIMEIRO DEGRAU" a "A NÉVOA PLENA", passando por "ARCA DE
+  NOÉ" e "FLOR IMACULADA"). O painel fica no botão **PROFECIAS** dentro da
+  Árvore da Evolução.
+
+A leitura em história está no [apêndice do LORE.md](../LORE.md) — puramente
+aditivo ao final do canon.
+
+### As 11 classes da colônia — todas espécies reais
+
+Cada classe é uma espécie de formiga que existe de verdade, com uma mecânica
+assinatura inspirada na biologia real. A fileira `Q` separa os grupos por cor:
+vermelho (combate), verde (coleta), azul (criação) e âmbar (colosso).
+
+**⚔️ COMBATE/DEFESA**
+
+1. **Formiga-Bala, A Atiradora** (*Paraponera clavata*) — o ferrão mais doloroso do
+   mundo; corpo a corpo pesado e ferroadas que deixam o inimigo **lento**.
+2. **Queixo-de-Arpão, A Estrondosa** (*Odontomachus bauri*) — mandíbulas a 200km/h
+   em 0,13ms: golpes em rajada, **ceifa** inimigos feridos (dano dobrado abaixo de
+   22%) e **salta** para longe quando atingida.
+3. **Formiga-Acrobata, A Bailarina** (*Crematogaster*) — ergue o gaster em coração e
+   borrifa **veneno que corrói** com o tempo (dano contínuo).
+4. **Formiga-de-Fogo, A Incendiária** (*Solenopsis invicta*) — bombas de brasa em
+   área (56px) com queimadura contínua.
+5. **Cefalote, A Porta-Viva** (*Cephalotes varians*) — a cabeça em disco que tapa a
+   porta do ninho: tanque que provoca os ataques e **-45% de dano** perto do
+   formigueiro.
+
+**🍃 COLETA/EXPLORAÇÃO**
+
+6. **Formiga-Cortadeira, A Agricultora** (*Atta cephalotes*) — corta folhas para o
+   fungo do ninho; cada entrega de comida **apressa o FUNGÁRIO**.
+7. **Formiga-Pote-de-Mel, A Despensa** (*Myrmecocystus mexicanus*) — gaster inchado
+   de mel: carrega mais e, quando a comida da colônia está baixa, **goteja mel**
+   (+1 comida por ciclo perto do formigueiro).
+8. **Formiga-Prata, A Veloz** (*Cataglyphis bombycina*) — a formiga mais rápida do
+   mundo (855mm/s): **arrancadas relâmpago** periódicas e faro largo.
+
+**🏥 CONSTRUÇÃO/CURA/CRIAÇÃO**
+
+9. **Formiga-Matabele, A Resgatadora** (*Megaponera analis*) — os únicos insetos que
+   tratam feridas com antibióticos: cura as irmãs em combate com **triagem** (o
+   dobro de cura em feridas críticas).
+10. **Formiga-Tecelã, A Costureira** (*Oecophylla smaragdina*) — costura o ninho com
+    a seda das larvas: cada Tecelã viva (até 3) **acelera escavação, berçário e
+    chocagem**.
+
+**👑 COLOSSO**
+
+11. **Dinoponera, A Colossa** (*Dinoponera australis*) — a maior formiga operária
+    real: **20× uma Formiga-Bala de ponta a ponta**, 3000 de vida, atrai a horda
+    para si, derruba uma árvore em cada passo e mata com um golpe só. Custa 320 de
+    comida, demora 7s para chocar, **só cabe uma por expedição** e nasce apenas
+    pelo card na fileira (sem atalho de teclado).
 
 ### Controles
 
@@ -84,8 +164,8 @@ uma vez, legenda com o progresso de cada ramo e roda do mouse para o zoom (30%�
 | Roda do mouse | zoom |
 | `Espaço` | centraliza no formigueiro |
 | `B` | **entra no formigueiro** (a cena viva de dentro) |
-| `1`–`9` | choca a classe selecionada (9 = gigante) — só com a fileira **FORMIGAS** aberta |
-| `Q` | abre/fecha a fileira das 9 classes de formigas |
+| `1`–`0` | choca a classe do número (0 = Tecelã) — a Dinoponera nasce só pelo card; a fileira **FORMIGAS** precisa estar aberta |
+| `Q` | abre/fecha a fileira das 11 classes de formigas (grupos por cor) |
 | `F` | convoca a guarda para defender |
 | `G` | invoca a próxima onda (bônus de essência) |
 | `T` | pula o tutorial |
@@ -105,14 +185,14 @@ trabalhando em tempo real.
 - **Curandeiras** cuidam das larvas no **BERÇÁRIO**, que de tempos em tempos gera uma operária
   nova (mais rápido com o berçário melhorado).
 - A **RAINHA** bota ovos na **CÂMARA REAL**; os ovos viram larvas e as larvas viram formigas.
-- No **QUARTEL** fica a FORMIGA GIGANTE de folga; **FUNGÁRIO** e **REFINARIA** enchem a sala de
+- No **QUARTEL** fica a DINOPONERA de folga; **FUNGÁRIO** e **REFINARIA** enchem a sala de
   fungos e cristais conforme o nível.
 - O mundo lá fora **congela** enquanto você está dentro; o cabeçalho mostra comida, essência,
   população e quanto as formigas já entregaram. `B` ou `Esc` volta para a colônia.
 
 ### HUD da expedição
 
-- O rodapé tem só dois botões: **FORMIGAS** (esquerda, abre a fileira das 9 classes — tecla `Q`) e
+- O rodapé tem só dois botões: **FORMIGAS** (esquerda, abre a fileira das 11 classes — tecla `Q`) e
   **FORMIGUEIRO** (canto inferior-direito). Nove cartões fixos na tela eram ruído demais.
 - O **minimapa** fica no canto **superior-direito**, livre do rodapé.
 
@@ -127,7 +207,7 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 - `js/` — módulos ES (game, units, enemies, waves, world, render, combat, particles,
   tutorial, meta, nest, audio, config, state, ui, font, input, camera, utils)
 - `js/nest.js` — a cena de dentro do formigueiro (salas, túneis, IA das formigas: carregar,
-  escavar, cuidar das larvas). Os bônus do ramo **NINHO** da árvore entram aqui: escavação,
+  escavar, cuidar das larvas). Os bônus do grupo **CRIAÇÃO** da árvore entram aqui: escavação,
   berçário, despensa, postura da rainha, custo das câmaras.
 - `assets/` — sprites e fontes bitmap processados
 - `tools/prepare_assets.sh` — regenera os sprites a partir das fontes
@@ -157,19 +237,25 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   sobrepostos em todas as telas (título, ajuda, árvore, HUD, tutorial, chefe, draft, câmara, pausa,
   transição, fim, mapa 6). Imprime quantos textos auditou em cada cenário: um verde com cobertura
   baixa não vale nada.
+- `test/endless.mjs` — o modo **SOBREVIVÊNCIA** de ponta a ponta (boot → card → chefão → ciclo):
+  o chefão é o marco do ciclo; ao cair, o jogo dá bônus de essência + draft e recomeça as ondas
+  com orçamento +30% por ciclo (`director.cycle` em `js/waves.js`). Regressão de um bug em que a
+  phase travava em `mapClear` para sempre no modo infinito (som de vitória em loop, controles
+  bloqueados).
 
 Cheque tudo antes de subir (é o que o CI local usa):
 
 ```bash
 node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
-node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs
-```
+node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
+node test/attack.mjs && node test/endless.mjs
+``` && node test/prophecy.mjs
 
 Para inspeção visual do layout das telas internas (gera PNG fora do repo):
 
 ```bash
 node test/nestmap.mjs    # -> /home/user/formigueiro-layout.png
-node test/treemap.mjs    # -> /home/user/arvore-layout.png (39 nós, 4 ramos, zoom de enquadramento)
+node test/treemap.mjs    # -> /home/user/arvore-layout.png (49 nós, 4 grupos, raridades, zoom de enquadramento)
 ```
 
 Chegue na porta, defenda a Rainha. A colônia é eterna.

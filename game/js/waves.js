@@ -2,7 +2,7 @@
 // FUMIGA — diretor de ondas com progressão de MAPAS (estilo Dead Cells):
 // calmaria → horda → draft → ... → CHEFÃO DE MAPA → transição → próximo bioma
 // ============================================================================
-import { MAPS, CALM_START, CALM_BETWEEN, SKIP_BONUS, XP_WAVE_BASE, XP_WAVE_PER } from "./config.js";
+import { MAPS, CALM_START, CALM_BETWEEN, SKIP_BONUS, XP_WAVE_BASE, XP_WAVE_PER, ascMods } from "./config.js";
 import { G, mods } from "./state.js";
 import { world, randGate } from "./world.js";
 import { rand, irand, pick, chance } from "./utils.js";
@@ -15,6 +15,7 @@ export const director = {
   phase: "calm",       // calm | wave | mapClear | done
   mapIdx: 0,           // mapa atual (0..MAPS.length-1)
   waveInMap: 0,        // onda atual dentro do mapa (0 = calmaria inicial)
+  cycle: 0,            // SOBREVIVÊNCIA: ciclos completos (chefão = marco de ciclo)
   timer: CALM_START,
   timerMax: CALM_START, // duração total da calmaria atual (anel de contagem do HUD)
   budget: 0,
@@ -29,6 +30,7 @@ export function resetDirector() {
   director.phase = "calm";
   director.mapIdx = 0;
   director.waveInMap = 0;
+  director.cycle = 0;
   director.timer = CALM_START;
   director.timerMax = CALM_START;
   director.budget = 0;
@@ -72,7 +74,7 @@ export function skipPeace() {
     ? 0 : SKIP_BONUS + mods().skipBonus;
   director.timer = Math.min(director.timer, 0.01);
   if (bonus > 0) {
-    const run = window.__run;
+    const run = G.run;
     run.essencePool += bonus;
     floatText(world.anthill.x, world.anthill.y - 100, "+" + bonus + " ESSÊNCIA (INVOCAÇÃO)", { color: "#c77dff", life: 1.4 });
   }
@@ -80,7 +82,7 @@ export function skipPeace() {
 }
 
 export function updateDirector(dt) {
-  const run = window.__run;
+  const run = G.run;
   if (run.status !== "running") return;
   setCombat(foes.length > 0 ? Math.min(1, 0.4 + foes.length / 30) : 0);
 
@@ -112,16 +114,23 @@ export function updateDirector(dt) {
 }
 
 function startWave() {
-  const run = window.__run;
+  const run = G.run;
   director.waveInMap++;
   run.wave++;
   const m = mapDef();
-  const w = m.waves[director.waveInMap - 1];
+  // rede de segurança: nunca indexa fora da lista (o modo SOBREVIVÊNCIA reinicia
+  // a contagem no fim de cada ciclo, mas qualquer outro caminho fica protegido)
+  const w = m.waves[Math.min(director.waveInMap, m.waves.length) - 1];
   director.phase = "wave";
-  director.budget = w.budget;
-  director.budgetMax = w.budget;
+  // SOBREVIVÊNCIA: cada ciclo vencido reabastece a horda com +30% de orçamento
+  // (inspirado nos ciclos do Endless de Vampire Survivors), em cima do
+  // ENEMY_SCALE que já escala vida/dano por onda global.
+  const cycMult = run.endless ? 1 + 0.3 * (director.cycle || 0) : 1;
+  director.budget = Math.round(w.budget * cycMult * (G.run && G.run.ascension ? ascMods(G.run.ascension).budget : 1));
+  director.budgetMax = director.budget;
   director.spawnT = 0.5;
-  run.banner = { title: "ONDA " + director.waveInMap + "/" + m.waves.length + " — " + w.title, sub: w.tip || "", t: 3.2 };
+  const cycTag = run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : "";
+  run.banner = { title: "ONDA " + director.waveInMap + "/" + m.waves.length + cycTag + " — " + w.title, sub: w.tip || "", t: 3.2 };
   SFX.horn();
   tutEvent("waveStart");
   if (w.boss && !director.bossSpawned) {
@@ -137,7 +146,7 @@ function spawnLogic(dt) {
   if (director.budget > 0 && director.budget < 1) director.budget = 0;
   director.spawnT -= dt;
   if (director.spawnT > 0 || director.budget <= 0) return;
-  const run = window.__run;
+  const run = G.run;
   const wN = run.wave;
   // ritmo: enche mais rápido conforme a onda global sobe
   const base = Math.max(1.3, 2.9 - wN * 0.06);
@@ -172,7 +181,7 @@ function runner_pick(types, wN) {
 }
 
 function endWave() {
-  const run = window.__run;
+  const run = G.run;
   const w = waveDef();
   const m = mapDef();
   const reward = run.wave * 6;
@@ -183,8 +192,28 @@ function endWave() {
   if (run.wave > run.bestWaveThisRun) run.bestWaveThisRun = run.wave;
 
   if (w.boss) {
-    // ----------------------------- MAPA LIMPO! -----------------------------
-    run.mapsCleared++;
+    // ----------------------------- CHEFÃO DERRUBADO -----------------------------
+    // (mapsCleared já subiu no killBoss — este é o único ponto de contagem)
+    if (run.endless) {
+      // SOBREVIVÊNCIA: o chefão é o marco do ciclo. Bônus grande de essência,
+      // draft de mutação e a horda se reorganiza mais forte (ondas recomeçam
+      // com orçamento maior — ver startWave). Sem diálogo, sem travar.
+      director.cycle++;
+      const bonus = 40 + run.wave * 8;
+      run.essencePool += bonus;
+      if (run.mutations.size < 12) director.pendingDrafts++;
+      director.phase = "calm";
+      director.timer = CALM_BETWEEN * mods().muts.calmMult * (G.run && G.run.ascension ? ascMods(G.run.ascension).calm : 1);
+      director.timerMax = director.timer;
+      director.waveInMap = 0;
+      director.bossSpawned = false;
+      director.inactivity = 0;
+      run.banner = { title: "CICLO " + director.cycle + " VENCIDO!", sub: "A horda se reorganiza e volta mais forte...", t: 4 };
+      floatText(world.anthill.x, world.anthill.y - 100, "+" + bonus + " ESSÊNCIA DO CICLO", { color: "#c77dff", life: 2, scale: 1.4 });
+      SFX.win();
+      return;
+    }
+    // CAMPANHA/CAÇADA: mapa limpo — diálogo de avanço
     director.phase = "mapClear";
     director.pendingDrafts++; // mutação como recompensa do chefão
     return;
@@ -198,7 +227,7 @@ function endWave() {
     director.pendingDrafts++;
   }
   director.phase = "calm";
-  director.timer = CALM_BETWEEN * mods().muts.calmMult;
+  director.timer = CALM_BETWEEN * mods().muts.calmMult * (G.run && G.run.ascension ? ascMods(G.run.ascension).calm : 1);
   director.timerMax = director.timer;
   director.bossSpawned = false;
   director.inactivity = 0;

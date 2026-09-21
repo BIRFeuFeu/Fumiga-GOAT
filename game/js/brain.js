@@ -160,12 +160,13 @@ export function colonyTick(dt, allies, foes, run) {
 
   // --- contagem de castas e de quem está fazendo o quê
   const hc = { gather: 0, explore: 0, haul: 0, fight: 0, heal: 0, hold: 0 };
-  const cc = { worker: 0, fighter: 0, ranged: 0, healer: 0, colossus: 0 };
+  const cc = { worker: 0, fighter: 0, ranged: 0, healer: 0, colossus: 0, weaver: 0 };
   let wounded = 0, combat = 0;
   for (const a of allies) {
     if (a.dead || a.dying) continue;
     const role = a.def && a.def.role;
     if (a.type === "giant") cc.colossus++;
+    else if (a.type === "weaver") cc.weaver++;
     else if (role === "worker") cc.worker++;
     else if (role === "healer") cc.healer++;
     else if (role === "ranged") cc.ranged++;

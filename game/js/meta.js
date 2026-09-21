@@ -11,7 +11,10 @@ import { mouse, pressed } from "./input.js";
 import { SFX } from "./audio.js";
 import { clamp, lerp, TAU } from "./utils.js";
 
-const NODE_R = 36;
+// rework das raridades: raio por tier (0 comum · 1 raro · 2 lendário)
+const NODE_R = [34, 42, 52];
+const TIER_NAME = ["COMUM", "RARO", "LENDÁRIO"];
+const TIER_COLOR = ["#9a8fc0", "#6ee7ff", "#ffd479"];
 const SP = 142;
 const YF = 0.88;
 const MIN_ZOOM = 0.28, MAX_ZOOM = 2.4;
@@ -92,10 +95,9 @@ export function updateTree(dt) {
     pan.y = pan.y * beforeZ / zoom;
     clampPan();
   }
-  const R = NODE_R * zoom;
   for (const n of META_NODES) {
     const s = nodeScreen(n);
-    if (Math.hypot(mouse.x - s.x, mouse.y - s.y) < R + 8) { hoverNode = n; break; }
+    if (Math.hypot(mouse.x - s.x, mouse.y - s.y) < NODE_R[n.tier || 0] * zoom + 8) { hoverNode = n; break; }
   }
   if (mouse.justDown && !hoverNode) dragStart = { mx: mouse.x, my: mouse.y, px: pan.x, py: pan.y, d: 0 };
   if (mouse.down && dragStart) {
@@ -145,8 +147,9 @@ export function drawTree(ctx, dt) {
       const br = META_BRANCHES[n.br];
 
       // linha base
-      ctx.strokeStyle = owned ? br.color : avai ? "#5a4f88" : "#2c2444";
-      ctx.lineWidth = owned ? 3.5 : 1.8;
+      const leg = (n.tier || 0) === 2;
+      ctx.strokeStyle = owned ? (leg ? "#ffd479" : br.color) : avai ? "#5a4f88" : "#2c2444";
+      ctx.lineWidth = owned ? (leg ? 5 : 3.5) : 1.8;
       ctx.globalAlpha = owned ? 0.95 : avai ? 0.5 : 0.25;
       ctx.beginPath();
       // curva suave ao invés de reta
@@ -175,15 +178,15 @@ export function drawTree(ctx, dt) {
         const qy = sp.y + (s.y - sp.y) * t;
         ctx.fillStyle = br.color;
         ctx.globalAlpha = 0.9;
-        ctx.beginPath(); ctx.arc(qx, qy, 2.5 * zoom, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(qx, qy, (leg ? 3.5 : 2.5) * zoom, 0, TAU); ctx.fill();
         ctx.globalAlpha = 1;
       }
     }
   }
   ctx.globalAlpha = 1;
 
-  // nós com design refinado
-  const R = NODE_R * zoom;
+  // nós com RARIDADES: COMUM (círculo, cor do grupo) · RARO (anel duplo
+  // ciano) · LENDÁRIO (hexágono dourado com o sprite da espécie)
   for (const n of META_NODES) {
     const s = nodeScreen(n);
     const lvl = metaLevel(n.id);
@@ -191,18 +194,20 @@ export function drawTree(ctx, dt) {
     const chk = metaCanBuy(n.id);
     const hot = hoverNode === n;
     const br = META_BRANCHES[n.br];
+    const tier = n.tier || 0;
+    const R = NODE_R[tier] * zoom;
 
     // aura pulsante para disponível
     if (chk.ok) {
       const pulse = 0.4 + Math.sin(G.time * 3.5) * 0.25;
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.strokeStyle = br.color;
-      ctx.globalAlpha = pulse * 0.4;
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = tier === 2 ? "#ffd479" : br.color;
+      ctx.globalAlpha = pulse * (0.4 + tier * 0.1);
+      ctx.lineWidth = 2 + tier;
       ctx.beginPath(); ctx.arc(s.x, s.y, R + 10 + Math.sin(G.time * 3.5) * 3, 0, TAU); ctx.stroke();
-      ctx.globalAlpha = pulse * 0.15;
-      ctx.beginPath(); ctx.arc(s.x, s.y, R + 18, 0, TAU); ctx.fillStyle = br.color; ctx.fill();
+      ctx.globalAlpha = pulse * (0.15 + tier * 0.05);
+      ctx.beginPath(); ctx.arc(s.x, s.y, R + 18, 0, TAU); ctx.fillStyle = tier === 2 ? "#ffd479" : br.color; ctx.fill();
       ctx.restore();
       ctx.globalAlpha = 1;
     }
@@ -222,12 +227,22 @@ export function drawTree(ctx, dt) {
       grad.addColorStop(1, "#1a1628");
     }
     ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, TAU); ctx.fill();
+    nodePath(ctx, s.x, s.y, R, tier);
+    ctx.fill();
 
-    // borda com brilho
-    ctx.strokeStyle = lvl > 0 ? br.color : chk.ok ? br.color : "#3a3054";
-    ctx.lineWidth = hot ? 4 : lvl > 0 ? 3 : 2;
-    ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, TAU); ctx.stroke();
+    // borda com brilho (lendário: aro dourado)
+    ctx.strokeStyle = tier === 2 ? (lvl > 0 ? "#ffd479" : chk.ok ? "#b99a4f" : "#5a4a2e")
+      : lvl > 0 ? br.color : chk.ok ? br.color : "#3a3054";
+    ctx.lineWidth = hot ? 4 + tier : lvl > 0 ? 3 : 2;
+    nodePath(ctx, s.x, s.y, R, tier);
+    ctx.stroke();
+
+    // RARO: anel duplo ciano
+    if (tier === 1) {
+      ctx.strokeStyle = lvl > 0 ? "#6ee7ff" : "#3d5a7a";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R + 5 * zoom, 0, TAU); ctx.stroke();
+    }
 
     // highlight interno
     if (lvl > 0) {
@@ -256,12 +271,13 @@ export function drawTree(ctx, dt) {
       ctx.restore();
     }
 
-    // ícone com fundo
-    const icon = IMG["i_" + n.icon];
+    // sprite da espécie (raiz/hubs/lendários) ou ícone do atlas
+    const spr = n.sprite && IMG[n.sprite] ? IMG[n.sprite] : null;
+    const icon = spr || IMG["i_" + n.icon];
     if (icon) {
       ctx.imageSmoothingEnabled = false;
       if (lvl === 0 && !chk.ok) ctx.globalAlpha = 0.35;
-      const size = (n.icon.startsWith("sk_") ? 34 : 38) * zoom;
+      const size = (spr ? (tier === 2 ? 48 : 40) : (n.icon.startsWith("sk_") ? 34 : 38)) * zoom;
       // glow atrás do ícone se comprado
       if (lvl > 0) {
         ctx.save();
@@ -339,6 +355,32 @@ export function drawTree(ctx, dt) {
   return hud;
 }
 
+// caminho do nó: LENDÁRIO é um hexágono (gema da colônia), demais círculos
+function nodePath(ctx, x, y, r, tier) {
+  if (tier === 2) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + (i / 6) * TAU;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  } else {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+  }
+}
+
+// centróide de cada grupo — banha o fundo com a cor do grupo da loja
+const ZONES = (() => {
+  const z = {};
+  for (const id of Object.keys(META_BRANCHES)) {
+    const ns = META_NODES.filter((n) => n.br === id);
+    z[id] = { x: ns.reduce((s, n) => s + n.x, 0) / ns.length,
+              y: ns.reduce((s, n) => s + n.y, 0) / ns.length };
+  }
+  return z;
+})();
+
 function drawTreeBackground(ctx) {
   // fundo dungeon escuro
   const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
@@ -359,6 +401,18 @@ function drawTreeBackground(ctx) {
     }
   }
   ctx.globalAlpha = 1;
+
+  // zonas dos grupos — as MESMAS cores da fileira de formigas (guerra à
+  // direita, coleta à esquerda, criação embaixo, real no topo)
+  for (const id of Object.keys(ZONES)) {
+    const p = nodeScreen(ZONES[id]);
+    const c = META_BRANCHES[id].color;
+    const zg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 460);
+    zg.addColorStop(0, c + "16");
+    zg.addColorStop(1, c + "00");
+    ctx.fillStyle = zg;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  }
 
   // vinheta
   const vg = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 100, VIEW_W/2, VIEW_H/2, 600);
@@ -389,7 +443,10 @@ function drawTreeHUD(ctx) {
   drawEssence(ctx, VIEW_W - 512, 16);
 
   // botões
-  if (button(ctx, { x: VIEW_W - 350, y: 18, w: 156, h: 40, label: "VER TUDO", id: "treeFit", font: "small", accent: "#6db7ff" })) {
+  if (button(ctx, { x: VIEW_W - 480, y: 18, w: 140, h: 40, label: "PROFECIAS", id: "treeProphecy", font: "small", accent: "#6ee7ff" })) {
+    return "prophecies";
+  }
+  if (button(ctx, { x: VIEW_W - 330, y: 18, w: 140, h: 40, label: "VER TUDO", id: "treeFit", font: "small", accent: "#6db7ff" })) {
     treeFit();
     SFX.uiClick();
   }
@@ -402,8 +459,8 @@ function drawTreeHUD(ctx) {
 
 function drawLegend(ctx, x, y) {
   const ids = Object.keys(META_BRANCHES);
-  const w = 124, h = 32;
-  panel(ctx, x, y, ids.length * w + 16, h + 8, { border: "#4a3a6e" });
+  const w = 118, h = 46;
+  panel(ctx, x, y, ids.length * w + 168, h, { border: "#4a3a6e" });
   ids.forEach((id, i) => {
     const br = META_BRANCHES[id];
     const nodes = META_NODES.filter((n) => n.br === id);
@@ -421,6 +478,19 @@ function drawLegend(ctx, x, y) {
     drawText(ctx, br.name, cx + 14, y + 14, { color: br.color, font: "small" });
     drawText(ctx, done + "/" + nodes.length, cx + 14, y + 26, { color: PAL.textDim, font: "small" });
   });
+  // raridades: quanto mais raro, maior e mais rebuscado o nó
+  const rx = x + 14 + ids.length * w + 6;
+  for (let t = 0; t < 3; t++) {
+    const ty = y + 10 + t * 12;
+    ctx.fillStyle = TIER_COLOR[t];
+    if (t === 2) { // losango do lendário
+      ctx.save(); ctx.translate(rx + 4, ty + 4); ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-3, -3, 6, 6); ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(rx + 4, ty + 4, t === 1 ? 4 : 3, 0, TAU); ctx.fill();
+    }
+    drawText(ctx, TIER_NAME[t], rx + 14, ty, { color: TIER_COLOR[t], font: "small" });
+  }
 }
 
 function drawEssence(ctx, x, y) {
@@ -466,8 +536,8 @@ function drawNodeTip(ctx, n) {
   const lines = wrapText(n.desc, w - 28, { font: "small", scale: 1 });
   const h = 72 + lines.length * 20 + 28 + 8;
   let x = clamp(s.x - w / 2, 12, VIEW_W - w - 12);
-  let y = s.y - NODE_R - h - 20;
-  if (y < 80) y = s.y + NODE_R + 22;
+  let y = s.y - NODE_R[n.tier || 0] * zoom - h - 20;
+  if (y < 80) y = s.y + NODE_R[n.tier || 0] * zoom + 22;
 
   // sombra
   ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -485,6 +555,7 @@ function drawNodeTip(ctx, n) {
 
   drawText(ctx, n.name, x + 14, y + 18, { font: "big", scale: 1, color: br.color });
   drawText(ctx, br.name + "  —  NÍVEL " + lvl + "/" + max, x + 14, y + 42, { color: PAL.textDim });
+  drawText(ctx, TIER_NAME[n.tier || 0], x + w - 14, y + 42, { color: TIER_COLOR[n.tier || 0], align: "right" });
   lines.forEach((L, i) => drawText(ctx, L, x + 14, y + 66 + i * 20, { color: PAL.text }));
 
   const ptY = y + h - 24;

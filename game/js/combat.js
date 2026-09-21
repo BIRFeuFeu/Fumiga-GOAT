@@ -9,6 +9,7 @@ import {
 import { SFX } from "./audio.js";
 import { world } from "./world.js";
 import { shake } from "./camera.js";
+import { mods } from "./state.js";
 
 export const projectiles = [];
 export const orbs = [];
@@ -23,6 +24,7 @@ export function spawnProj(o) {
     faction: o.faction,
     color: o.color || "#8fe87f",
     slow: o.slow || 0,
+    venom: o.venom || false,
     weaken: o.weaken || 0,
     bounces: o.bounces || 0,
     aoe: o.aoe || 0,
@@ -100,6 +102,12 @@ export function updateProjectiles(dt, allies, foes) {
         impact(p.x, p.y, { color: p.color, power: 1.1 });
         if (p.faction === "ally") {
           slashTrail(p.x, p.y, Math.atan2(p.vy, p.vx), p.color);
+          // FORMIGA-ACROBATA (Crematogaster): o veneno espumante corrói o
+          // inimigo com o tempo (queimadura leve, reaproveita o sistema)
+          if (p.venom) {
+            hit.burnT = Math.max(hit.burnT || 0, 2.4 * mods().venomTime);
+            hit.burnDps = Math.max(hit.burnDps || 0, 4 * mods().venomDps);
+          }
         }
       }
       if (p.bounces > 0) {

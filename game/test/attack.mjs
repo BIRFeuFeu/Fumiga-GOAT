@@ -56,7 +56,7 @@ resetColony();
 
 const A = world.anthill;
 // quem DEVE atacar (attack !== false) e quem NÃO deve (attack === false)
-const castes = ["worker", "gatherer", "scout", "healer", "soldier", "spitter", "tank", "bomber", "giant"];
+const castes = ["worker", "gatherer", "scout", "healer", "weaver", "soldier", "trapjaw", "spitter", "tank", "bomber", "giant"];
 const problems = [];
 const ok = (m) => console.log("ok    " + m);
 const bad = (m) => { problems.push(m); console.log("ERRO  " + m); };

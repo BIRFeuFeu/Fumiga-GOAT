@@ -4,10 +4,11 @@
 import {
   VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL, UNITS, START, MAPS, CHAMBERS,
   MUTATIONS, RARITY, HELP_GOAL, HELP_CONTROLS, HELP_TIPS, CALM_START, MAX_MUTS, xpForLevel,
+  ASC_MAX, ascMods, ascLabel, PROPHECIES, ERA_LINES,
 } from "./config.js";
 import { fogReset, fogUpdate, fogDraw, fogVisible, fogExplored, fogDrawMini } from "./fog.js";
 import {
-  G, mods, metaBonus, mutBonus, toggleMute, persistSave, loadSave,
+  G, mods, metaBonus, mutBonus, toggleMute, persistSave, loadSave, checkProphecies,
 } from "./state.js";
 import { IMG, rotFrame } from "./assets.js";
 import { drawText, textWidth, wrapText, FONT } from "./font.js";
@@ -47,17 +48,23 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 // ------------------------------------------------------------------ loja ----
+// As 11 classes da colônia, separadas por grupo — cada uma é uma espécie
+// real: ⚔️ combate/defesa · 🍃 coleta/exploração · 🏥 construção/cura/criação
+// (e a Dinoponera, o colosso — sem atalho, só no card).
 const SHOP = [
-  { type: "worker",   label: "OPERÁRIA" },
-  { type: "gatherer", label: "COLET." },
-  { type: "soldier",  label: "SOLDADO" },
-  { type: "spitter",  label: "CUSPID." },
-  { type: "tank",     label: "G. ÉBANO" },
-  { type: "scout",    label: "BATED." },
-  { type: "healer",   label: "CURAND." },
-  { type: "bomber",   label: "BOMB." },
-  { type: "giant",    label: "GIGANTE", iconScale: 0.13, accent: "#ffd479" },
+  { type: "soldier",  label: "BALA",      group: "combat" },
+  { type: "trapjaw",  label: "ARPÃO",     group: "combat" },
+  { type: "spitter",  label: "ACROBATA",  group: "combat" },
+  { type: "bomber",   label: "FOGO",      group: "combat" },
+  { type: "tank",     label: "CEFALOTE",  group: "combat" },
+  { type: "worker",   label: "CORTADEIRA", group: "gather" },
+  { type: "gatherer", label: "MEL",       group: "gather" },
+  { type: "scout",    label: "PRATA",     group: "gather" },
+  { type: "healer",   label: "MATABELE", group: "care" },
+  { type: "weaver",   label: "TECELÃ",    group: "care" },
+  { type: "giant",    label: "DINOPONERA", iconScale: 0.13, accent: "#ffd479", group: "colossus" },
 ];
+const SHOP_GROUPS = { combat: "#ff4d5a", gather: "#7fd6a0", care: "#6db7ff", colossus: "#ffd479" };
 const SHOP_W = 38, SHOP_PITCH = 42; // cards compactos da loja (rework HUD minimalista)
 let shopOpen = false;
 let rallyCooldown = 0; // FASE 4: cooldown rally F quando infiniteDash desligado
@@ -112,6 +119,7 @@ const GAME_MODES = [
 
 let modeHover = -1;
 let modeRects = [];
+let ascRects = [];          // PÓS-FINAL: zonas de clique do seletor de ASCENSÃO
 let selectedMode = GAME_MODES[0];
 
 // ------------------------------------------------------------- options -- FASE 4: 5 abas spec (Áudio/Vídeo/Controles/Acessibilidade/Idioma)
@@ -176,13 +184,19 @@ function newRun(mode = null) {
     endless: !!mSel.endless,
     fast: !!mSel.fast,
     bossRush: !!mSel.bossRush,
+    // PÓS-FINAL: ASCENSÃO DA NÉVOA (só campanha, só depois da 1ª vitória)
+    ascension: mSel.id === "campanha" && G.save.best.wins > 0
+      ? Math.max(0, Math.min(G.pendingAsc | 0, Math.min(G.save.ascension + 1, ASC_MAX))) : 0,
+    hatched: new Set(),      // PROFECIAS: espécies nascidas neste run
+    queenMinHp: 1,           // PROFECIAS: pior momento da rainha
+    deaths: 0,               // PROFECIAS: formigas perdidas
+    ascFood: 1,              // ASCENSÃO nv14: COLHEITA MAGRA
     chambers: { nursery: 0, pantry: 0, barracks: 0, fungus: 0, refinery: 0 },
   };
   G.run = run;
-  window.__run = run;
+  if (run.ascension > 0) run.ascFood = ascMods(run.ascension).foodMult;
 
-  const queen = spawnQueen();
-  window.__alliesQueen = queen;
+  spawnQueen(); // allies.queen fica apontando para ela (units.js)
 
   const A = world.anthill;
   const nW = START.workers + m.startWorkers + (mSel.fast ? 4 : 0) + (mSel.bossRush ? 6 : 0);
@@ -242,7 +256,7 @@ function endRun(won) {
   }
 }
 
-function settleRun() {
+export function settleRun() {
   const run = G.run;
   if (run.payoutDone) return;
   run.payoutDone = true;
@@ -255,9 +269,12 @@ function settleRun() {
   const relic = Math.round(run.essencePool * 0.1);
   const winBonus = won ? 200 : 0;
   const base = relic + waveBonus + killBonus + mapBonus + winBonus;
-  const total = Math.round(base * em * modeMult);
+  // PÓS-FINAL: a ASCENSÃO paga essência extra proporcional ao desafio aceito
+  const ascMult = run.ascension > 0 ? ascMods(run.ascension).ess : 1;
+  const total = Math.round(base * em * modeMult * ascMult);
   run.payout = {
-    relic, waveBonus, killBonus, mapBonus, winBonus, mult: em * modeMult, total, modeMult,
+    relic, waveBonus, killBonus, mapBonus, winBonus, mult: em * modeMult * ascMult, total, modeMult,
+    ascension: run.ascension || 0, ascMult,
   };
 
   G.save.essence += total;
@@ -267,19 +284,21 @@ function settleRun() {
   b.wave = Math.max(b.wave, run.wave);
   b.maps = Math.max(b.maps || 0, run.mapsCleared);
   b.kills += run.kills;
+  // PÓS-FINAL: a vitória da campanha avança a ERA e o teto da ASCENSÃO
+  if (won && run.mode === "campanha") {
+    G.save.era = (G.save.era || 0) + 1;
+    if (run.ascension === (G.save.ascension || 0) && G.save.ascension < ASC_MAX) G.save.ascension++;
+  }
+  // PÓS-FINAL: PROFECIAS cumpridas pagam essência na hora
+  const aliveTypes = allies.filter(a => !a.dead && !a.dying).map(a => a.type);
+  const earned = checkProphecies(run, won, { alive: aliveTypes, cycle: director.cycle || 0 });
+  if (earned.length) run.payout.prophecies = earned;
   persistSave();
 }
 
 // --------------------------------------------------------- avanço de mapa ---
 function advanceMap() {
   const run = G.run;
-  if (run.endless) {
-    run.mapsCleared++;
-    run.banner = { title: "ONDA " + (run.wave + 1) + " — SOBREVIVÊNCIA", sub: "A horda não para...", t: 3.5 };
-    run.transition = false;
-    SFX.chime();
-    return;
-  }
   director.mapIdx++;
   run.mapIdx = director.mapIdx;
   const m = mapDef();
@@ -385,6 +404,7 @@ export function update(dt) {
     case "MODE": updateMode(dt); break;
     case "OPTIONS": updateOptions(dt); break;
     case "TREE": updateTreeScreen(dt); break;
+    case "PROPHECY": updateProphecyScreen(dt); break;
     case "HELP": break;
     case "RUN": updateRun(dt); break;
   }
@@ -436,6 +456,18 @@ function updateMode(dt) {
   // FASE 6 FINAL: se modeScrollOffset mudou, garante hover acompanha
   if (mobile && modeScrollOffset >= 0 && modeHover === -1) {
     // não força hover se mouse não sobre card, mas mantém scroll
+  }
+  // PÓS-FINAL — seletor de ASCENSÃO DA NÉVOA (campanha; destrava após a 1ª vitória)
+  if (mouse.justDown && G.save.best.wins > 0) {
+    for (const r of ascRects) {
+      if (pointInRect(mouse.x, mouse.y, r.x, r.y, r.w, r.h)) {
+        const maxSel = Math.min(G.save.ascension + 1, ASC_MAX);
+        G.pendingAsc = Math.max(0, Math.min(maxSel, (G.pendingAsc | 0) + r.d));
+        SFX.uiClick();
+        notePointer(mouse.x, mouse.y);
+        return;
+      }
+    }
   }
   if (mouse.justDown && modeHover >= 0) {
     notePointer(mouse.x, mouse.y);
@@ -551,18 +583,18 @@ function updateRun(dt) {
   if (TUT.active) updateTutorial(dt, run);
 
   if (director.phase === "mapClear" && !run.transition && run.status === "running") {
-    if (run.endless) {
-      run.transition = true;
-      setTimeout(() => { run.transition = false; }, 1200);
-    } else {
-      run.transition = true;
-    }
+    // (só CAMPANHA/CAÇADA chegam aqui: no modo SOBREVIVÊNCIA o chefão é marco
+    // de ciclo e o fluxo volta direto para a calmaria em waves.js)
+    run.transition = true;
     SFX.win();
     return;
   }
 
   for (let i = 0; i < SHOP.length; i++) {
-    if (pressed["Digit" + (i + 1)]) {
+    // teclas 1-9 nas nove primeiras classes, 0 na décima (Tecelã); a
+    // Dinoponera é a 11ª e nasce só pelo card da fileira
+    const hot = i < 9 ? "Digit" + (i + 1) : i === 9 ? "Digit0" : null;
+    if (hot && pressed[hot]) {
       const r = buyUnit(SHOP[i].type);
       if (!r.ok) {
         const wp = screenToWorld(mouse.x, mouse.y - 20);
@@ -816,9 +848,12 @@ export function render(dt) {
     case "OPTIONS": renderOptions(); break;
     case "HELP": renderHelp(); break;
     case "TREE": {
-      if (drawTree(ctx, dt) === "back") backFromTree();
+      const hud = drawTree(ctx, dt);
+      if (hud === "back") backFromTree();
+      else if (hud === "prophecies") openProphecies();
       break;
     }
+    case "PROPHECY": renderProphecyScreen(); break;
     case "RUN": renderRun(); break;
   }
   ctx.restore();
@@ -859,7 +894,7 @@ function renderTitle() {
   ctx.fillStyle = "rgba(8,6,14,0.58)";
   ctx.fillRect(56, tY + 124, 360, 24);
   drawText(ctx, "COLÔNIA ETERNA", 60, tY + 128, { font: "small", scale: 2, color: "#ffd479", shadow: false });
-  drawText(ctx, "planície viva • ciclo dia/noite • parallax • 5x escala", 60, tY + 158, { color: "#8f7bb5" });
+  drawText(ctx, "A Névoa levou o velho mundo. A colônia segue em frente.", 60, tY + 158, { color: "#8f7bb5" });
 
   const bx = 56, bw = mobile ? 320 : 300;
   const btnH = mobile ? 104 : 46;
@@ -916,6 +951,27 @@ function renderModeScreen() {
   drawModeSelect(ctx, G.time);
   // FASE 6 FINAL: passa scrollOffset para render com offset visual
   modeRects = drawModeCards(ctx, GAME_MODES, modeHover, G.time, modeScrollOffset);
+
+  // PÓS-FINAL — barra da ASCENSÃO DA NÉVOA (embaixo dos cards, só campanha)
+  const ascUnlocked = G.save.best.wins > 0;
+  const ascY = 462, ascW = 424, ascX = (VIEW_W - ascW) / 2;
+  ascRects = [];
+  panel(ctx, ascX, ascY, ascW, 36, { border: ascUnlocked ? "#ffd479" : "#3a3054", fill: "rgba(10,8,16,0.8)" });
+  if (ascUnlocked) {
+    const maxSel = Math.min(G.save.ascension + 1, ASC_MAX);
+    G.pendingAsc = Math.max(0, Math.min(G.pendingAsc | 0, maxSel));
+    const lv = G.pendingAsc;
+    drawText(ctx, "<", ascX + 14, ascY + 10, { color: lv > 0 ? "#ffd479" : "#5a4f78" });
+    drawText(ctx, ">", ascX + ascW - 22, ascY + 10, { color: lv < maxSel ? "#ffd479" : "#5a4f78" });
+    drawText(ctx, "ASCENSÃO DA NÉVOA " + lv + "/" + ASC_MAX, VIEW_W / 2 + 10, ascY + 4, { color: "#ffd479", align: "center" });
+    drawText(ctx, ascLabel(lv) + " • ESSÊNCIA x" + ascMods(lv).ess.toFixed(2), VIEW_W / 2 + 10, ascY + 21, { color: PAL.textDim, align: "center", scale: 0.85 });
+    ascRects = [
+      { x: ascX, y: ascY, w: 44, h: 36, d: -1 },
+      { x: ascX + ascW - 44, y: ascY, w: 44, h: 36, d: 1 },
+    ];
+  } else {
+    drawText(ctx, "VENÇA A CAMPANHA PARA DESPERTAR A ASCENSÃO DA NÉVOA", VIEW_W / 2, ascY + 12, { color: "#5a4f78", align: "center" });
+  }
 
   const mobile = isMobileLayout();
   if (button(ctx, { x: 20, y: VIEW_H - 56, w: mobile ? 220 : 140, h: mobile ? 104 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
@@ -1224,7 +1280,7 @@ function renderRun() {
     if (TUT.active) drawTutorial(ctx, VIEW_W);
   }
   if (run.draft && !paused) drawDraft(run.draft);
-  if (run.transition && !paused && !run.endless) drawMapTransition(run);
+  if (run.transition && !paused) drawMapTransition(run);
   if (run.baseOpen) drawNestScreen(run);
   if (paused) drawPause();
   if (run.status === "ended") drawEnd(run);
@@ -1366,12 +1422,13 @@ function drawHUD() {
       }
       if (!run.draft) drawText(ctx, Math.max(0, Math.ceil(director.timer)), rcx, rcy - 8, { color: rest < 0.25 ? "#ff8a94" : PAL.text, align: "center" });
       drawText(ctx, run.endless ? "SOBREVIVÊNCIA" : "CALMARIA", cx0 + 52, 14, { font: "small", color: "#37e6c8" });
-      drawText(ctx, run.draft ? "ESCOLHA UMA MUTAÇÃO" : ("ONDA " + (director.waveInMap + 1) + "/" + m.waves.length + (run.endless ? " • INF" : "")), cx0 + 52, 40, { color: PAL.textDim });
+      const cycTag = run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : "";
+      drawText(ctx, run.draft ? "ESCOLHA UMA MUTAÇÃO" : ("ONDA " + (director.waveInMap + 1) + "/" + m.waves.length + cycTag), cx0 + 52, 40, { color: PAL.textDim });
     } else if (director.phase === "mapClear") {
       drawText(ctx, "MAPA LIMPO!", VIEW_W / 2, 18, { font: "small", color: "#ffd479", align: "center" });
       drawText(ctx, m.name, VIEW_W / 2, 40, { color: PAL.textDim, align: "center" });
     } else {
-      drawText(ctx, "ONDA " + director.waveInMap + "/" + m.waves.length + (run.endless ? " • INF" : ""), cx0 + 16, 12, { font: "big", color: "#ff4d5a" });
+      drawText(ctx, "ONDA " + director.waveInMap + "/" + m.waves.length + (run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : ""), cx0 + 16, 12, { font: "big", color: "#ff4d5a" });
       let aliveF = 0;
       for (const f of foes) if (!f.dead) aliveF++;
       drawText(ctx, "RESTAM " + aliveF + (director.budget > 0 ? "+" : ""), cx0 + cw - 16, 22, { color: "#ff8a94", align: "right" });
@@ -1407,19 +1464,27 @@ function drawHUD() {
 
   if (shopOpen) {
     const x0 = 10 + 92 + 6;
+    let gx = x0, lastGroup = null;
     for (let i = 0; i < SHOP.length; i++) {
       const sp = SHOP[i];
-      const x = x0 + i * SHOP_PITCH;
+      if (lastGroup && sp.group !== lastGroup) gx += 12; // respiro entre grupos
+      lastGroup = sp.group;
+      const x = gx;
       const cost = unitCost(sp.type);
       const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(sp.type);
       const r = iconButton(ctx, { x, y: footY, w: SHOP_W, h: 64, id: "shop" + sp.type, disabled: !canBuy, frame: sp.accent, maxPadX: 2 });
+      // barra de grupo: vermelho = combate, verde = coleta, azul = criação
+      ctx.fillStyle = SHOP_GROUPS[sp.group] || "#4a3a6e";
+      ctx.fillRect(x + 3, footY + 3, SHOP_W - 6, 3);
       const frame = rotFrame(UNITS[sp.type].sprite, Math.PI / 2);
-      const sc2 = (sp.iconScale !== undefined ? sp.iconScale : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" ? 0.5 : 0.42) * 0.62;
+      const sc2 = (sp.iconScale !== undefined ? sp.iconScale : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" || sp.type === "weaver" ? 0.5 : 0.42) * 0.62;
       ctx.globalAlpha = canBuy ? 1 : 0.35;
       ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 5, frame.width * sc2, frame.height * sc2);
       ctx.globalAlpha = 1;
       drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? "#ffd479" : "#a32e46", align: "center" });
-      drawText(ctx, String(i + 1), x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right" });
+      // atalho: 1-9 nas nove primeiras, 0 na Tecelã; Dinoponera sem número
+      const hot = i < 9 ? String(i + 1) : i === 9 ? "0" : "";
+      if (hot) drawText(ctx, hot, x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right" });
       if (r.hot) shopTooltip = sp;
       if (live && r.clicked) {
         const res = buyUnit(sp.type);
@@ -1428,6 +1493,7 @@ function drawHUD() {
           floatText(wp.x, wp.y, res.why, { color: "#ff4d5a", life: 1 });
         }
       }
+      gx += SHOP_PITCH;
     }
   }
 
@@ -1801,6 +1867,7 @@ function drawPause() {
   let sy2 = miniY + miniH + 24;
   if (run) {
     drawText(ctx, "MODO: " + (run.modeDef ? run.modeDef.name : "CAMPANHA"), rx + 16, sy2, { color: run.modeDef ? run.modeDef.color : "#37e6c8" }); sy2 += 18;
+  if (run.ascension) { drawText(ctx, "ASCENSÃO DA NÉVOA: " + run.ascension, rx + 16, sy2, { color: "#ff8a96" }); sy2 += 18; }
     drawText(ctx, "MAPA: " + (run.mapIdx + 1) + "/" + MAPS.length + " - " + MAPS[run.mapIdx].name, rx + 16, sy2, { color: PAL.text }); sy2 += 18;
     drawText(ctx, "ONDA: " + run.wave + " • ABATES: " + run.kills, rx + 16, sy2, { color: PAL.textDim }); sy2 += 18;
     drawText(ctx, "NÍVEL: " + run.level + " • COMIDA: " + fmt(run.food), rx + 16, sy2, { color: PAL.textDim }); sy2 += 18;
@@ -1842,6 +1909,61 @@ function backFromTree() {
   startTransition("auto", "TREE", to, 0, () => { G.screen = to; });
 }
 
+// ------------------------------------------- PÓS-FINAL: tela de PROFECIAS ----
+function openProphecies() {
+  notePointer(mouse.x, mouse.y);
+  SFX.uiClick();
+  checkProphecies(null, false, null);   // concede as de estado acumulado
+  persistSave();
+  startTransition("auto", "TREE", "PROPHECY", 0, () => { G.screen = "PROPHECY"; });
+}
+
+function backFromProphecies() {
+  notePointer(mouse.x, mouse.y);
+  SFX.uiClick();
+  startTransition("auto", "PROPHECY", "TREE", 0, () => { G.screen = "TREE"; });
+}
+
+function updateProphecyScreen(dt) {
+  if (pressed.Escape) backFromProphecies();
+}
+
+function renderProphecyScreen() {
+  const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  g.addColorStop(0, "#0e0a18");
+  g.addColorStop(1, "#1a1430");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+  panel(ctx, 12, 10, 440, 60, { border: "#6ee7ff", accentLine: "#6ee7ff" });
+  drawText(ctx, "PROFECIAS DA COLÔNIA", 28, 20, { font: "big", scale: 1, color: "#6ee7ff" });
+  drawText(ctx, "Vaticínios da Matriarca — cumpra-os pela essência", 28, 44, { color: PAL.textDim });
+  const done = Object.keys(G.save.prophecies || {}).length;
+  drawText(ctx, done + "/" + PROPHECIES.length, 436, 34, { color: "#efe9ff", align: "right" });
+
+  panel(ctx, VIEW_W - 520, 10, 160, 60, { border: "#c77dff" });
+  const ic = IMG.i_essence;
+  if (ic) { ctx.imageSmoothingEnabled = false; ctx.drawImage(ic, VIEW_W - 512, 24, 34, 34); }
+  drawText(ctx, G.save.essence, VIEW_W - 468, 34, { font: "big", scale: 1, color: "#c77dff" });
+
+  if (button(ctx, { x: VIEW_W - 180, y: 18, w: 156, h: 40, label: "VOLTAR", id: "prophecyBack", font: "small", accent: "#ff4d5a" })) {
+    backFromProphecies();
+  }
+
+  const colW = 452, x0 = 24, y0 = 92, step = 54;
+  PROPHECIES.forEach((p, i) => {
+    const col = Math.floor(i / 8), row = i % 8;
+    const x = x0 + col * (colW + 20), y = y0 + row * step;
+    const ok = !!(G.save.prophecies || {})[p.id];
+    panel(ctx, x, y, colW, 46, { border: ok ? "#7fd6a0" : "#3a3054", fill: ok ? "rgba(26,42,32,0.75)" : "rgba(16,12,26,0.75)" });
+    drawText(ctx, (ok ? "✓ " : "• ") + p.name, x + 10, y + 7, { color: ok ? "#7fd6a0" : "#6ee7ff" });
+    drawText(ctx, p.desc, x + 10, y + 26, { color: ok ? PAL.textDim : PAL.text, scale: 0.9 });
+    drawText(ctx, "+" + p.reward, x + colW - 12, y + 26, { color: "#c77dff", align: "right" });
+  });
+
+  drawText(ctx, "ESC: VOLTAR • A COLÔNIA CUMPRE, A ESSÊNCIA LEMBRA", VIEW_W / 2, VIEW_H - 16, { color: PAL.textDim, align: "center" });
+}
+
 // ------------------------------------------------------------------- fim ----
 function drawEnd(run) {
   ctx.fillStyle = "rgba(10,8,16,0.88)";
@@ -1853,9 +1975,16 @@ function drawEnd(run) {
   dialogBox(ctx, PX, PY, PW, PH, { border: won ? "#ffd479" : "#ff4d5a", accent: won ? "#ffd479" : "#ff4d5a" });
 
   drawText(ctx, won ? "VITÓRIA DA COLÔNIA!" : "A COLÔNIA CAIU", VIEW_W / 2, PY + 22, { font: "big", scale: 2, color: won ? "#ffd479" : "#ff4d5a", align: "center" });
-  const subLock = won ? "O DEVASTADOR caiu no Pico Congelado. O formigueiro é eterno." : "A rainha tombou. Mas a essência alimenta a próxima geração.";
+  const subLock = won ? "O arauto do inverno caiu. A colônia atravessou os seis degraus — e no alto do mundo a Névoa ainda espera." : "A rainha tombou. Mas a essência alimenta a próxima geração.";
   const subLines = wrapText(subLock, PW - 60, {});
   subLines.forEach((L, li) => drawText(ctx, L, VIEW_W / 2, PY + 72 + li * 18, { color: PAL.text, align: "center" }));
+  // PÓS-FINAL: a Era do Formigueiro Eterno avança a cada vitória de campanha
+  let eraLine = "";
+  if (won && run.mode === "campanha") {
+    const e = Math.max(1, G.save.era || 1);
+    eraLine = "ERA " + e + " — " + ERA_LINES[(e - 1) % ERA_LINES.length];
+    drawText(ctx, eraLine, VIEW_W / 2, PY + 72 + subLines.length * 18, { color: "#ffd479", align: "center" });
+  }
 
   const rows = [
     ["MODO", run.modeDef ? run.modeDef.name : "CAMPANHA", run.modeDef ? run.modeDef.color : PAL.text],
@@ -1870,6 +1999,8 @@ function drawEnd(run) {
     ["BÔNUS DE ABATES", "+" + p.killBonus, "#c77dff"],
   ];
   if (p.winBonus) rows.push(["VITÓRIA ÉPICA", "+" + p.winBonus, "#c77dff"]);
+  if (p.ascension) rows.push(["ASCENSÃO DA NÉVOA", "NV " + p.ascension + " (x" + p.ascMult.toFixed(2) + ")", "#ff8a96"]);
+  if (p.prophecies) for (const pr of p.prophecies) rows.push(["PROFECIA: " + pr.name, "+" + pr.reward, "#6ee7ff"]);
   if (p.mult > 1) rows.push(["MULTIPLICADOR", "x" + p.mult.toFixed(2), "#ffd479"]);
 
   const btnTop = PY + PH - 100;
@@ -1877,7 +2008,7 @@ function drawEnd(run) {
   const iconsH = run.mutationLog.length ? 26 : 0;
   const rowsBottom = totalY - 8 - iconsH - 14;
 
-  const y0 = PY + 72 + subLines.length * 18 + 14;
+  const y0 = PY + 72 + (subLines.length + (eraLine ? 1 : 0)) * 18 + 14;
   const half = Math.ceil(rows.length / 2);
   const maxRows = Math.max(half, rows.length - half);
   let step = 20;

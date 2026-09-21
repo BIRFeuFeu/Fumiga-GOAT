@@ -44,11 +44,11 @@ const { fileURLToPath } = await import("node:url");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 await loadAll();
-// Mesmos sprites derivados do boot (main.js): a GIGANTE é um apelido da arte
-// da soldado e a COLETORA é a operária tingida de jade. Sem isso o teste
-// acusaria chaves de sprite que só existem depois do boot.
+// Mesmo sprite derivado do boot (main.js): a DINOPONERA é a arte da FORMIGA-
+// BALA tingida de violeta e ampliada. Sem isso o teste acusaria a chave de
+// sprite que só existe depois do boot. (A MEL tem sprite próprio desde o
+// rework de espécies.)
 dupSprite("soldier", "giant");
-bakeRotTinted("worker", "gatherer", 34, "#7fd6c0", 0.5);
 const have = (k) => !!IMG[k];
 const problems = [];
 const check = (scope, keys) => {
