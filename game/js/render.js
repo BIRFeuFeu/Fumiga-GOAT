@@ -14,6 +14,7 @@ import { drawText, textWidth, lineWidth, FONT } from "./font.js";
 import { clamp, TAU, lerp } from "./utils.js";
 import { fogDraw, fogVisible } from "./fog.js";
 import { SFX } from "./audio.js";
+import { mouse } from "./input.js";
 
 let vignette = null;
 
@@ -637,113 +638,119 @@ export function drawTitleMotes(ctx, time) {
   ctx.globalAlpha = 1;
 }
 
+// =========================================================================
+// FUNDO TÍTULO - PARALLAX 4 CAMADAS EXCLUSIVO NO MENU INICIAL (TITLE)
+// Correção: as 4 imagens geradas ficam SOBREPOSTAS no menu inicial para gerar parallax
+// layer5 céu (fundo, 0.01x), layer4 montanhas (0.03x), layer3 gramado+ruínas+formigueiro (0.08x), layer1 vinhas foreground (0.15x)
+// mouse.x/y + time para movimento real
 export function drawTitleBg(ctx) {
   const time = G.time;
   dayPhase = (time * 0.012) % 1;
   ensureMotes();
 
-  // Se as imagens de parallax em alta resolução existem, usa elas
   const hasParallax = IMG.parallax_sky && IMG.parallax_main && IMG.parallax_mountains && IMG.parallax_foreground;
   
   if (hasParallax) {
-    // Parallax com mouse + tempo
-    // Tenta pegar mouse do input, senão usa centro
-    let mouseX = VIEW_W / 2, mouseY = VIEW_H / 2;
-    try {
-      const { mouse } = require ? { mouse: { x: VIEW_W/2, y: VIEW_H/2 } } : { mouse: null };
-    } catch {}
-    // Usa lastPointer para parallax suave
-    const offsetBase = (lastPointer.x - VIEW_W/2);
+    // parallax real com mouse direto (não lastPointer hack)
+    const mx = (mouse && mouse.x ? mouse.x : VIEW_W/2);
+    const my = (mouse && mouse.y ? mouse.y : VIEW_H/2);
+    const offsetX = (mx - VIEW_W/2); // -480..+480
+    const offsetY = (my - VIEW_H/2); // -270..+270
     
-    // ----- CAMADA 5: Céu laranja fim de tarde + lua minguante + nuvens -----
     ctx.imageSmoothingEnabled = false;
-    const skyImg = IMG.parallax_sky;
-    // Desenha cobrindo toda tela, com leve movimento
-    const skyOffsetX = offsetBase * 0.01 + Math.sin(time * 0.02) * 2;
-    ctx.drawImage(skyImg, skyOffsetX - 20, -10, VIEW_W + 40, VIEW_H + 20);
 
-    // ----- CAMADA 4: Montanhas silhueta -----
+    // ----- CAMADA 5: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, mais lenta) -----
+    const skyImg = IMG.parallax_sky;
+    // céu cobre tudo, movimento mínimo 0.01x + auto drift sin
+    const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
+    const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
+    // desenha maior que tela para permitir deslocamento sem borda
+    ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
+
+    // ----- CAMADA 4: Montanhas silhueta (meio-fundo, 0.03x) -----
     const mtnImg = IMG.parallax_mountains;
-    const mtnOffsetX = offsetBase * 0.03 + Math.sin(time * 0.03) * 4;
-    const mtnY = 40 + Math.sin(time * 0.05) * 2;
-    // Montanhas no terço superior, com transparência
-    ctx.globalAlpha = 0.95;
-    ctx.drawImage(mtnImg, mtnOffsetX - 30, mtnY, VIEW_W + 60, VIEW_H * 0.55);
+    const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
+    const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
+    ctx.globalAlpha = 0.96;
+    // montanhas ficam no terço superior, mas com overflow para parallax
+    ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, VIEW_H * 0.62);
     ctx.globalAlpha = 1;
 
-    // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro -----
-    // Esta já vem sem céu (transparente no topo), perfeita para parallax
+    // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
+    // Esta já vem com transparência no topo (céu removido), perfeita para parallax
     const mainImg = IMG.parallax_main;
-    const mainOffsetX = offsetBase * 0.08 + Math.sin(time * 0.04) * 3;
-    const mainOffsetY = (lastPointer.y - VIEW_H/2) * 0.02;
-    ctx.drawImage(mainImg, mainOffsetX - 15, mainOffsetY + 20, VIEW_W + 30, VIEW_H - 10);
+    const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
+    const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;
+    ctx.drawImage(mainImg, mainOffX - 30, mainOffY, VIEW_W + 60, VIEW_H - 5);
 
-    // Brilho suave nas ruínas e formigueiro (fim de tarde)
+    // brilho suave nas ruínas e formigueiro (fim de tarde) - Dead Cells tochas
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const flick = 0.85 + torchFlicker;
     for (let i = 0; i < 2; i++) {
-      const fx = 160 + i * 500 + Math.sin(time * 0.3 + i) * 10;
-      const fy = 280 + Math.cos(time * 0.4 + i) * 5;
-      const rg = ctx.createRadialGradient(fx, fy, 2, fx, fy, 30);
-      rg.addColorStop(0, `rgba(255,212,121,${0.08 * flick})`);
+      const fx = 160 + i * 500 + Math.sin(time * 0.3 + i) * 10 + mainOffX;
+      const fy = 280 + Math.cos(time * 0.4 + i) * 5 + mainOffY * 0.2;
+      const rg = ctx.createRadialGradient(fx, fy, 2, fx, fy, 32);
+      rg.addColorStop(0, `rgba(255,212,121,${0.09 * flick})`);
       rg.addColorStop(1, "rgba(255,160,60,0)");
       ctx.fillStyle = rg;
-      ctx.beginPath(); ctx.arc(fx, fy, 30, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(fx, fy, 32, 0, TAU); ctx.fill();
     }
     ctx.restore();
 
-    // ----- CAMADA 1: Vinhas no inferior, resto vazio -----
+    // ----- CAMADA 1: Vinhas no inferior, resto transparente (FRENTE, 0.15x mais rápida) -----
     const fgImg = IMG.parallax_foreground;
-    const fgOffsetX = offsetBase * 0.15 + Math.sin(time * 0.06) * 2;
-    ctx.drawImage(fgImg, fgOffsetX - 20, 0, VIEW_W + 40, VIEW_H);
+    const fgOffX = offsetX * 0.15 + Math.sin(time * 0.02) * 4;
+    const fgOffY = offsetY * 0.04;
+    ctx.drawImage(fgImg, fgOffX - 40, fgOffY, VIEW_W + 80, VIEW_H);
 
-    // FASE 2: ciclo dia/noite tint sobre parallax alta resolução
-    const dayPhase = (time * 0.012) % 1;
-    const isDay = Math.sin(dayPhase * TAU);
+    // ciclo dia/noite tint sobre parallax alta resolução
+    const dp = (time * 0.012) % 1;
+    const isDay = Math.sin(dp * TAU);
     const dayT = (isDay * 0.5 + 0.5);
-    if (dayT < 0.5) {
-      // noite - escurece e azul
-      ctx.fillStyle = `rgba(10,8,22,${(0.5 - dayT) * 0.6})`;
+    if (dayT < 0.45) {
+      // noite - escurece azul + estrelas piscando
+      ctx.fillStyle = `rgba(10,8,22,${(0.45 - dayT) * 0.75})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      // estrelas piscando à noite
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      for (let i = 0; i < 15; i++) {
-        const sx = (i * 137.5 + time * 2) % VIEW_W;
-        const sy = (i * 73.3) % 100 + 5;
-        const tw = 0.2 + Math.sin(time * 2 + i) * 0.2;
-        ctx.globalAlpha = tw * (0.5 - dayT);
-        ctx.fillRect(sx, sy, 1.5, 1.5);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      for (let i = 0; i < 18; i++) {
+        const sx = (i * 137.5 + time * 2.5) % VIEW_W;
+        const sy = (i * 73.3) % 90 + 4;
+        const tw = 0.25 + Math.sin(time * 2.2 + i * 1.3) * 0.25;
+        ctx.globalAlpha = tw * (0.45 - dayT) * 1.5;
+        ctx.fillRect(sx, sy, 1.8, 1.8);
       }
       ctx.globalAlpha = 1;
-    } else {
-      // dia - leve brilho quente fim de tarde
-      ctx.fillStyle = `rgba(255,180,60,${(dayT - 0.5) * 0.08})`;
+    } else if (dayT > 0.75) {
+      // dia - brilho quente fim de tarde sutil
+      ctx.fillStyle = `rgba(255,180,60,${(dayT - 0.75) * 0.12})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
-    // FASE 2: acessibilidade highContrast - borda mais forte
+    // acessibilidade highContrast - borda mais forte sobre parallax high-res
     if (G.save.accessibility.highContrast) {
-      ctx.strokeStyle = "rgba(239,233,255,0.25)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, VIEW_W - 2, VIEW_H - 2);
+      ctx.strokeStyle = "rgba(239,233,255,0.32)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(1.5, 1.5, VIEW_W - 3, VIEW_H - 3);
+      ctx.strokeStyle = "rgba(199,125,255,0.18)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(4.5, 4.5, VIEW_W - 9, VIEW_H - 9);
     }
 
-    // Vinheta gótica por cima de tudo (mantém Dead Cells)
-    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.2);
+    // vinheta gótica Dead Cells por cima de tudo
+    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.28, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.25);
     vg.addColorStop(0, "rgba(0,0,0,0)");
-    vg.addColorStop(0.7, "rgba(0,0,0,0.12)");
-    vg.addColorStop(1, "rgba(0,0,0,0.48)");
+    vg.addColorStop(0.65, "rgba(0,0,0,0.14)");
+    vg.addColorStop(1, "rgba(0,0,0,0.52)");
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
     return;
   }
 
-  // Fallback procedural caso imagens não carregadas
+  // fallback procedural caso imagens não carregadas - planície viva gótica
   const isDay = Math.sin(dayPhase * TAU);
   const dayT = (isDay * 0.5 + 0.5);
-
   if (!titleBg) bakeTitleBg();
   
   const skyGrad = ctx.createLinearGradient(0, 0, 0, 280);
@@ -760,84 +767,38 @@ export function drawTitleBg(ctx) {
   }
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-
-  const sunX = VIEW_W * 0.2 + Math.cos(dayPhase * TAU) * VIEW_W * 0.3;
-  const sunY = 80 + Math.sin(dayPhase * TAU) * 60;
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  if (dayT > 0.5) {
-    const sg = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 60);
-    sg.addColorStop(0, "rgba(255,244,200,0.9)");
-    sg.addColorStop(0.3, "rgba(255,212,121,0.4)");
-    sg.addColorStop(1, "rgba(255,160,60,0)");
-    ctx.fillStyle = sg;
-    ctx.beginPath(); ctx.arc(sunX, sunY, 60, 0, TAU); ctx.fill();
-    ctx.fillStyle = "rgba(255,244,200,0.9)";
-    ctx.beginPath(); ctx.arc(sunX, sunY, 8, 0, TAU); ctx.fill();
-  } else {
-    ctx.fillStyle = "rgba(239,233,255,0.8)";
-    ctx.beginPath(); ctx.arc(sunX, sunY, 10, 0, TAU); ctx.fill();
-    ctx.fillStyle = "rgba(10,8,18,0.6)";
-    ctx.beginPath(); ctx.arc(sunX+3, sunY-2, 8, 0, TAU); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    for (let i = 0; i < 20; i++) {
-      const sx = (i * 137.5) % VIEW_W;
-      const sy = (i * 73.3) % 100 + 10;
-      const tw = 0.3 + Math.sin(time * 2 + i) * 0.3;
-      ctx.globalAlpha = tw;
-      ctx.fillRect(sx, sy, 1.5, 1.5);
-    }
-    ctx.globalAlpha = 1;
-  }
-  ctx.restore();
-
-  for (const cloud of titleClouds) {
-    cloud.x += cloud.vx * 0.016 * (cloud.layer + 1);
-    if (cloud.x > VIEW_W + cloud.w) cloud.x = -cloud.w;
-    if (cloud.x < -cloud.w) cloud.x = VIEW_W + cloud.w;
-    const parallaxX = cloud.x + Math.sin(time * 0.1 + cloud.layer) * 5;
-    ctx.globalAlpha = cloud.alpha * (0.5 + dayT * 0.5);
-    ctx.fillStyle = dayT > 0.5 ? "rgba(255,255,255,0.9)" : "rgba(60,50,80,0.6)";
-    ctx.beginPath();
-    ctx.ellipse(parallaxX, cloud.y, cloud.w * 0.4, cloud.h, 0, 0, TAU); ctx.fill();
-    ctx.ellipse(parallaxX + cloud.w * 0.25, cloud.y - 3, cloud.w * 0.3, cloud.h * 0.8, 0, 0, TAU); ctx.fill();
-    ctx.ellipse(parallaxX - cloud.w * 0.2, cloud.y + 2, cloud.w * 0.25, cloud.h * 0.7, 0, 0, TAU); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
   ctx.drawImage(titleBg, 0, 0);
 
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  const flick = 0.85 + torchFlicker;
-  for (let i = 0; i < 4; i++) {
-    const fx = 120 + i * 220 + Math.sin(time * 0.5 + i) * 20;
-    const fy = 200 + (i % 2) * 180 + Math.cos(time * 0.7 + i) * 10;
-    const rg = ctx.createRadialGradient(fx, fy, 2, fx, fy, 40 + flick * 10);
-    rg.addColorStop(0, `rgba(255,244,180,${0.3 * flick})`);
-    rg.addColorStop(0.5, `rgba(255,212,121,${0.1 * flick})`);
-    rg.addColorStop(1, "rgba(255,160,60,0)");
-    ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(fx, fy, 50, 0, TAU); ctx.fill();
-  }
-  const crystalGlow = dayT > 0.5 ? 0.15 : 0.35;
-  for (let i = 0; i < 3; i++) {
-    const cx = VIEW_W/2 + (i-1) * 180 + Math.sin(time * 0.3 + i) * 10;
-    const cy = 280 + Math.cos(time * 0.4 + i) * 5;
-    const rg = ctx.createRadialGradient(cx, cy, 2, cx, cy, 30);
-    rg.addColorStop(0, `rgba(199,125,255,${crystalGlow})`);
-    rg.addColorStop(1, "rgba(199,125,255,0)");
-    ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(cx, cy, 30, 0, TAU); ctx.fill();
-  }
-  ctx.restore();
+  const vg2 = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.2);
+  vg2.addColorStop(0, "rgba(0,0,0,0)");
+  vg2.addColorStop(0.7, "rgba(0,0,0,0.15)");
+  vg2.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg2;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+}
 
+// FUNDO SÓLIDO GÓTICO PARA OUTROS MENUS (MODE, OPTIONS, HELP) - sem parallax
+export function drawSolidMenuBg(ctx, tint = "#0a0812") {
+  if (!titleBg) bakeTitleBg();
+  // fundo escuro Dead Cells
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(titleBg, 0, 0);
+  ctx.globalAlpha = 1;
+  // vinheta
   const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.2);
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(0.7, "rgba(0,0,0,0.15)");
-  vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  vg.addColorStop(0.7, "rgba(0,0,0,0.25)");
+  vg.addColorStop(1, "rgba(0,0,0,0.68)");
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // highContrast
+  if (G.save.accessibility.highContrast) {
+    ctx.strokeStyle = "rgba(239,233,255,0.22)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, VIEW_W - 2, VIEW_H - 2);
+  }
 }
 
 function lerpColor(a, b, t) {
@@ -919,24 +880,14 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
 }
 
 export function drawPreTitleBg(ctx) {
-  // FASE 2: usa parallax alta resolução também no PRETITLE, com vinheta mais pesada
-  const hasParallax = IMG.parallax_sky && IMG.parallax_main;
-  if (hasParallax) {
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(IMG.parallax_sky, -20, -10, VIEW_W + 40, VIEW_H + 20);
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(IMG.parallax_mountains, -30, 40, VIEW_W + 60, VIEW_H * 0.55);
-    ctx.globalAlpha = 0.7;
-    ctx.drawImage(IMG.parallax_main, -15, 20, VIEW_W + 30, VIEW_H - 10);
-    ctx.globalAlpha = 1;
-  } else {
-    if (!preTitleBg) bakePreTitleBg();
-    ctx.drawImage(preTitleBg, 0, 0);
-  }
+  // PRETITLE - fundo escuro exclusivo, SEM parallax (parallax só no TITLE inicial)
+  // Usa baked com runas + silhueta formigueiro, vinheta pesada
+  if (!preTitleBg) bakePreTitleBg();
+  ctx.drawImage(preTitleBg, 0, 0);
   // vinheta mais pesada no pre-title
   const vg = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 100, VIEW_W/2, VIEW_H/2, 600);
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.75)");
+  vg.addColorStop(1, "rgba(0,0,0,0.78)");
   ctx.fillStyle = vg;
   ctx.fillRect(0,0,VIEW_W,VIEW_H);
 }
@@ -1248,12 +1199,13 @@ function drawBigTitle(ctx, cx, y, time, isShadow) {
 }
 
 // ================================================ MODE SELECT SCREEN ==
+// MODE - fundo sólido gótico, SEM parallax (parallax exclusivo TITLE inicial)
 export function drawModeSelect(ctx, time) {
-  drawTitleBg(ctx);
+  drawSolidMenuBg(ctx, "#0c0a18");
   drawTitleMotes(ctx, time);
 
   // overlay escuro
-  ctx.fillStyle = "rgba(10,8,18,0.72)";
+  ctx.fillStyle = "rgba(10,8,18,0.62)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
   // título da tela

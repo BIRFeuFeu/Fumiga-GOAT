@@ -31,7 +31,7 @@ import {
 } from "./waves.js";
 import { rollDraft, applyMutation, mutationList } from "./mutations.js";
 import {
-  drawRun, drawTitleBg, drawTitleMotes, drawPreTitle, drawPreTitleBg,
+  drawRun, drawTitleBg, drawSolidMenuBg, drawTitleMotes, drawPreTitle, drawPreTitleBg,
   drawModeSelect, drawModeCards, startTransition, updateTransition, drawTransition, hasTransition,
   transitionFx, notePointer, drawTitleLogo
 } from "./render.js";
@@ -904,9 +904,9 @@ function renderModeScreen() {
   drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR", VIEW_W/2, VIEW_H - 20, { color: "#5a4f78", align: "center" });
 }
 
-// -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec
+// -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec - FUNDO SÓLIDO (parallax só no TITLE)
 function renderOptions() {
-  drawTitleBg(ctx);
+  drawSolidMenuBg(ctx, "#0e0c1e");
   drawTitleMotes(ctx, G.time);
   ctx.fillStyle = "rgba(10,8,18,0.78)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -1101,8 +1101,9 @@ function renderOptions() {
 }
 
 // ------------------------------------------------------------------ ajuda ----
+// HELP - fundo sólido gótico, SEM parallax (parallax exclusivo TITLE)
 function renderHelp() {
-  drawTitleBg(ctx);
+  drawSolidMenuBg(ctx, "#0a0812");
   ctx.fillStyle = "rgba(10,8,16,0.62)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
