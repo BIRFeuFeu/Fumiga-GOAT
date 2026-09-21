@@ -59,7 +59,7 @@ export const ANT_SIZES = {
   e_runner: 40, e_swarm: 45, e_warrior: 64, e_spitter: 61, e_reaper: 58,
   e_matron: 106, e_sentinel: 82,
 };
-/** A COLETORA é a operária tingida de jade — assa no mesmo tamanho. */
+/** A POTE-DE-MEL tem sprite próprio — assa no mesmo tamanho da operária. */
 export const GATHERER_SIZE = ANT_SIZES.worker;
 
 export const UNITS = {
@@ -67,7 +67,7 @@ export const UNITS = {
   // FORMIGA-CORTADEIRA (Atta cephalotes): corta folhas para cultivar o
   // fungo do ninho — cada entrega apressa o FUNGÁRIO (ver deposit()).
   worker: {
-    id: "worker", key: null, name: "FORMIGA-CORTADEIRA, A AGRICULTORA",
+    id: "worker", key: null, fn: "OPERÁRIA", name: "FORMIGA-CORTADEIRA, A AGRICULTORA",
     tip: "Atta cephalotes: corta folhas para cultivar o fungo do ninho. Cada entrega apressa o FUNGÁRIO.",
     cost: 12, costGrow: 0.06, hatchTime: 2.0,
     hp: 26, dmg: 2.5, speed: 98, range: 13, atkCd: 0.7,
@@ -77,7 +77,7 @@ export const UNITS = {
   // FORMIGA-POTE-DE-MEL (Myrmecocystus mexicanus): operárias repletas são a
   // despensa viva — carregam mais e, na escassez, gotejam comida no ninho.
   gatherer: {
-    id: "gatherer", key: null, name: "FORMIGA-POTE-DE-MEL, A DESPENSA",
+    id: "gatherer", key: null, fn: "COLETORA", name: "FORMIGA-POTE-DE-MEL, A DESPENSA",
     tip: "Myrmecocystus mexicanus: o gaster inchado de mel carrega bem mais - e, na escassez, goteja comida no formigueiro.",
     cost: 18, costGrow: 0.06, hatchTime: 2.2,
     hp: 24, dmg: 1.5, speed: 110, range: 12, atkCd: 0.9,
@@ -87,7 +87,7 @@ export const UNITS = {
   // FORMIGA-PRATA (Cataglyphis bombycina): a formiga mais rápida do mundo
   // (855mm/s) — arrancadas relâmpago em pleno deserto (ver moveToward).
   scout: {
-    id: "scout", key: null, name: "FORMIGA-PRATA, A VELOZ",
+    id: "scout", key: null, fn: "BATEDORA", name: "FORMIGA-PRATA, A VELOZ",
     tip: "Cataglyphis bombycina: a formiga mais rápida do mundo (855mm/s). Arrancadas de prata que revelam o mapa.",
     cost: 22, costGrow: 0.06, hatchTime: 2.4,
     hp: 52, dmg: 6.5, speed: 152, range: 13, atkCd: 0.4,
@@ -98,7 +98,7 @@ export const UNITS = {
   // FORMIGA-BALA (Paraponera clavata): o ferrão mais doloroso do mundo —
   // a poneratoxina deixa o inimigo LENTO (ver attackMelee).
   soldier: {
-    id: "soldier", key: null, name: "FORMIGA-BALA, A ATIRADORA",
+    id: "soldier", key: null, fn: "SOLDADO", name: "FORMIGA-BALA, A ATIRADORA",
     tip: "Paraponera clavata: o ferrão mais doloroso do mundo. Suas ferroadas deixam o inimigo LENTO.",
     cost: 30, costGrow: 0.06, hatchTime: 3.2,
     hp: 175, dmg: 18, speed: 74, range: 17, atkCd: 0.62,
@@ -107,7 +107,7 @@ export const UNITS = {
   // QUEIXO-DE-ARPÃO (Odontomachus bauri): mandíbulas a 200km/h em 0,13ms —
   // a mordida mais rápida do reino animal. Executa feridos e salta fora.
   trapjaw: {
-    id: "trapjaw", key: null, name: "QUEIXO-DE-ARPÃO, A ESTRONDOSA",
+    id: "trapjaw", key: null, fn: "ASSALTANTE", name: "QUEIXO-DE-ARPÃO, A ESTRONDOSA",
     tip: "Odontomachus bauri: mandíbulas a 200km/h em 0,13ms. Golpes em rajada, executa feridos e salta longe quando atingida.",
     cost: 48, costGrow: 0.06, hatchTime: 3.6,
     hp: 70, dmg: 14, speed: 96, range: 24, atkCd: 0.42,
@@ -116,7 +116,7 @@ export const UNITS = {
   // FORMIGA-ACROBATA (Crematogaster): ergue o gaster em coração e borrifa
   // veneno espumante que corrói com o tempo (ver spitAt/combat.js).
   spitter: {
-    id: "spitter", key: null, name: "FORMIGA-ACROBATA, A BAILARINA",
+    id: "spitter", key: null, fn: "CUSPIDORA", name: "FORMIGA-ACROBATA, A BAILARINA",
     tip: "Crematogaster: ergue o gaster em coração e borrifa veneno que corrói o inimigo com o tempo.",
     cost: 42, costGrow: 0.06, hatchTime: 3.8,
     hp: 60, dmg: 15, speed: 62, range: 125, atkCd: 1.1,
@@ -125,7 +125,7 @@ export const UNITS = {
   // FORMIGA-DE-FOGO (Solenopsis invicta): o nome é o programa — brasa em
   // área com queimadura contínua.
   bomber: {
-    id: "bomber", key: null, name: "FORMIGA-DE-FOGO, A INCENDIÁRIA",
+    id: "bomber", key: null, fn: "BOMBEIRA", name: "FORMIGA-DE-FOGO, A INCENDIÁRIA",
     tip: "Solenopsis invicta: o nome é o programa - bombas de brasa em área com queimadura contínua.",
     cost: 58, costGrow: 0.06, hatchTime: 4.6,
     hp: 84, dmg: 13, speed: 66, range: 96, atkCd: 1.6,
@@ -137,7 +137,7 @@ export const UNITS = {
   // CEFALOTE (Cephalotes varians): a cabeça em disco fecha a porta do ninho
   // (fragmose) — perto do formigueiro a casca quase dobra (ver takeDamage).
   tank: {
-    id: "tank", key: null, name: "CEFALOTE, A PORTA-VIVA",
+    id: "tank", key: null, fn: "GUARDA", name: "CEFALOTE, A PORTA-VIVA",
     tip: "Cephalotes varians: a cabeça em disco fecha a porta do ninho. Perto do formigueiro sua casca quase dobra (-45% de dano).",
     cost: 62, costGrow: 0.06, hatchTime: 5.0,
     hp: 360, dmg: 12, speed: 48, range: 19, atkCd: 0.8,
@@ -147,7 +147,7 @@ export const UNITS = {
   // FORMIGA-MATABELE (Megaponera analis): os únicos insetos que tratam
   // feridas com antibióticos — triagem: feridas críticas curam em dobro.
   healer: {
-    id: "healer", key: null, name: "FORMIGA-MATABELE, A RESGATADORA",
+    id: "healer", key: null, fn: "CURANDEIRA", name: "FORMIGA-MATABELE, A RESGATADORA",
     tip: "Megaponera analis: os únicos insetos que tratam feridas com antibióticos. TRIAGEM: feridas críticas recebem cura em dobro.",
     cost: 46, costGrow: 0.06, hatchTime: 4.2,
     hp: 44, dmg: 0, speed: 92, range: 26, atkCd: 1,
@@ -157,7 +157,7 @@ export const UNITS = {
   // FORMIGA-TECELÃ (Oecophylla smaragdina): costura o ninho com a seda das
   // larvas — cada Tecelã viva acelera escavação e berçário (ver nest.js).
   weaver: {
-    id: "weaver", key: null, name: "FORMIGA-TECELÃ, A COSTUREIRA",
+    id: "weaver", key: null, fn: "CONSTRUTORA", name: "FORMIGA-TECELÃ, A COSTUREIRA",
     tip: "Oecophylla smaragdina: costura o ninho com a seda das larvas. Cada Tecelã viva acelera escavação e berçário.",
     cost: 40, costGrow: 0.06, hatchTime: 4.5,
     hp: 55, dmg: 0, speed: 55, range: 13, atkCd: 1,
@@ -170,7 +170,7 @@ export const UNITS = {
   // exatos o frame da soldado), lenta, cara e única por expedição: atrai a
   // horda (taunt), esmaga com um golpe só e passa por cima do mato (smash).
   giant: {
-    id: "giant", key: null, name: "DINOPONERA, A COLOSSA",
+    id: "giant", key: null, fn: "COLOSSA", name: "DINOPONERA, A COLOSSA",
     tip: "Dinoponera australis: a maior formiga operária real - 20 soldados de comprimento. Puxa a horda, esmaga a mata e mata com um golpe. Só cabe uma por expedição.",
     cost: 320, costGrow: 0.06, hatchTime: 7.0,
     hp: 3000, dmg: 95, speed: 30, range: 130, atkCd: 1.6,
