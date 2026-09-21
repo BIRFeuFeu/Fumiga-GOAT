@@ -133,6 +133,13 @@ const MANIFEST = {
   i_sk_heart: "sprites/icons/sk_heart.png",
   i_sk_bomb: "sprites/icons/sk_bomb.png",
   i_potion: "sprites/icons/potion.png",
+  // parallax menu - alta resolução estilo formigueiro
+  parallax_sky: "parallax/menu/layer5_sky_sunset_moon_highres.png",
+  parallax_mountains: "parallax/menu/layer4_mountains_silhouette_highres.png",
+  parallax_main: "parallax/menu/layer3_main_grass_ruins_anthill_transparent.png",
+  parallax_foreground: "parallax/menu/layer1_foreground_vines_bottom_final.png",
+  parallax_main_full: "parallax/menu/layer3_main_grass_ruins_anthill.png",
+  parallax_sky_old: "parallax/menu/layer5_sky_sunset_moon.png",
 };
 
 export const IMG = {};   // key -> HTMLImageElement (sprites crus)
