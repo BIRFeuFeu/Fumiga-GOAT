@@ -32,7 +32,7 @@ globalThis.Image = class {
   set src(v) { if (this.onload) setTimeout(() => this.onload(), 0); }
 };
 
-const { loadAll, IMG, dupSprite, bakeRotTinted } = await import("../js/assets.js");
+const { loadAll, IMG, dupSprite } = await import("../js/assets.js");
 const { MAPS, UNITS, ENEMIES, MUTATIONS, META_NODES, CHAMBERS, GIANT_SCALE } = await import("../js/config.js");
 const { genWorld, world } = await import("../js/world.js");
 const { bossAnimSheets } = await import("../js/render.js");
@@ -45,9 +45,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 await loadAll();
 // Mesmo sprite derivado do boot (main.js): a DINOPONERA é a arte da FORMIGA-
-// BALA tingida de violeta e ampliada. Sem isso o teste acusaria a chave de
-// sprite que só existe depois do boot. (A MEL tem sprite próprio desde o
-// rework de espécies.)
+// BALA ampliada 20x, com as mesmas cores originais (sem tingeamento). Sem isto
+// o teste acusaria a chave de sprite que só existe depois do boot. (A MEL tem
+// sprite próprio desde o rework de espécies.)
 dupSprite("soldier", "giant");
 const have = (k) => !!IMG[k];
 const problems = [];

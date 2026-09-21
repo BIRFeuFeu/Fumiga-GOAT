@@ -194,13 +194,13 @@ const { allies } = await import(BASE + "units.js");
 await loadFonts();
 await loadAll();
 // mesmo "bake" do boot real (main.js): sprites girados e sheets de chefe
-const { bakeRot, bakeRotTinted, dupSprite, setRotDrawScale, rotDrawSize } = await import(BASE + "assets.js");
+const { bakeRot, dupSprite, setRotDrawScale, rotDrawSize } = await import(BASE + "assets.js");
 const { GIANT_SCALE, ANT_SIZES, GATHERER_SIZE } = await import(BASE + "config.js");
 const { bakeBossSheets } = await import(BASE + "render.js");
 dupSprite("soldier", "giant");
 for (const [k, s] of Object.entries(ANT_SIZES)) bakeRot(k, s);
 setRotDrawScale("giant", "soldier", GIANT_SCALE);
-bakeRotTinted("worker", "gatherer", GATHERER_SIZE, "#7fd6c0", 0.5);
+bakeRot("gatherer", GATHERER_SIZE);
 bakeBossSheets();
 boot();
 G.save.tutorial = 1;

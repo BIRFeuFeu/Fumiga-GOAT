@@ -64,27 +64,8 @@ ant "$F/gen-78c7edb1-d4b6-4343-a2e9-834e7a8bd66c.png" e_reaper.png    40
 ant "$F/gen-686ee82a-5469-4aa3-86c7-37a4cf797843.png" e_matron.png    72
 ant "$F/gen-1573e56b-2049-49a6-b04d-571d2167ba4c.png" e_sentinel.png  56
 
-# --- Novas classes aliadas (recolors) ---
-# BATEDORA -> FORMIGA-PRATA (Cataglyphis): operária com matiz teal — veloz e alerta
-convert "$F/gen-4d3ea505-a3ec-4de8-b7a9-dbd72d194464.png" -trim +repage -filter point -resize x30 -modulate 115,105,190 "$OUT/sprites/ants/scout.png"
-# CURANDEIRA -> FORMIGA-MATABELE (Megaponera): operária alva (brilho alto) — médica de guerra
-convert "$F/gen-4d3ea505-a3ec-4de8-b7a9-dbd72d194464.png" -trim +repage -filter point -resize x34 -modulate 420,50 "$OUT/sprites/ants/healer.png"
-# BOMBEIRA -> FORMIGA-DE-FOGO (Solenopsis): soldado em brasa profunda — dano em área + queimadura
-convert "$F/gen-1e856e81-6689-4fac-ad52-cc38b9d8e3c7.png" -trim +repage -filter point -resize x46 -modulate 92,185,90 "$OUT/sprites/ants/bomber.png"
-echo "  ants novas: scout/healer/bomber"
-
-
-# clareia sprites muito escuras (fundo do jogo é sombrio)
-bright () { convert "$OUT/sprites/ants/$1" -modulate "$2,100" "$OUT/sprites/ants/$1"; echo "  bright $1 x$2"; }
-bright e_runner.png  175
-bright e_warrior.png 150
-bright e_matron.png  140
-bright e_swarm.png   130
-bright e_reaper.png  125
-bright e_sentinel.png 120
-bright e_spitter.png 118
-
-convert "$OUT/sprites/ants/spitter.png" -modulate 112,116 "$OUT/sprites/ants/spitter.png"
+# Cores ORIGINAIS: nenhum -modulate nos sprites de formiga — as artes das
+# espécies (rework-*.png) entram exatamente como foram desenhadas.
 
 # ----------------------------------------------------------------- Animais ----
 # sheets 4 direções (linhas) x N frames (colunas) com células 32x32 -> sobe pra 64
