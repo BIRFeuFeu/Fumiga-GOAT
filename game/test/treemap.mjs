@@ -6,8 +6,11 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const cfg = fs.readFileSync("js/config.js", "utf8");
-const meta = fs.readFileSync("js/meta.js", "utf8");
+// caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório
+const GAME = decodeURIComponent(new URL("..", import.meta.url).pathname);
+
+const cfg = fs.readFileSync(GAME + "/js/config.js", "utf8");
+const meta = fs.readFileSync(GAME + "/js/meta.js", "utf8");
 
 const branches = {};
 for (const m of cfg.matchAll(/(\w): \{ name: "(\w+)",\s*color: "(#[0-9a-f]{6})" \}/g)) {

@@ -12,7 +12,8 @@ const CHARS =
   "ÁÀÂÃÉÊÍÓÔÕÚÇ" +
   "0123456789" +
   "?!.,:;+-*/%()<>=#_ " +
-  "—•▶[]✓";
+  "—•▶[]✓" +
+  "♿∞Ñ";
 
 /** Glifos disponíveis no atlas (ordem da grade). Usado pelo teste de texto. */
 export const FONT_CHARS = CHARS;
