@@ -267,19 +267,21 @@ TREE (árvore evolução), HELP (como jogar), OPTIONS (5 abas)
 | Mobile 104px toque + swipe | ✅ DONE | 70% (falta altura mínima auto + área toque rodapé) |
 | Fundo sólido gótico outros menus | ✅ DONE | 100% |
 | HighContrast border sobre parallax high-res | ✅ DONE | 100% |
-| Ciclo dia/noite 60s | ⚠️ PARCIAL | 60% (hoje 80s, tint não gradiente full) |
-| Formigueiro luz pulsando | ⚠️ PARCIAL | 50% (tem mas fraco) |
-| Vaga-lumes | ❌ TODO | 0% (ainda tochas flicker) |
-| Cristais + correntes ruínas | ⚠️ PARCIAL | 70% (cristais ok, correntes falta) |
+| Ciclo dia/noite 60s tint FORTE | ✅ DONE | 100% (60s exatos, noite azul 0.75 + 24 estrelas, dia laranja quente) |
+| Formigueiro luz pulsando + partículas | ✅ DONE | 100% (52px pulse + 90px anel roxo + 12 partículas essência subindo) |
+| Vaga-lumes azul+amarelo | ✅ DONE | 100% (10 unidades, y 300-420, blink, glow) |
+| Cristais só (sem correntes) | ✅ DONE | 100% (8 cristais, escolha so_cristais) |
+| Trilha sutil | ✅ DONE | 100% (0.06 alpha, escolha manter_sutil) |
 
 ### Próximos Passos Sugeridos (Ordem)
 
-1. **Finalizar Fase 1 (30% restante):**
-   - Ajustar ciclo dia/noite para 60s exatos
-   - Adicionar 5ª camada nuvens como imagem parallax
-   - Trocar tochas por vaga-lumes (fireflies com sin movimento + glow)
-   - Melhorar trilha feromônio mais visível animada
-   - Adicionar correntes nas ruínas bake
+1. **Fase 1 FINALIZADA 100% (4 camadas - escolhas do usuário):**
+   - ✅ Ciclo 60s tint FORTE: time*0.016666, noite azul escuro rgba(8,10,28,0.75) + 24 estrelas, dia laranja quente rgba(255,156,58,0.10) + brilho horizonte
+   - ✅ 4 camadas confirmadas (não 5): sky, mountains, main, foreground - todas com fundo removido exceto sky
+   - ✅ Vaga-lumes azul #37e6c8 + amarelo #ffd479 (10 unidades, y 300-420, sin sway, blink, glow 3.5x)
+   - ✅ Formigueiro luz pulsante + partículas essência subindo (12 partículas #c77dff/#ffd479/#37e6c8, vy -12..-30, life, glow 2.2x)
+   - ✅ Só cristais sem correntes (8 cristais #c77dff/#37e6c8/#6db7ff)
+   - ✅ Trilha sutil mantida 0.06 alpha (escolha manter_sutil)
 
 2. **Finalizar Fase 4 (25% restante):**
    - Implementar sliders visuais barra preenchida para áudio
