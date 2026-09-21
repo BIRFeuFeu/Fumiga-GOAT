@@ -40,6 +40,19 @@ export function pointInRect(px, py, x, y, w, h) {
   return px >= x && px <= x + w && py >= y && py <= y + h;
 }
 
+function isTouchDevice() {
+  return typeof window !== 'undefined' && ('ontouchstart' in window || window.innerWidth < 900);
+}
+
+// aumenta hitbox para toque - alvo mínimo 104px (escolha PC+Mobile)
+function hitRect(x, y, w, h) {
+  if (!isTouchDevice()) return { x, y, w, h };
+  const minTouch = 104;
+  const padX = Math.max(12, (minTouch - w) / 2 + 12);
+  const padY = Math.max(12, (minTouch - h) / 2 + 12);
+  return { x: x - padX, y: y - padY, w: w + padX * 2, h: h + padY * 2 };
+}
+
 /** Painel com borda dupla, cantos chanfrados e estética Dead Cells refinada */
 export function panel(ctx, x, y, w, h, opt = {}) {
   const r = opt.r !== undefined ? opt.r : 6;
@@ -134,10 +147,11 @@ function chamfer(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/** Botão textual refinado — Dead Cells style com animação suave */
+/** Botão textual refinado — Dead Cells style com animação suave + mobile 104px */
 export function button(ctx, opt) {
   const { x, y, w, h } = opt;
-  const hot = pointInRect(mouse.x, mouse.y, x, y, w, h);
+  const hr = hitRect(x, y, w, h);
+  const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const down = hot && mouse.down && !dis;
   const clicked = hot && mouse.justDown && !dis;
@@ -232,10 +246,11 @@ function hex2rgb(hex) {
   return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
 }
 
-/** Botão de ícone (loja / hotbar) refinado */
+/** Botão de ícone (loja / hotbar) refinado - mobile 104px touch */
 export function iconButton(ctx, opt) {
   const { x, y, w, h } = opt;
-  const hot = pointInRect(mouse.x, mouse.y, x, y, w, h);
+  const hr = hitRect(x, y, w, h);
+  const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const clicked = hot && mouse.justDown && !dis;
   const A = animOf("ic" + (opt.id || "") + x + y, hot && !dis, hot && mouse.down && !dis);
