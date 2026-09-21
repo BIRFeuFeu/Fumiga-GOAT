@@ -3,7 +3,7 @@
 // Papéis: worker | fighter | ranged | healer | bomber (via def.role)
 // ============================================================================
 import { UNITS, QUEEN, START, LEVEL_HP, LEVEL_DMG } from "./config.js";
-import { mods } from "./state.js";
+import { mods, G } from "./state.js";
 import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
 import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
 import { spawnPart, burst, scent, floatText, ring, impact, critBurst, healPulse, bloodSplatter, dustPoof } from "./particles.js";
@@ -59,11 +59,18 @@ function computeAntStats(typeId) {
   const fightMult = ch && (b.role === "fighter" || b.role === "ranged")
     ? 1 + 0.12 * ch.barracks : 1;
   const isWorker = b.role === "worker";
+  // FASE 4 FINAL: infiniteDash reduz atkCd 70% quando ligado
+  let atkCd = b.atkCd / m.fireRate;
+  try {
+    if (typeof G !== 'undefined' && G.save && G.save.accessibility && G.save.accessibility.infiniteDash) {
+      atkCd *= 0.3;
+    }
+  } catch(e) {}
   return {
     hp: Math.round(b.hp * m.hpAll * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
     speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
-    range: b.range + m.rangeBonus, atkCd: b.atkCd / m.fireRate,
+    range: b.range + m.rangeBonus, atkCd,
     carry: (b.carry || 0) + (isWorker ? m.workerCarry : 0),
     gatherRate: (b.gatherRate || 0) * m.gatherRate,
     projSpeed: b.projSpeed || 0,

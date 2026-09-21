@@ -14,6 +14,7 @@ import { drawText, textWidth, lineWidth, FONT } from "./font.js";
 import { clamp, TAU, lerp } from "./utils.js";
 import { fogDraw, fogVisible } from "./fog.js";
 import { SFX } from "./audio.js";
+import { mouse } from "./input.js";
 
 let vignette = null;
 
@@ -514,15 +515,24 @@ function drawBoss(ctx, b, w2s) {
 }
 
 // ================================================================= TÍTULO ===
-// Novo fundo inspirado em Dead Cells — masmorra gótica escura
+// Fundo híbrido: Dead Cells gótico + Planície do Amanhecer com ciclo dia/noite + parallax
+// Escolha do usuário: manter gótico mas com planície viva mostrando formigueiro
 let titleBg = null;
 let preTitleBg = null;
 let titleMotes = [];
+let titlePollen = []; // Celeste style - caindo
+let titleSnow = []; // FASE 3 - neve Celeste parallax lenta
+let titleClouds = [];
+let titleAnts = []; // formigas andando no menu
+let titleFireflies = []; // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo
+let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formigueiro
 let torchFlicker = 0;
+let dayPhase = 0;
 
 function ensureMotes() {
   if (titleMotes.length) return;
-  for (let i = 0; i < 50; i++) {
+  // motes subindo (Dead Cells)
+  for (let i = 0; i < 40; i++) {
     titleMotes.push({
       x: Math.random() * VIEW_W,
       y: Math.random() * VIEW_H,
@@ -534,12 +544,97 @@ function ensureMotes() {
       phase: Math.random() * TAU,
     });
   }
+  // FASE 3 - Celeste: pollen caindo lenta + snow/parallax (style pollen do bioma)
+  for (let i = 0; i < 45; i++) {
+    titlePollen.push({
+      x: Math.random() * VIEW_W,
+      y: Math.random() * VIEW_H,
+      vx: (Math.random() - 0.5) * 6,
+      vy: Math.random() * 8 + 3, // lenta: 3-11px/s (antes 6-18)
+      size: Math.random() * 1.8 + 0.6,
+      alpha: Math.random() * 0.5 + 0.2,
+      col: Math.random() < 0.4 ? "#fff6c8" : Math.random() < 0.7 ? "#ffd479" : "#bfffa8",
+      phase: Math.random() * TAU,
+      sway: Math.random() * 1.5 + 0.3,
+    });
+  }
+  // FASE 3 FINAL - neve Celeste: flakes caindo com sway maior, parallax lenta, brilho
+  for (let i = 0; i < 18; i++) {
+    titleSnow.push({
+      x: Math.random() * VIEW_W,
+      y: Math.random() * VIEW_H,
+      vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 14 + 8, // 8-22 px/s mais lenta que pollen mas com sway
+      size: Math.random() * 2.2 + 1.0,
+      alpha: Math.random() * 0.4 + 0.15,
+      col: Math.random() < 0.6 ? "#e8f4ff" : "#c8e6ff",
+      phase: Math.random() * TAU,
+      sway: 1.2 + Math.random() * 2.5, // sway maior que pollen
+      rot: Math.random() * TAU,
+      rotSpeed: (Math.random() - 0.5) * 0.8,
+    });
+  }
+  // nuvens parallax (4 camadas - FASE 1 FINAL: 4 camadas não 5)
+  for (let i = 0; i < 8; i++) {
+    titleClouds.push({
+      x: Math.random() * VIEW_W,
+      y: 20 + Math.random() * 120,
+      vx: (0.2 + Math.random() * 0.8) * (Math.random() < 0.5 ? 1 : 0.6),
+      w: 60 + Math.random() * 120,
+      h: 12 + Math.random() * 18,
+      alpha: 0.08 + Math.random() * 0.15,
+      layer: Math.floor(Math.random() * 3),
+    });
+  }
+  // formigas andando no menu (Castle Crashers vivo)
+  for (let i = 0; i < 6; i++) {
+    titleAnts.push({
+      x: Math.random() * VIEW_W,
+      y: VIEW_H - 40 - Math.random() * 80,
+      vx: (Math.random() < 0.5 ? -1 : 1) * (18 + Math.random() * 22),
+      bob: Math.random() * TAU,
+      type: Math.random() < 0.5 ? "worker" : Math.random() < 0.7 ? "soldier" : "scout",
+    });
+  }
+  // FASE 1 FINAL - vaga-lumes azul #37e6c8 + amarelo #ffd479 voando baixo sobre gramado (escolha azul_amarelo)
+  for (let i = 0; i < 10; i++) {
+    const isBlue = i % 2 === 0;
+    titleFireflies.push({
+      x: 120 + Math.random() * (VIEW_W - 240),
+      y: 300 + Math.random() * 120, // baixo sobre gramado 300-420
+      vx: (Math.random() - 0.5) * 18,
+      vy: (Math.random() - 0.5) * 10,
+      size: 1.5 + Math.random() * 2.2,
+      alpha: 0.5 + Math.random() * 0.5,
+      col: isBlue ? "#37e6c8" : "#ffd479",
+      phase: Math.random() * TAU,
+      sway: 0.6 + Math.random() * 1.2,
+      blinkSpeed: 1.2 + Math.random() * 2.0,
+    });
+  }
+  // FASE 1 FINAL - partículas essência subindo do formigueiro central (escolha particulas)
+  for (let i = 0; i < 12; i++) {
+    titleEssence.push({
+      x: VIEW_W * 0.72 + (Math.random() - 0.5) * 30,
+      y: VIEW_H * 0.62 + Math.random() * 20,
+      vx: (Math.random() - 0.5) * 8,
+      vy: - (12 + Math.random() * 18),
+      size: 0.8 + Math.random() * 1.6,
+      alpha: 0.3 + Math.random() * 0.5,
+      col: Math.random() < 0.5 ? "#c77dff" : Math.random() < 0.75 ? "#ffd479" : "#37e6c8",
+      phase: Math.random() * TAU,
+      life: Math.random(),
+    });
+  }
 }
 
-/** Partículas de brasa / esporos subindo (animadas por cima do fundo do título). */
+/** Partículas híbridas: motes subindo (Dead Cells) + pollen caindo (Celeste) + formigas + FASE 1 FINAL: vaga-lumes + essência */
 export function drawTitleMotes(ctx, time) {
   ensureMotes();
   torchFlicker = Math.sin(time * 7) * 0.15 + Math.sin(time * 3.2) * 0.1;
+  dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: ciclo dia/noite 60s exatos (escolha tint_forte)
+
+  // motes subindo
   for (const m of titleMotes) {
     m.x += m.vx * 0.016;
     m.y += m.vy * 0.016;
@@ -550,62 +645,331 @@ export function drawTitleMotes(ctx, time) {
     ctx.globalAlpha = a;
     ctx.fillStyle = m.col;
     ctx.beginPath(); ctx.arc(m.x, m.y, m.size, 0, TAU); ctx.fill();
-    // glow
     ctx.globalAlpha = a * 0.25;
     ctx.beginPath(); ctx.arc(m.x, m.y, m.size * 2.5, 0, TAU); ctx.fill();
+  }
+  // pollen caindo estilo Celeste
+  for (const p of titlePollen) {
+    p.x += (p.vx + Math.sin(time * p.sway + p.phase) * 3) * 0.016;
+    p.y += p.vy * 0.016;
+    if (p.y > VIEW_H + 10) { p.y = -10; p.x = Math.random() * VIEW_W; }
+    if (p.x < -20) p.x = VIEW_W + 20;
+    if (p.x > VIEW_W + 20) p.x = -20;
+    const a = p.alpha * (0.6 + 0.4 * Math.sin(time * 0.8 + p.phase));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+  }
+  // FASE 3 FINAL - neve Celeste parallax: flakes com sway maior, rotação, brilho
+  for (const s of titleSnow) {
+    s.x += (s.vx + Math.sin(time * s.sway + s.phase) * 5) * 0.016;
+    s.y += s.vy * 0.016;
+    s.rot += s.rotSpeed * 0.016;
+    if (s.y > VIEW_H + 12) { s.y = -12; s.x = Math.random() * VIEW_W; }
+    if (s.x < -24) s.x = VIEW_W + 24;
+    if (s.x > VIEW_W + 24) s.x = -24;
+    const a = s.alpha * (0.5 + 0.5 * Math.sin(time * 0.6 + s.phase));
+    ctx.globalAlpha = a;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    ctx.fillStyle = s.col;
+    // floco em cruz (Celeste style)
+    ctx.fillRect(-s.size, -0.5, s.size*2, 1);
+    ctx.fillRect(-0.5, -s.size, 1, s.size*2);
+    ctx.globalAlpha = a * 0.4;
+    ctx.beginPath(); ctx.arc(0,0,s.size*1.4,0,TAU); ctx.fill();
+    ctx.restore();
+  }
+  // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo sobre gramado (escolha azul_amarelo)
+  for (const f of titleFireflies) {
+    f.x += (f.vx + Math.sin(time * f.sway + f.phase) * 6) * 0.016;
+    f.y += (f.vy + Math.cos(time * f.sway * 0.7 + f.phase) * 4) * 0.016;
+    if (f.y < 280) { f.y = 280; f.vy = Math.abs(f.vy); }
+    if (f.y > 440) { f.y = 440; f.vy = -Math.abs(f.vy); }
+    if (f.x < 60) { f.x = 60; f.vx = Math.abs(f.vx); }
+    if (f.x > VIEW_W - 60) { f.x = VIEW_W - 60; f.vx = -Math.abs(f.vx); }
+    const blink = 0.4 + 0.6 * Math.abs(Math.sin(time * f.blinkSpeed + f.phase));
+    const a = f.alpha * blink;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = f.col;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, TAU); ctx.fill();
+    // glow
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = a * 0.35;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size * 3.5, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  // FASE 1 FINAL - partículas essência subindo do formigueiro (escolha particulas) - luz pulsando
+  for (const e of titleEssence) {
+    e.x += e.vx * 0.016;
+    e.y += e.vy * 0.016;
+    e.life += 0.016 * 0.3;
+    if (e.y < VIEW_H * 0.35 || e.life > 1) {
+      e.x = VIEW_W * 0.72 + (Math.random() - 0.5) * 30;
+      e.y = VIEW_H * 0.62 + Math.random() * 20;
+      e.vx = (Math.random() - 0.5) * 8;
+      e.vy = - (12 + Math.random() * 18);
+      e.life = 0;
+    }
+    const a = e.alpha * (1 - e.life) * (0.6 + 0.4 * Math.sin(time * 2 + e.phase));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = e.col;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, TAU); ctx.fill();
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = a * 0.4;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size * 2.2, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  // formigas andando no chão do menu
+  for (const ant of titleAnts) {
+    ant.x += ant.vx * 0.016;
+    ant.bob += 0.016 * 5;
+    if (ant.x < -20 && ant.vx < 0) { ant.x = VIEW_W + 20; ant.vx = Math.abs(ant.vx); }
+    if (ant.x > VIEW_W + 20 && ant.vx > 0) { ant.x = -20; ant.vx = -Math.abs(ant.vx); }
+    const bobY = Math.sin(ant.bob) * 1.5;
+    ctx.globalAlpha = 0.7;
+    // sombra
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath(); ctx.ellipse(ant.x, ant.y + 4, 6, 2.5, 0, 0, TAU); ctx.fill();
+    // corpo simplificado
+    const col = ant.type === "worker" ? "#37e6c8" : ant.type === "soldier" ? "#8fd3ff" : "#ffd479";
+    ctx.fillStyle = col;
+    ctx.fillRect(ant.x - 3, ant.y + bobY - 2, 6, 3);
+    ctx.fillStyle = "#efe9ff";
+    ctx.fillRect(ant.x + (ant.vx > 0 ? 2 : -3), ant.y + bobY - 1, 2, 2);
+    // rastro de feromônio
+    if (Math.floor(time * 10 + ant.x) % 20 === 0) {
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = "#37e6c8";
+      ctx.fillRect(ant.x, ant.y + 2, 2, 1);
+    }
   }
   ctx.globalAlpha = 1;
 }
 
+// =========================================================================
+// FUNDO TÍTULO - PARALLAX 4 CAMADAS EXCLUSIVO NO MENU INICIAL (TITLE)
+// Correção: as 4 imagens geradas ficam SOBREPOSTAS no menu inicial para gerar parallax
+// layer5 céu (fundo, 0.01x), layer4 montanhas (0.03x), layer3 gramado+ruínas+formigueiro (0.08x), layer1 vinhas foreground (0.15x)
+// mouse.x/y + time para movimento real
 export function drawTitleBg(ctx) {
+  const time = G.time;
+  dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: 60s exatos (escolha tint_forte + 4 camadas)
+  ensureMotes();
+
+  const hasParallax = IMG.parallax_sky && IMG.parallax_main && IMG.parallax_mountains && IMG.parallax_foreground;
+  
+  if (hasParallax) {
+    // parallax real com mouse direto - 4 CAMADAS (não 5)
+    const mx = (mouse && mouse.x ? mouse.x : VIEW_W/2);
+    const my = (mouse && mouse.y ? mouse.y : VIEW_H/2);
+    const offsetX = (mx - VIEW_W/2);
+    const offsetY = (my - VIEW_H/2);
+    
+    ctx.imageSmoothingEnabled = false;
+
+    // ----- CAMADA 5: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, 0.01x) -----
+    const skyImg = IMG.parallax_sky;
+    const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
+    const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
+    ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
+
+    // ----- CAMADA 4: Montanhas silhueta (meio-fundo, 0.03x) -----
+    const mtnImg = IMG.parallax_mountains;
+    const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
+    const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
+    ctx.globalAlpha = 0.96;
+    ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, VIEW_H * 0.62);
+    ctx.globalAlpha = 1;
+
+    // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
+    const mainImg = IMG.parallax_main;
+    const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
+    const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;
+    ctx.drawImage(mainImg, mainOffX - 30, mainOffY, VIEW_W + 60, VIEW_H - 5);
+
+    // FASE 1 FINAL - luz formigueiro pulsante com partículas (escolha particulas) - sem tochas, só cristais
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    // luz pulsante amarela quente na entrada do formigueiro
+    const pulse = 0.75 + Math.sin(time * 1.6) * 0.22;
+    const anthillFx = VIEW_W * 0.72 + mainOffX * 0.3;
+    const anthillFy = VIEW_H * 0.62 + mainOffY * 0.2;
+    const rg = ctx.createRadialGradient(anthillFx, anthillFy, 2, anthillFx, anthillFy, 52);
+    rg.addColorStop(0, `rgba(255,212,121,${0.22 * pulse})`);
+    rg.addColorStop(0.4, `rgba(255,160,60,${0.12 * pulse})`);
+    rg.addColorStop(1, "rgba(255,120,40,0)");
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(anthillFx, anthillFy, 52, 0, TAU); ctx.fill();
+    // segundo anel maior sutil
+    const rg2 = ctx.createRadialGradient(anthillFx, anthillFy, 10, anthillFx, anthillFy, 90);
+    rg2.addColorStop(0, `rgba(199,125,255,${0.08 * pulse})`);
+    rg2.addColorStop(1, "rgba(199,125,255,0)");
+    ctx.fillStyle = rg2;
+    ctx.beginPath(); ctx.arc(anthillFx, anthillFy, 90, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    // ----- CAMADA 1: Vinhas no inferior, resto transparente (FRENTE, 0.15x) -----
+    const fgImg = IMG.parallax_foreground;
+    const fgOffX = offsetX * 0.15 + Math.sin(time * 0.02) * 4;
+    const fgOffY = offsetY * 0.04;
+    ctx.drawImage(fgImg, fgOffX - 40, fgOffY, VIEW_W + 80, VIEW_H);
+
+    // FASE 1 FINAL - ciclo dia/noite 60s tint FORTE (escolha tint_forte): dia laranja quente / noite azul escuro 0.75 + estrelas
+    const dp = (time * 0.016666) % 1; // 60s exatos
+    const isDay = Math.sin(dp * TAU);
+    const dayT = (isDay * 0.5 + 0.5);
+    if (dayT < 0.45) {
+      // noite FORTE - azul escuro 0.75 max + estrelas piscando
+      const nightAlpha = (0.45 - dayT) * 1.65; // 0.45*1.65=0.7425 max ~0.75
+      ctx.fillStyle = `rgba(8,10,28,${nightAlpha})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      // estrelas mais visíveis na noite forte
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let i = 0; i < 24; i++) {
+        const sx = (i * 137.5 + time * 2.5) % VIEW_W;
+        const sy = (i * 73.3) % 110 + 4;
+        const tw = 0.35 + Math.sin(time * 2.2 + i * 1.3) * 0.35;
+        ctx.globalAlpha = tw * (0.45 - dayT) * 2.2;
+        const sz = i % 3 === 0 ? 2.2 : 1.6;
+        ctx.fillRect(sx, sy, sz, sz);
+      }
+      ctx.globalAlpha = 1;
+    } else if (dayT > 0.72) {
+      // dia FORTE - laranja quente fim de tarde
+      const dayAlpha = (dayT - 0.72) * 0.38; // max 0.28*0.38=0.106
+      ctx.fillStyle = `rgba(255,156,58,${dayAlpha})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      // brilho extra no horizonte
+      const hg = ctx.createLinearGradient(0, VIEW_H * 0.5, 0, VIEW_H * 0.75);
+      hg.addColorStop(0, `rgba(255,180,80,0)`);
+      hg.addColorStop(1, `rgba(255,140,40,${dayAlpha * 0.6})`);
+      ctx.fillStyle = hg;
+      ctx.fillRect(0, VIEW_H * 0.5, VIEW_W, VIEW_H * 0.25);
+    }
+
+    // acessibilidade highContrast - borda mais forte sobre parallax high-res
+    if (G.save.accessibility.highContrast) {
+      ctx.strokeStyle = "rgba(239,233,255,0.32)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(1.5, 1.5, VIEW_W - 3, VIEW_H - 3);
+      ctx.strokeStyle = "rgba(199,125,255,0.18)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(4.5, 4.5, VIEW_W - 9, VIEW_H - 9);
+    }
+
+    // vinheta gótica Dead Cells por cima de tudo
+    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.28, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.25);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(0.65, "rgba(0,0,0,0.14)");
+    vg.addColorStop(1, "rgba(0,0,0,0.52)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    return;
+  }
+
+  // fallback procedural caso imagens não carregadas - planície viva gótica
+  const isDay = Math.sin(dayPhase * TAU);
+  const dayT = (isDay * 0.5 + 0.5);
   if (!titleBg) bakeTitleBg();
+  
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 280);
+  if (dayT > 0.5) {
+    skyGrad.addColorStop(0, lerpColor("#6db7ff", "#151122", 1-dayT));
+    skyGrad.addColorStop(0.3, lerpColor("#8fd3ff", "#1a1430", 1-dayT));
+    skyGrad.addColorStop(0.6, lerpColor("#ffd479", "#2a2340", 1-dayT));
+    skyGrad.addColorStop(1, lerpColor("#ffb347", "#0f0c1a", 1-dayT));
+  } else {
+    skyGrad.addColorStop(0, "#0a0812");
+    skyGrad.addColorStop(0.4, "#151122");
+    skyGrad.addColorStop(0.7, "#1e1a30");
+    skyGrad.addColorStop(1, "#0f0c1a");
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   ctx.drawImage(titleBg, 0, 0);
-  // flicker das tochas
-  ctx.save();
-  ctx.globalCompositeOperation = "lighter";
-  const flick = 0.85 + torchFlicker;
-  // tocha esquerda
-  let rg = ctx.createRadialGradient(120, 220, 5, 120, 220, 90);
-  rg.addColorStop(0, `rgba(255,160,60,${0.35 * flick})`);
-  rg.addColorStop(0.5, `rgba(255,120,40,${0.12 * flick})`);
-  rg.addColorStop(1, "rgba(255,80,20,0)");
-  ctx.fillStyle = rg;
-  ctx.beginPath(); ctx.arc(120, 220, 90, 0, TAU); ctx.fill();
-  // tocha direita
-  rg = ctx.createRadialGradient(VIEW_W - 140, 200, 5, VIEW_W - 140, 200, 80);
-  rg.addColorStop(0, `rgba(120,200,255,${0.28 * flick})`);
-  rg.addColorStop(0.5, `rgba(80,140,200,${0.1 * flick})`);
-  rg.addColorStop(1, "rgba(40,80,120,0)");
-  ctx.fillStyle = rg;
-  ctx.beginPath(); ctx.arc(VIEW_W - 140, 200, 80, 0, TAU); ctx.fill();
-  ctx.restore();
+
+  const vg2 = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.2);
+  vg2.addColorStop(0, "rgba(0,0,0,0)");
+  vg2.addColorStop(0.7, "rgba(0,0,0,0.15)");
+  vg2.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg2;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+}
+
+// FUNDO SÓLIDO GÓTICO PARA OUTROS MENUS (MODE, OPTIONS, HELP) - sem parallax
+export function drawSolidMenuBg(ctx, tint = "#0a0812") {
+  if (!titleBg) bakeTitleBg();
+  // fundo escuro Dead Cells
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.globalAlpha = 0.35;
+  ctx.drawImage(titleBg, 0, 0);
+  ctx.globalAlpha = 1;
+  // vinheta
+  const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.2);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(0.7, "rgba(0,0,0,0.25)");
+  vg.addColorStop(1, "rgba(0,0,0,0.68)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // highContrast
+  if (G.save.accessibility.highContrast) {
+    ctx.strokeStyle = "rgba(239,233,255,0.22)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, VIEW_W - 2, VIEW_H - 2);
+  }
+}
+
+function lerpColor(a, b, t) {
+  // a,b = #rrggbb, t 0..1
+  const ar = parseInt(a.slice(1,3),16), ag=parseInt(a.slice(3,5),16), ab=parseInt(a.slice(5,7),16);
+  const br = parseInt(b.slice(1,3),16), bg=parseInt(b.slice(3,5),16), bb=parseInt(b.slice(5,7),16);
+  const r = Math.round(ar + (br-ar)*t), g = Math.round(ag + (bg-ag)*t), bl = Math.round(ab + (bb-ab)*t);
+  return `rgb(${r},${g},${bl})`;
 }
 
 // ------------------------------------------------------------------ logo ---
-// O título era desenhado com 6 camadas de brilho ROXO atrás das letras: no
-// escuro até impressionava, mas o halo sujava o contorno e o "FUMIGA" ficava
-// difícil de ler. Agora é metal dourado de verdade:
-//   1. sombra projetada (dá peso, não atrapalha);
-//   2. contorno preto duro de 2px — leitura máxima em qualquer fundo;
-//   3. gradiente em faixas (a fonte é bitmap, então o metal sai de recortes
-//      horizontais: ouro claro no topo, âmbar no meio, bronze embaixo);
-//   4. um brilho que atravessa as LETRAS de tempos em tempos.
-// Nada é pintado atrás do texto.
-export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 4.2) {
+// FASE 2 FINAL - Pixel Gigante 5x Escala Respirando
+// Spec: drawTitleLogo() escala 4.2 -> 5.0 + sin(time*0.6)*0.08 (pixel gigante que respira)
+// Mantém metal dourado + varredura a cada 4.6s
+// 1. sombra projetada, 2. contorno preto duro 2px, 3. gradiente faixas ouro/âmbar/bronze, 4. brilho varrendo letras + glow pulsante + sparkle
+export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
+  // FASE 2 FINAL: escala 5.0 + sin(time*0.6)*0.08 respirando (pixel gigante) + micro 0.02
+  const breathing = Math.sin(time * 0.6) * 0.08;
+  const secondary = Math.sin(time * 1.2) * 0.02;
+  scale = scale + breathing + secondary;
   const str = "FUMIGA";
   const h = FONT.big.ch * scale;
   const w = lineWidth(str.length, { font: "big", scale });
   const base = { font: "big", scale, align: "left", shadow: false };
 
+  // glow externo pulsante atrás do logo (respira junto)
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const glowPulse = 0.12 + Math.abs(breathing) * 0.8;
+  ctx.globalAlpha = glowPulse;
+  const glowGrad = ctx.createRadialGradient(x + w/2, y + h/2, 10, x + w/2, y + h/2, w*0.8);
+  glowGrad.addColorStop(0, "rgba(255,196,77,0.18)");
+  glowGrad.addColorStop(0.5, "rgba(199,125,255,0.08)");
+  glowGrad.addColorStop(1, "rgba(199,125,255,0)");
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(x - 20, y - 10, w + 40, h + 20);
+  ctx.restore();
+
   // 1) sombra projetada
   drawText(ctx, str, x + 5, y + 7, { ...base, color: "rgba(0,0,0,0.55)" });
 
-  // 2) contorno preto duro (2px, sem cantos vazados)
+  // 2) contorno preto duro 2px
   const ring = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2],
                 [-1, 0], [1, 0], [0, -1], [0, 1]];
   for (const [dx, dy] of ring) drawText(ctx, str, x + dx, y + dy, { ...base, color: "#0a0713" });
 
-  // 3) metal em faixas horizontais
+  // 3) metal dourado em faixas horizontais
   const bands = [
     [0.00, 0.31, "#fff0bd"],
     [0.29, 0.55, "#ffc44d"],
@@ -621,13 +985,13 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 4.2) {
     ctx.restore();
   }
 
-  // 4) brilho varrendo as letras (só as letras: o recorte é a própria tinta)
+  // 4) brilho varrendo as letras a cada 4.6s
   const period = 4.6;
   const ph = (time % period) / period;
   if (ph < 0.42) {
     const t = ph / 0.42;
     const bx = x - 90 + (w + 180) * t;
-    const fade = Math.sin(t * Math.PI);            // entra e sai suave
+    const fade = Math.sin(t * Math.PI);
     ctx.save();
     ctx.beginPath();
     ctx.rect(bx - 30, y - 6, 60, h + 12);
@@ -635,9 +999,21 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 4.2) {
     ctx.globalCompositeOperation = "lighter";
     drawText(ctx, str, x, y, { ...base, color: "rgba(255,247,220," + (0.5 * fade).toFixed(3) + ")" });
     ctx.restore();
+    if (fade > 0.3) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = fade * 0.6;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(bx, y + h * 0.2, 2, h * 0.6);
+      ctx.fillStyle = "#ffd479";
+      ctx.beginPath();
+      ctx.arc(bx, y + h * 0.5, 2 + fade * 2, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
-  // filete de luz fixo no topo das letras (metal polido)
+  // filete de luz fixo no topo (metal polido)
   ctx.save();
   ctx.beginPath();
   ctx.rect(x - 4, y + h * 0.04, w + 8, Math.max(2, h * 0.07));
@@ -649,12 +1025,14 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 4.2) {
 }
 
 export function drawPreTitleBg(ctx) {
+  // PRETITLE - fundo escuro exclusivo, SEM parallax (parallax só no TITLE inicial)
+  // Usa baked com runas + silhueta formigueiro, vinheta pesada
   if (!preTitleBg) bakePreTitleBg();
   ctx.drawImage(preTitleBg, 0, 0);
   // vinheta mais pesada no pre-title
   const vg = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 100, VIEW_W/2, VIEW_H/2, 600);
   vg.addColorStop(0, "rgba(0,0,0,0)");
-  vg.addColorStop(1, "rgba(0,0,0,0.75)");
+  vg.addColorStop(1, "rgba(0,0,0,0.78)");
   ctx.fillStyle = vg;
   ctx.fillRect(0,0,VIEW_W,VIEW_H);
 }
@@ -663,7 +1041,7 @@ function bakePreTitleBg() {
   preTitleBg = document.createElement("canvas");
   preTitleBg.width = VIEW_W; preTitleBg.height = VIEW_H;
   const c = preTitleBg.getContext("2d");
-  // fundo muito escuro com gradiente radial
+  // fundo escuro com ciclo dia/noite sutil + planície distante
   const g = c.createRadialGradient(VIEW_W/2, VIEW_H/2 - 40, 20, VIEW_W/2, VIEW_H/2 - 40, 700);
   g.addColorStop(0, "#1a1430");
   g.addColorStop(0.3, "#120e22");
@@ -672,7 +1050,7 @@ function bakePreTitleBg() {
   c.fillStyle = g;
   c.fillRect(0,0,VIEW_W,VIEW_H);
 
-  // runas / símbolos no fundo
+  // runas / símbolos no fundo + silhueta de formigueiro gigante
   c.globalAlpha = 0.04;
   c.fillStyle = "#c77dff";
   for (let i = 0; i < 30; i++) {
@@ -682,6 +1060,12 @@ function bakePreTitleBg() {
     c.fillRect(x, y, s, 2);
     c.fillRect(x + s/2 -1, y - s/2, 2, s);
   }
+  c.globalAlpha = 0.08;
+  // silhueta do formigueiro ao fundo
+  c.fillStyle = "#1d1730";
+  c.beginPath();
+  c.ellipse(VIEW_W/2, VIEW_H - 20, 180, 60, 0, 0, TAU);
+  c.fill();
   c.globalAlpha = 1;
 
   // névoa baixa
@@ -693,177 +1077,169 @@ function bakePreTitleBg() {
 }
 
 function bakeTitleBg() {
-  // ===== NOVO FUNDO DEAD CELLS: masmorra gótica escura com tochas e cristais ==
+  // ===== NOVO FUNDO: Planície do Amanhecer + Masmorra Gótica nas bordas + Formigueiro central ==
+  // Mantém gótico nas laterais (pilares) mas centro é planície viva com ciclo dia/noite
   titleBg = document.createElement("canvas");
   titleBg.width = VIEW_W; titleBg.height = VIEW_H;
   const c = titleBg.getContext("2d");
   c.imageSmoothingEnabled = false;
 
-  // base escura
-  c.fillStyle = "#0a0812";
-  c.fillRect(0,0,VIEW_W,VIEW_H);
+  // base transparente - céu será desenhado dinamicamente em drawTitleBg
+  // aqui só desenhamos chão e estruturas estáticas
 
-  // gradiente de fundo — parede de pedra distante
-  const bgGrad = c.createLinearGradient(0,0,0,VIEW_H);
-  bgGrad.addColorStop(0, "#151122");
-  bgGrad.addColorStop(0.4, "#0f0c1a");
-  bgGrad.addColorStop(1, "#0a0812");
-  c.fillStyle = bgGrad;
-  c.fillRect(0,0,VIEW_W,VIEW_H);
+  // ---- CHÃO DA PLANÍCIE com textura de solo ----
+  const groundTop = 340;
+  // gradiente do chão
+  const groundGrad = c.createLinearGradient(0, groundTop, 0, VIEW_H);
+  groundGrad.addColorStop(0, "#2c3d26");
+  groundGrad.addColorStop(0.3, "#33452c");
+  groundGrad.addColorStop(1, "#1e2d1a");
+  c.fillStyle = groundGrad;
+  c.fillRect(0, groundTop, VIEW_W, VIEW_H - groundTop);
 
-  // ---- PAREDE DE PEDRA com tijolos ----
-  const brickW = 48, brickH = 20;
-  for (let y = 0; y < VIEW_H; y += brickH) {
-    const offset = (Math.floor(y / brickH) % 2) * (brickW/2);
-    for (let x = -brickW; x < VIEW_W + brickW; x += brickW) {
-      const bx = x + offset;
-      // variação de cor
-      const v = (bx * 0.013 + y * 0.02) % 1;
-      const shade = 12 + Math.sin(v*6.28)*4 + (Math.random()*4);
-      const isDark = Math.random() < 0.15;
-      c.fillStyle = isDark ? `rgb(${shade},${shade-1},${shade+2})` : `rgb(${shade+8},${shade+6},${shade+12})`;
-      c.fillRect(bx + 1, y + 1, brickW - 2, brickH - 2);
-      // sombra do tijolo
-      c.fillStyle = "rgba(0,0,0,0.25)";
-      c.fillRect(bx + 1, y + brickH - 3, brickW - 2, 2);
-      c.fillRect(bx + brickW - 3, y + 1, 2, brickH - 2);
-    }
+  // textura de solo com manchas
+  for (let i = 0; i < 120; i++) {
+    const x = Math.random() * VIEW_W;
+    const y = groundTop + Math.random() * (VIEW_H - groundTop);
+    const s = 2 + Math.random() * 8;
+    const shade = 20 + Math.random() * 20;
+    c.fillStyle = `rgba(${shade+30},${shade+60},${shade+30},0.15)`;
+    c.fillRect(x, y, s, s*0.6);
+  }
+  // tufts de grama
+  c.fillStyle = "rgba(92,156,76,0.25)";
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * VIEW_W;
+    const y = groundTop + Math.random() * 60;
+    c.fillRect(x, y, 1, 4 + Math.random()*6);
   }
 
-  // ---- PILARES / ARCOS ----
-  // pilar esquerdo
+  // ---- FORMIGUEIRO CENTRAL (silhueta + entrada) ----
+  const moundX = VIEW_W/2, moundY = VIEW_H - 18;
+  // sombra
+  c.fillStyle = "rgba(8,6,12,0.5)";
+  c.beginPath(); c.ellipse(moundX, moundY + 6, 110, 22, 0, 0, TAU); c.fill();
+  // montículo
+  c.fillStyle = "#3a2a16";
+  c.beginPath(); c.ellipse(moundX, moundY, 95, 32, 0, 0, TAU); c.fill();
+  c.fillStyle = "#5a3a22";
+  c.beginPath(); c.ellipse(moundX, moundY - 4, 75, 24, 0, 0, TAU); c.fill();
+  // entrada
+  c.fillStyle = "#0a0812";
+  c.beginPath(); c.ellipse(moundX, moundY + 2, 18, 12, 0, 0, TAU); c.fill();
+  c.fillStyle = "rgba(0,0,0,0.6)";
+  c.beginPath(); c.ellipse(moundX, moundY + 2, 12, 8, 0, 0, TAU); c.fill();
+  // pedrinhas ao redor
+  c.fillStyle = "#4a3a2e";
+  for (let i = 0; i < 12; i++) {
+    const ang = (i / 12) * TAU;
+    const r = 70 + Math.random()*30;
+    const x = moundX + Math.cos(ang)*r;
+    const y = moundY + Math.sin(ang)*r*0.3 + Math.random()*8;
+    c.beginPath(); c.arc(x, y, 2+Math.random()*2, 0, TAU); c.fill();
+  }
+
+  // ---- PILARES GÓTICOS NAS LATERAIS (mantém Dead Cells) ----
+  // pilar esquerdo - ruína
   c.fillStyle = "#1a1628";
-  c.fillRect(0, 0, 42, VIEW_H);
+  c.fillRect(0, 0, 32, VIEW_H);
   c.fillStyle = "#241e36";
-  c.fillRect(42, 0, 8, VIEW_H);
+  c.fillRect(32, 0, 6, VIEW_H);
+  // rachaduras
+  c.fillStyle = "rgba(0,0,0,0.3)";
+  for (let y = 40; y < VIEW_H; y += 80) {
+    c.fillRect(8 + Math.random()*10, y, 2, 20 + Math.random()*20);
+  }
   // pilar direito
   c.fillStyle = "#1a1628";
-  c.fillRect(VIEW_W - 50, 0, 50, VIEW_H);
+  c.fillRect(VIEW_W - 38, 0, 38, VIEW_H);
   c.fillStyle = "#241e36";
-  c.fillRect(VIEW_W - 58, 0, 8, VIEW_H);
+  c.fillRect(VIEW_W - 44, 0, 6, VIEW_H);
+  c.fillStyle = "rgba(0,0,0,0.3)";
+  for (let y = 60; y < VIEW_H; y += 90) {
+    c.fillRect(VIEW_W - 30 + Math.random()*8, y, 2, 18 + Math.random()*18);
+  }
 
-  // arco superior
+  // arco superior quebrado - ruína gótica
   c.fillStyle = "#1e1a30";
   c.beginPath();
   c.moveTo(0, 0);
   c.lineTo(VIEW_W, 0);
-  c.lineTo(VIEW_W, 48);
-  c.quadraticCurveTo(VIEW_W/2, 78, 0, 48);
+  c.lineTo(VIEW_W, 36);
+  c.quadraticCurveTo(VIEW_W/2, 58, 0, 36);
   c.closePath();
   c.fill();
   c.fillStyle = "#2a2340";
-  c.fillRect(0, 0, VIEW_W, 4);
+  c.fillRect(0, 0, VIEW_W, 3);
+  // pedras caídas do arco
+  c.fillStyle = "rgba(0,0,0,0.25)";
+  c.fillRect(VIEW_W/2 - 40, 42, 12, 4);
+  c.fillRect(VIEW_W/2 + 20, 44, 8, 3);
 
-  // ---- TOCHAS ----
-  const torch = (x, y, color) => {
-    // suporte
-    c.fillStyle = "#3a2a16";
-    c.fillRect(x - 4, y - 30, 8, 36);
-    c.fillStyle = "#5a3a22";
-    c.fillRect(x - 6, y - 32, 12, 6);
-    // chama (será animada por overlay, mas base)
-    c.fillStyle = color;
+  // ---- ÁRVORES DISTANTES - parallax layer 0 (silhueta) ----
+  const trees = [
+    {x: 120, y: 300, w: 30, h: 70, col: "#1e2d1a"},
+    {x: 180, y: 310, w: 24, h: 55, col: "#22301d"},
+    {x: VIEW_W-140, y: 295, w: 32, h: 75, col: "#1e2d1a"},
+    {x: VIEW_W-200, y: 305, w: 26, h: 60, col: "#22301d"},
+    {x: 300, y: 315, w: 20, h: 45, col: "#263a20"},
+    {x: VIEW_W-320, y: 320, w: 18, h: 40, col: "#263a20"},
+  ];
+  for (const t of trees) {
+    c.fillStyle = t.col;
+    c.fillRect(t.x - t.w/2, t.y - t.h, t.w, t.h);
+    // copa
     c.beginPath();
-    c.moveTo(x, y - 44);
-    c.quadraticCurveTo(x + 8, y - 34, x + 2, y - 28);
-    c.quadraticCurveTo(x - 2, y - 32, x, y - 44);
+    c.ellipse(t.x, t.y - t.h, t.w*0.8, t.w*0.6, 0, 0, TAU);
     c.fill();
-    // brasa
-    c.fillStyle = "#ffd479";
-    c.fillRect(x - 2, y - 34, 4, 4);
-  };
-  torch(120, 220, "#ff7a3d");
-  torch(VIEW_W - 140, 200, "#6db7ff");
-  torch(200, 380, "#c77dff");
-  torch(VIEW_W - 220, 360, "#37e6c8");
-
-  // ---- CORRENTES penduradas ----
-  c.strokeStyle = "#2a2338";
-  c.lineWidth = 2;
-  for (let i = 0; i < 6; i++) {
-    const cx = 80 + i * 160 + Math.random() * 20;
-    c.beginPath();
-    c.moveTo(cx, 48);
-    let py = 48;
-    for (let j = 0; j < 8; j++) {
-      py += 12 + Math.random()*6;
-      c.lineTo(cx + Math.sin(j)*3, py);
-    }
-    c.stroke();
-    // elos
-    for (let j = 0; j < 8; j++) {
-      const ey = 60 + j * 14;
-      c.strokeStyle = j % 2 ? "#3a3450" : "#2a2438";
-      c.beginPath();
-      c.ellipse(cx, ey, 5, 8, 0, 0, TAU);
-      c.stroke();
-    }
   }
 
-  // ---- CRISTAIS brilhando na parede (essência) ----
-  for (let i = 0; i < 12; i++) {
-    const x = 100 + Math.random() * (VIEW_W - 200);
-    const y = 80 + Math.random() * 300;
+  // ---- ARBUSTOS no chão ----
+  const bushes = [
+    {x: 90, y: 380, col: "#3d5a45"},
+    {x: 240, y: 400, col: "#4a7a42"},
+    {x: VIEW_W-100, y: 390, col: "#3d5a45"},
+    {x: VIEW_W-260, y: 410, col: "#41663a"},
+  ];
+  for (const b of bushes) {
+    c.fillStyle = b.col;
+    c.beginPath(); c.ellipse(b.x, b.y, 14, 10, 0, 0, TAU); c.fill();
+  }
+
+  // ---- CRISTAIS de essência na parede/ruínas ----
+  for (let i = 0; i < 8; i++) {
+    const x = 50 + Math.random() * (VIEW_W - 100);
+    if (Math.abs(x - VIEW_W/2) < 120) continue; // não no centro
+    const y = 80 + Math.random() * 200;
     const col = i % 3 === 0 ? "#c77dff" : i % 3 === 1 ? "#37e6c8" : "#6db7ff";
     c.fillStyle = col;
-    c.globalAlpha = 0.6;
+    c.globalAlpha = 0.5;
     c.beginPath();
-    c.moveTo(x, y - 8); c.lineTo(x + 5, y); c.lineTo(x, y + 10); c.lineTo(x - 5, y);
+    c.moveTo(x, y - 6); c.lineTo(x + 4, y); c.lineTo(x, y + 8); c.lineTo(x - 4, y);
     c.closePath(); c.fill();
-    c.globalAlpha = 0.15;
-    c.beginPath(); c.arc(x, y, 18, 0, TAU); c.fill();
     c.globalAlpha = 1;
   }
 
-  // ---- PORTA / ARCO CENTRAL ao fundo (silhueta) ----
-  c.fillStyle = "rgba(0,0,0,0.5)";
-  c.beginPath();
-  c.moveTo(VIEW_W/2 - 80, VIEW_H);
-  c.lineTo(VIEW_W/2 - 80, 220);
-  c.quadraticCurveTo(VIEW_W/2, 160, VIEW_W/2 + 80, 220);
-  c.lineTo(VIEW_W/2 + 80, VIEW_H);
-  c.closePath();
-  c.fill();
-  // borda do arco
-  c.strokeStyle = "#2c2440";
-  c.lineWidth = 3;
-  c.beginPath();
-  c.moveTo(VIEW_W/2 - 80, VIEW_H);
-  c.lineTo(VIEW_W/2 - 80, 220);
-  c.quadraticCurveTo(VIEW_W/2, 160, VIEW_W/2 + 80, 220);
-  c.lineTo(VIEW_W/2 + 80, VIEW_H);
-  c.stroke();
-
-  // névoa / chão
-  const fogGrad = c.createLinearGradient(0, VIEW_H - 140, 0, VIEW_H);
-  fogGrad.addColorStop(0, "rgba(20,16,35,0)");
-  fogGrad.addColorStop(0.5, "rgba(20,16,35,0.4)");
-  fogGrad.addColorStop(1, "rgba(10,8,18,0.85)");
-  c.fillStyle = fogGrad;
-  c.fillRect(0, VIEW_H - 140, VIEW_W, 140);
-
-  // detalhes no chão — pedras, rachaduras
-  c.fillStyle = "rgba(0,0,0,0.3)";
-  for (let i = 0; i < 20; i++) {
-    const x = Math.random() * VIEW_W;
-    const y = VIEW_H - Math.random() * 60;
-    c.fillRect(x, y, 20 + Math.random()*30, 2);
+  // ---- TRILHAS de formigas no chão (feromônio) ----
+  c.fillStyle = "rgba(55,230,200,0.08)";
+  for (let i = 0; i < 3; i++) {
+    const startX = VIEW_W/2 + (Math.random()-0.5)*40;
+    const endX = 60 + Math.random() * (VIEW_W - 120);
+    c.beginPath();
+    c.moveTo(startX, moundY);
+    c.quadraticCurveTo((startX+endX)/2 + (Math.random()-0.5)*100, groundTop + 20 + Math.random()*40, endX, VIEW_H - 20 - Math.random()*30);
+    c.lineWidth = 1;
+    c.strokeStyle = "rgba(55,230,200,0.06)";
+    c.stroke();
   }
 
-  // vinheta
-  const v = c.createRadialGradient(VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 0.3, VIEW_W / 2, VIEW_H * 0.45, VIEW_H * 1.1);
-  v.addColorStop(0, "rgba(0,0,0,0)");
-  v.addColorStop(0.7, "rgba(0,0,0,0.15)");
-  v.addColorStop(1, "rgba(0,0,0,0.65)");
-  c.fillStyle = v;
-  c.fillRect(0, 0, VIEW_W, VIEW_H);
-
-  // brilho sutil no centro (onde fica o título)
-  const centerGlow = c.createRadialGradient(VIEW_W/2 - 100, VIEW_H/2 - 80, 10, VIEW_W/2 - 100, VIEW_H/2 - 80, 320);
-  centerGlow.addColorStop(0, "rgba(143,111,214,0.08)");
-  centerGlow.addColorStop(1, "rgba(143,111,214,0)");
-  c.fillStyle = centerGlow;
-  c.fillRect(0,0,VIEW_W,VIEW_H);
+  // ---- CHÃO - detalhes finais ----
+  c.fillStyle = "rgba(0,0,0,0.15)";
+  for (let i = 0; i < 15; i++) {
+    const x = Math.random() * VIEW_W;
+    const y = VIEW_H - Math.random() * 40;
+    c.fillRect(x, y, 16 + Math.random()*24, 1);
+  }
 }
 
 // ================================================= PRE-TITLE SCREEN ==
@@ -932,7 +1308,7 @@ export function drawPreTitle(ctx, time) {
 }
 
 function drawBigTitle(ctx, cx, y, time, isShadow) {
-  const scale = 5 + Math.sin(time * 0.6) * 0.08;
+  const scale = 5.2 + Math.sin(time * 0.6) * 0.18; // pixel gigante 5x respirando
   const jitter = isShadow ? 0 : Math.sin(time * 8) * 0.3;
 
   // efeito de glitch / camadas
@@ -968,12 +1344,13 @@ function drawBigTitle(ctx, cx, y, time, isShadow) {
 }
 
 // ================================================ MODE SELECT SCREEN ==
+// MODE - fundo sólido gótico, SEM parallax (parallax exclusivo TITLE inicial)
 export function drawModeSelect(ctx, time) {
-  drawTitleBg(ctx);
+  drawSolidMenuBg(ctx, "#0c0a18");
   drawTitleMotes(ctx, time);
 
   // overlay escuro
-  ctx.fillStyle = "rgba(10,8,18,0.72)";
+  ctx.fillStyle = "rgba(10,8,18,0.62)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
   // título da tela
@@ -985,10 +1362,12 @@ export function drawModeSelect(ctx, time) {
   ctx.fillRect(VIEW_W/2 - 180, 98, 360, 1);
 }
 
-export function drawModeCards(ctx, modes, hoverIdx, time) {
+export function drawModeCards(ctx, modes, hoverIdx, time, scrollOffset = 0) {
   const cardW = 210, cardH = 340, gap = 18;
   const totalW = modes.length * cardW + (modes.length - 1) * gap;
-  const startX = VIEW_W/2 - totalW/2;
+  // FASE 6 FINAL: scroll visual offset para mobile swipe - cards deslizam horizontalmente
+  const scrollVisual = scrollOffset * (cardW + gap);
+  const startX = VIEW_W/2 - totalW/2 - scrollVisual;
   const y = 116;
 
   const rects = [];
@@ -1074,6 +1453,19 @@ export function drawModeCards(ctx, modes, hoverIdx, time) {
     rects.push({ x, y: y - lift, w: cardW, h: cardH, idx: i });
   }
 
+  // FASE 6 FINAL: indicador de scroll para mobile (bolinhas)
+  if (scrollOffset !== undefined) {
+    const dotsY = y + cardH + 14;
+    const dotGap = 12;
+    const dotsW = modes.length * 8 + (modes.length-1)*dotGap;
+    const dotsX0 = VIEW_W/2 - dotsW/2;
+    for (let i = 0; i < modes.length; i++) {
+      const dx = dotsX0 + i * (8 + dotGap);
+      ctx.fillStyle = i === Math.round(scrollOffset) ? "#ffd479" : "rgba(255,255,255,0.25)";
+      ctx.beginPath(); ctx.arc(dx+4, dotsY, i === Math.round(scrollOffset) ? 5 : 3, 0, TAU); ctx.fill();
+    }
+  }
+
   return rects;
 }
 // ================================================= TRANSIÇÕES DE TELA =======
@@ -1112,6 +1504,10 @@ const TRANS_LANG = {
   "HELP>TITLE":     { type: "iris",     dur: 0.30, dir: -1, tint: "#6db7ff" },
   "RUN>HELP":       { type: "iris",     dur: 0.32, dir:  1, tint: "#6db7ff" },
   "HELP>RUN":       { type: "iris",     dur: 0.30, dir: -1, tint: "#6db7ff" },
+  "TITLE>OPTIONS":  { type: "swipe",    dur: 0.36, dir:  1, tint: "#ffb347" },
+  "OPTIONS>TITLE":  { type: "swipe",    dur: 0.32, dir: -1, tint: "#ffb347" },
+  "RUN>OPTIONS":    { type: "zoom",     dur: 0.36, dir:  1, tint: "#ffb347" },
+  "OPTIONS>RUN":    { type: "zoom",     dur: 0.32, dir: -1, tint: "#ffb347" },
   "MODE>RUN":       { type: "dissolve", dur: 0.50, tint: "#ffb347" },
   "TITLE>RUN":      { type: "dissolve", dur: 0.50, tint: "#ffb347" },
   "RUN>MODE":       { type: "dissolve", dur: 0.50, tint: "#ffb347" },

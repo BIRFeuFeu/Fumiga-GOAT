@@ -7,7 +7,7 @@ const SAVE_KEY = "fumiga_goat_save_v1";
 
 // G: singleton mutável compartilhado por todos os módulos ---------------------
 export const G = {
-  screen: "BOOT",        // BOOT TITLE TREE RUN HELP
+  screen: "BOOT",        // BOOT PRETITLE TITLE MODE OPTIONS TREE RUN HELP
   time: 0,               // relógio global (s)
   timeScale: 1,          // slow-mo de morte/vitória
   slowMo: 0,
@@ -17,6 +17,23 @@ export const G = {
     essence: 0, nodes: {},
     best: { wave: 0, kills: 0, wins: 0, runs: 0, maps: 0 },
     tutorial: 0,         // 1 = tutorial concluído (ou pulado)
+    accessibility: {     // ♿ modo acessível - escolha do usuário
+      invincible: false,
+      slowMo: false,
+      infiniteDash: false,
+      bigFont: false,
+      reducedParticles: false,
+      highContrast: false,
+    },
+    settings: {
+      particles: true,
+      screenshake: true,
+      scanline: true,
+      musicVol: 1,
+      sfxVol: 1,
+      gameSpeed: 1,      // 0.5, 1, 1.5, 2
+      language: "pt-BR", // pt-BR, en-US, es
+    },
   },
 
   // estado da expedição (RUN)
@@ -39,6 +56,12 @@ export function loadSave() {
         G.save.nodes = data.nodes && typeof data.nodes === "object" ? data.nodes : {};
         G.save.best = Object.assign({ wave: 0, kills: 0, wins: 0, runs: 0, maps: 0 }, data.best || {});
         G.save.tutorial = data.tutorial ? 1 : 0;
+        if (data.accessibility && typeof data.accessibility === "object") {
+          G.save.accessibility = Object.assign(G.save.accessibility, data.accessibility);
+        }
+        if (data.settings && typeof data.settings === "object") {
+          G.save.settings = Object.assign(G.save.settings, data.settings);
+        }
       }
     }
   } catch (e) { /* armazenamento indisponível: segue sem persistência */ }
@@ -166,8 +189,6 @@ export function mods() {
     queenHp: m.queenHp * u.queenHp,
     popCap: m.popCap + u.popCap,
     critChance: m.critChance + u.crit,
-    // a mutação CORAÇÃO também regenera — antes o valor morria no mutBonus()
-    // porque ninguém somava aqui (a rainha nunca regenerava de verdade)
     queenRegen: (m.queenRegen || 0) + u.queenRegen,
     muts: u,
   });
