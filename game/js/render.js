@@ -633,7 +633,6 @@ let preTitleBg = null;
 let titleMotes = [];
 let titlePollen = []; // Celeste style - caindo
 let titleSnow = []; // FASE 3 - neve Celeste parallax lenta
-let titleClouds = [];
 let titleAnts = []; // formigas andando no menu
 let titleFireflies = []; // FASE 1 FINAL - vaga-lumes azul+amarelo voando baixo
 let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formigueiro
@@ -688,18 +687,6 @@ function ensureMotes() {
       sway: 1.2 + Math.random() * 2.5, // sway maior que pollen
       rot: Math.random() * TAU,
       rotSpeed: (Math.random() - 0.5) * 0.8,
-    });
-  }
-  // nuvens parallax (4 camadas - FASE 1 FINAL: 4 camadas não 5)
-  for (let i = 0; i < 8; i++) {
-    titleClouds.push({
-      x: Math.random() * VIEW_W,
-      y: 20 + Math.random() * 120,
-      vx: (0.2 + Math.random() * 0.8) * (Math.random() < 0.5 ? 1 : 0.6),
-      w: 60 + Math.random() * 120,
-      h: 12 + Math.random() * 18,
-      alpha: 0.08 + Math.random() * 0.15,
-      layer: Math.floor(Math.random() * 3),
     });
   }
   // formigas andando no menu (Castle Crashers vivo)
@@ -869,7 +856,7 @@ export function drawTitleMotes(ctx, time) {
 // =========================================================================
 // FUNDO TÍTULO - PARALLAX 4 CAMADAS EXCLUSIVO NO MENU INICIAL (TITLE)
 // Correção: as 4 imagens geradas ficam SOBREPOSTAS no menu inicial para gerar parallax
-// layer5 céu (fundo, 0.01x), layer4 montanhas (0.03x), layer3 gramado+ruínas+formigueiro (0.08x), layer1 vinhas foreground (0.15x)
+// layer4 céu (fundo, 0.01x), layer3 montanhas (0.03x), layer2 gramado+ruínas+formigueiro (0.08x), layer1 vinhas foreground (0.15x)
 // mouse.x/y + time para movimento real
 export function drawTitleBg(ctx) {
   const time = G.time;
@@ -887,13 +874,13 @@ export function drawTitleBg(ctx) {
     
     ctx.imageSmoothingEnabled = false;
 
-    // ----- CAMADA 5: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, 0.01x) -----
+    // ----- CAMADA 4: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, 0.01x) -----
     const skyImg = IMG.parallax_sky;
     const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
     const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
     ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
 
-    // ----- CAMADA 4: Montanhas silhueta (meio-fundo, 0.03x) -----
+    // ----- CAMADA 3: Montanhas silhueta (meio-fundo, 0.03x) -----
     // ALTURA 335 = altura do PNG (tools/fix_title_parallax.py gera cada camada
     // já no tamanho exato do drawImage). Antes era VIEW_H * 0.62 = 334.8,
     // o que forçava reamostragem e borrava a crista.
@@ -904,7 +891,7 @@ export function drawTitleBg(ctx) {
     ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, MTN_DRAW_H);
     ctx.globalAlpha = 1;
 
-    // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
+    // ----- CAMADA 2: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
     const mainImg = IMG.parallax_main;
     const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
     const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;

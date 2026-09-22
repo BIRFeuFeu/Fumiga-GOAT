@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ==============================================================================
 # FUMIGA — reparo das 4 camadas de parallax da tela TITLE
-# game/assets/parallax/menu/layer{5,4,3,1}_*.png
+# game/assets/parallax/menu/layer{4,3,2,1}_*.png  (1=frente .. 4=fundo)
 #
 # Problema: as camadas foram recortadas com chromakey e o matte veio sujo:
 #   • alpha binário (zero anti-aliasing)  -> bordas serrilhadas
@@ -40,10 +40,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MENU = os.path.join(ROOT, "game", "assets", "parallax", "menu")
 ORIG = os.path.join(MENU, "_orig")
 
-F_SKY = "layer5_sky_sunset_moon_highres.png"
-F_MTN = "layer4_mountains_silhouette_highres.png"
-F_MAIN = "layer3_main_grass_ruins_anthill_transparent.png"
-F_VINE = "layer1_foreground_vines_bottom_final.png"
+F_SKY = "layer4_sky_sunset_moon.png"
+F_MTN = "layer3_mountains_silhouette.png"
+F_MAIN = "layer2_main_grass_ruins_anthill.png"
+F_VINE = "layer1_foreground_vines.png"
 
 # Retângulo EXATO em que drawTitleBg() (game/js/render.js) desenha cada camada.
 # Gerar o PNG já nesse tamanho = blit 1:1, sem reamostragem na hora de desenhar.
