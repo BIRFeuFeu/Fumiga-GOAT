@@ -1,7 +1,7 @@
 import { G } from "./state.js";
 import { drawText } from "./font.js";
 import { MAPS } from "./config.js";
-import { assetUrl } from "./assets.js";
+import { assetUrl, loadImage, LOAD_CFG } from "./assets.js";
 
 // ============================================================================
 // LORE HUD — Sistema Orgânico Total por Bioma
@@ -157,12 +157,22 @@ const panelCache = new Map();
 const fogCache = [];
 let loading;
 export function loadLoreHUD() {
-  if (!loading) loading = Promise.all(["panels", "icons", "gaster", "textbox", "kit"].map(key => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { art[key] = img; panelCache.clear(); resolve(); };
-    img.onerror = () => reject(new Error("HUD não carregou: lore_" + key + ".png"));
-    img.src = assetUrl("assets/ui/lore_" + key + ".png");
-  })));
+  if (!loading) {
+    // prazo + retry por atlas (ver loadAll em assets.js): sem isso, um único
+    // atlas preso deixava o boot preso em CARREGANDO para sempre no celular
+    loading = (async () => {
+      const keys = ["panels", "icons", "gaster", "textbox", "kit"];
+      for (const key of keys) {
+        const url = assetUrl("assets/ui/lore_" + key + ".png");
+        let img = null;
+        for (let a = 0; a < LOAD_CFG.attempts && !img; a++) {
+          try { img = await loadImage(url + (a ? "&r=1" : "")); } catch (e) { img = null; }
+        }
+        if (!img) throw new Error("HUD não carregou: lore_" + key + ".png");
+        art[key] = img; panelCache.clear();
+      }
+    })();
+  }
   return loading;
 }
 

@@ -41,7 +41,7 @@ import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
 import { colony, foodTrailAt, dangerAt } from "./brain.js";
 import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay, drawPheromoneLegend, drawFoodIcon, drawEssenceCrystal, drawTrailAnt, trailProgress, drawTreeRings, drawScentMinimap, drawWoodBanner, drawKitIcon, hudBiome } from "./lore_hud.js";
 import { startCutscene, updateCutscene, drawCutscene, handleCutsceneInput, isCutsceneActive, startLoadingCutscene, getCutsceneDefs } from "./cutscenes.js";
-import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox } from "./ui.js";
+import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox, isTouchUI, touchPad } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
 import { nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover } from "./nest.js";
 import { rand, clamp, lerp, TAU, fmt } from "./utils.js";
@@ -138,9 +138,10 @@ const OPTIONS_TABS = [
   { id: "idioma", label: "IDIOMA", color: "#ffd479", icon: "A" },
 ];
 
-function isMobileLayout() {
-  return (typeof window !== 'undefined' && ('ontouchstart' in window || window.innerWidth < 900));
-}
+// O "modo mobile" é decidido por QUEM carrega o jogo (o shell de toque) e pelo
+// ponteiro do aparelho — NUNCA pela largura da janela. Janela estreita no PC não
+// é celular, e o layout de toque não pode inflar botões para fora do canvas.
+function isMobileLayout() { return isTouchUI(); }
 
 // ------------------------------------------------------------------ run -----
 function newRun(mode = null) {
@@ -946,12 +947,14 @@ function renderTitle() {
   drawText(ctx, "A Névoa levou o velho mundo. A colônia segue em frente.", 60, tY + 158, { color: "#8f7bb5" });
 
   const bx = 56, bw = mobile ? 320 : 300;
-  const btnH = mobile ? 104 : 46;
+  // Mobile: o DESENHO é o do PC (46/42/40/38). O que muda é só o espaçamento,
+  // que precisa de folga >= 2*HIT_PAD para as hitboxes vizinhas não se tocarem.
+  const btnH = 46;
   const btns = [
     { label: "JOGAR", id: "start", accent: "#37e6c8", h: btnH, font: "big" },
-    { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: mobile ? 104 : 42, font: "big" },
-    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: mobile ? 104 : 40, font: "big" },
-    { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: mobile ? 104 : 38 },
+    { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: 42, font: "big" },
+    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: 40, font: "big" },
+    { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: 38 },
   ];
   let by = 252;
   for (const b of btns) {
@@ -980,7 +983,7 @@ function renderTitle() {
         return;
       }
     }
-    by += b.h + (mobile ? 14 : 10);
+    by += b.h + (mobile ? 22 : 10);
   }
 
   // FASE 6 FINAL: área toque maior rodapé 28px -> 44px + touch feedback vibrate + 104px
@@ -1023,7 +1026,7 @@ function renderModeScreen() {
   }
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: 20, y: VIEW_H - 56, w: mobile ? 220 : 140, h: mobile ? 104 : 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
+  if (button(ctx, { x: 20, y: mobile ? VIEW_H - 90 : VIEW_H - 56, w: mobile ? 220 : 140, h: 32, label: "VOLTAR", id: "modeBack", accent: "#ff4d5a" })) {
     notePointer(mouse.x, mouse.y);
     if (mobile && navigator.vibrate) navigator.vibrate(20);
     startTransition("auto", "MODE", "TITLE", 0, () => { G.screen = "TITLE"; });
@@ -1074,9 +1077,9 @@ function renderOptions() {
   if (optionsTab === 0) { // ÁUDIO - sliders spec FASE 4 FINAL: barra visual preenchida estilo Celeste
     drawText(ctx, "ÁUDIO", colX, cy, { font: "big", color: "#37e6c8" }); cy += 28;
     const s = G.save.settings;
-    // slider visual function inline
-    const drawSlider = (label, val, yPos, color) => {
-      drawText(ctx, label + ": " + Math.round(val*100) + "%", colX, yPos, { color: PAL.text });
+    // slider visual function inline — SÓ a barra: o rótulo é desenhado por quem
+    // chama (antes os dois textos caíam na mesma linha, um por cima do outro)
+    const drawSlider = (val, yPos, color) => {
       const bx = colX + 220, bw = 200, bh = 14;
       // fundo
       ctx.fillStyle = "rgba(10,8,16,0.8)";
@@ -1096,14 +1099,14 @@ function renderOptions() {
       ctx.fillRect(hx-1, yPos+2, 3, bh);
     };
     drawText(ctx, "MÚSICA: " + (G.muted ? "MUTADO (M)" : Math.round(s.musicVol*100) + "%"), colX, cy, { color: PAL.text });
-    drawSlider("MUS VOL", G.muted ? 0 : s.musicVol, cy, "#c77dff");
+    drawSlider(G.muted ? 0 : s.musicVol, cy, "#c77dff");
     cy += 22;
     if (button(ctx, { x: colX, y: cy, w: 160, h: isMobile ? 40 : 32, label: G.muted ? "LIGAR SOM" : "MUTAR (M)", id: "muteBtn", accent: "#ff4d5a" })) {
       toggleMute(); persistSave(); SFX.uiClick();
     }
     cy += isMobile ? 50 : 44;
     drawText(ctx, "SFX VOLUME: " + Math.round(s.sfxVol*100) + "%", colX, cy, { color: PAL.text });
-    drawSlider("SFX VOL", s.sfxVol, cy, "#37e6c8");
+    drawSlider(s.sfxVol, cy, "#37e6c8");
     cy += 22;
     if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX -", id: "sfxDown" })) {
       s.sfxVol = Math.max(0, s.sfxVol - 0.1); persistSave(); SFX.uiClick();
@@ -1111,7 +1114,7 @@ function renderOptions() {
     if (button(ctx, { x: colX + 110, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX +", id: "sfxUp", accent: "#37e6c8" })) {
       s.sfxVol = Math.min(1, s.sfxVol + 0.1); persistSave(); SFX.uiClick();
     }
-    cy += isMobile ? 44 : 36;
+    cy += isMobile ? 58 : 36;
     if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "MÚSICA -", id: "musicDown" })) {
       s.musicVol = Math.max(0, s.musicVol - 0.1); persistSave();
     }
@@ -1256,12 +1259,12 @@ function renderOptions() {
   }
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W / 2 - 250, y: VIEW_H - 44, w: mobile ? 240 : 220, h: mobile ? 104 : 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 250, y: VIEW_H - 44, w: mobile ? 240 : 220, h: 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
   // MOBILE: troca entre as duas versões paralelas (PC ↔ mobile), mesma engine
-  if (button(ctx, { x: VIEW_W / 2 + 30, y: VIEW_H - 44, w: 220, h: mobile ? 104 : 36, label: touchMode.on ? "VERSÃO PC" : "VERSÃO MOBILE", id: "switchVersion", accent: "#37e6c8", scale: 0.85 })) {
+  if (button(ctx, { x: VIEW_W / 2 + 30, y: VIEW_H - 44, w: mobile ? 240 : 220, h: 36, label: touchMode.on ? "VERSÃO PC" : "VERSÃO MOBILE", id: "switchVersion", accent: "#37e6c8", scale: 0.85 })) {
     notePointer(mouse.x, mouse.y);
     location.href = touchMode.on ? "../" : "mobile/";
   }
@@ -1333,7 +1336,7 @@ function renderHelp() {
   }
 
   const helpMobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 44, w: 200, h: helpMobile ? 104 : 36, label: "VOLTAR", id: "helpBack", accent: "#8f6fd6" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 100, y: VIEW_H - 44, w: helpMobile ? 240 : 200, h: 36, label: "VOLTAR", id: "helpBack", accent: "#8f6fd6" })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "HELP", helpReturn, 0, () => { G.screen = helpReturn; helpReturn = "TITLE"; });
   }
@@ -1426,14 +1429,15 @@ function drawHUD() {
   ctx.fillRect(10, 8, pw, 3);
   ctx.globalAlpha = 1;
 
-  // botão "+"/"-" orgânico
-  const moreHot = pointInRect(mouse.x, mouse.y, 304, 12, 18, 16);
+  // botão "+"/"-" orgânico — no toque a ÁREA sensível cresce (o desenho não)
+  const moreR = touchPad(304, 12, 18, 16);
+  const moreHot = pointInRect(mouse.x, mouse.y, moreR.x, moreR.y, moreR.w, moreR.h);
   ctx.fillStyle = moreHot ? "rgba(58,48,84,0.9)" : "rgba(36,28,56,0.85)";
   ctx.fillRect(304, 12, 18, 16);
   ctx.strokeStyle = bh.border; ctx.lineWidth = 1;
   ctx.strokeRect(304.5, 12.5, 17, 15);
   drawText(ctx, hudExpanded ? "-" : "+", 313, 13, { color: moreHot ? "#efe9ff" : bh.accent, align: "center", maxWidth: 12 });
-  uiButtons().push({ x: 304, y: 12, w: 18, h: 16, id: "hudMore" });
+  uiButtons().push({ x: moreR.x, y: moreR.y, w: moreR.w, h: moreR.h, id: "hudMore" });
   if (live && moreHot && mouse.justDown) { hudExpanded = !hudExpanded; SFX.uiClick(); }
 
   let yy = 14;
@@ -1936,7 +1940,8 @@ function drawPause() {
   const totalW = leftW + rightW + 24;
   const startX = VIEW_W/2 - totalW/2;
   const py = mobile ? 20 : 48;
-  const panelH = mobile ? 560 : 440;
+  // o painel cabendo no canvas é o que impede "REINICIAR/SAIR" de sumir no celular
+  const panelH = Math.min(mobile ? 500 : 440, VIEW_H - py - 16);
 
   // painel esquerda - botões
   dialogBox(ctx, startX, py, leftW, panelH, { border: "#8f6fd6", accent: "#37e6c8" });
@@ -1944,10 +1949,10 @@ function drawPause() {
 
   const run = G.run;
   const btnW = leftW - 32;
-  const btnH = mobile ? 104 : 40;
+  const btnH = mobile ? 52 : 40;
   // o título "PAUSA" (fonte big, escala 2) tem tinta até py+68 — botões só abaixo
   let by = py + 78;
-  const gap = mobile ? 12 : 10;
+  const gap = mobile ? 22 : 10;
 
   const pauseBtns = [
     { label: "CONTINUAR", id: "resume", accent: "#37e6c8" },
@@ -2232,20 +2237,20 @@ function drawEnd(run) {
 
   const mobile = isMobileLayout();
   const by = btnTop;
-  if (button(ctx, { x: VIEW_W / 2 - 230, y: by, w: 220, h: mobile ? 104 : 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 230, y: by, w: 220, h: mobile ? 52 : 40, label: "NOVA EXPEDIÇÃO", id: "again", accent: "#37e6c8" })) {
     notePointer(mouse.x, mouse.y);
     paused = false;
     newRun(run.modeDef);
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: mobile ? 104 : 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
+  if (button(ctx, { x: VIEW_W / 2 + 10, y: by, w: 220, h: mobile ? 52 : 40, label: "ÁRVORE DA EVOLUÇÃO", id: "goTree", accent: "#c77dff" })) {
     notePointer(mouse.x, mouse.y);
     enterTree();
     treeReturn = "TITLE";
     startTransition("auto", "RUN", "TREE", 0, () => { G.screen = "TREE"; });
     return;
   }
-  if (button(ctx, { x: VIEW_W / 2 - 110, y: by + 48, w: 220, h: mobile ? 104 : 32, label: "MENU PRINCIPAL", id: "menu" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 110, y: by + (mobile ? 72 : 48), w: 220, h: mobile ? 44 : 32, label: "MENU PRINCIPAL", id: "menu" })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "RUN", "TITLE", 0, () => { G.screen = "TITLE"; });
     return;

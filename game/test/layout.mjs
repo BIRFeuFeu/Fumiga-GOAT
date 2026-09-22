@@ -316,6 +316,14 @@ function auditFrame(label, ops, opt = {}) {
   coverage.push(label + " " + texts.length);
   // 4) botões sobrepostos
   const bs = uiButtons();
+  // 5) botões FORA do canvas — no celular era isto que fazia "VOLTAR" sumir:
+  //    o alvo de toque inflava o botão para 104px e a pilha saía do 960x540
+  for (const b of bs) {
+    if (b.x < -0.5 || b.y < -0.5 || b.x + b.w > 960.5 || b.y + b.h > 540.5) {
+      note(label, "botao-fora", b.id,
+        `${label}: botão ${b.id} fora do canvas em (${b.x.toFixed(0)},${b.y.toFixed(0)}) ${b.w.toFixed(0)}x${b.h.toFixed(0)}`);
+    }
+  }
   for (let i = 0; i < bs.length; i++) {
     for (let j = i + 1; j < bs.length; j++) {
       const a = bs[i], b = bs[j];
@@ -485,6 +493,35 @@ director.phase = "wave";
 director.budget = 8;
 spawnBoss("boar", 40);
 auditFrame("RUN mapa 6 + chefe", frame(), { uiStart: "auto" });
+
+// ------------------------------------------------- PASSO 2: MODO TOQUE -----
+// O audit acima roda com isTouchDevice() = false — era exatamente assim que o
+// layout estourado do mobile passava despercebido pelo CI. Aqui as telas
+// críticas são re-auditadas com o shell de toque LIGADO (as hitboxes de dedo
+// entram em ação), na mesma régua de 960x540.
+const { enableTouchMode } = await import(BASE + "input.js");
+enableTouchMode(true);
+globalThis.innerWidth = 844; globalThis.innerHeight = 390;   // iPhone em paisagem
+
+auditFrame("RUN toque", frame(), { uiStart: "auto" });
+setPaused(true);
+auditFrame("RUN pausa toque", frame(), { uiStart: "auto" });
+setPaused(false);
+G.run.status = "lost";
+G.run.payout = { relic: 42, waveBonus: 180, killBonus: 320, mapBonus: 480, winBonus: 0, mult: 1.45, total: 1500 };
+auditFrame("RUN fim toque", frame(), { uiStart: "auto" });
+G.run.status = "running"; G.run.payout = null;
+G.screen = "TITLE"; frame();
+auditFrame("TÍTULO toque", frame());
+G.screen = "HELP";
+auditFrame("COMO JOGAR toque", frame());
+G.screen = "OPTIONS";
+auditFrame("OPÇÕES toque", frame());
+G.screen = "MODE";
+auditFrame("MODO toque", frame());
+G.screen = "TREE"; enterTree();
+auditFrame("ÁRVORE toque", frame(), { allowOffscreen: true });
+G.screen = "TITLE"; frame();
 
 const list = [...problems.values()];
 console.log("textos auditados: " + coverage.join(" | "));

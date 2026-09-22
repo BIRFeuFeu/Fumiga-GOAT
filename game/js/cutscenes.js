@@ -8,7 +8,7 @@ import { VIEW_W, VIEW_H, MAPS } from "./config.js";
 import { G, persistSave } from "./state.js";
 import { drawText, wrapText } from "./font.js";
 import { SFX } from "./audio.js";
-import { assetUrl } from "./assets.js";
+import { assetUrl, loadImage } from "./assets.js";
 
 const CUTSCENE_DEFS = {
   noite_branca: {
@@ -160,19 +160,20 @@ function loadPanelLayers(def, pIdx) {
   const images = layerImgs = Array(8).fill(null);
   const names = ["sky", "distant", "mid", "ground", "foreground", "particles", "vfx", "vignette"];
   for (let i = 0; i < (panel.layerCount || 0); i++) {
-    const img = new Image();
-    img.onload = () => {
-      // Adequar a arte-fonte uma única vez à resolução do parallax, não
-      // redimensionar oito PNGs de alta resolução em todo frame da introdução.
-      const layer = document.createElement("canvas");
-      layer.width = 320; layer.height = 180;
-      const c = layer.getContext("2d");
-      c.imageSmoothingEnabled = false;
-      c.drawImage(img, 0, 0, layer.width, layer.height);
-      images[i] = layer;
-    };
-    img.onerror = () => { images[i] = null; };
-    img.src = assetUrl(`assets/cutscenes/${def.id}/${panel.assetPanel || panel.id}/${i}_${names[i]}.png`);
+    // prazo + retry (loadImage): em 4G, uma camada de corte que não responde
+    // deixaria o painel faltando PARA SEMPRE; agora ela vira o fallback desenhado
+    loadImage(assetUrl(`assets/cutscenes/${def.id}/${panel.assetPanel || panel.id}/${i}_${names[i]}.png`))
+      .then((img) => {
+        // Adequar a arte-fonte uma única vez à resolução do parallax, não
+        // redimensionar oito PNGs de alta resolução em todo frame da introdução.
+        const layer = document.createElement("canvas");
+        layer.width = 320; layer.height = 180;
+        const c = layer.getContext("2d");
+        c.imageSmoothingEnabled = false;
+        c.drawImage(img, 0, 0, layer.width, layer.height);
+        images[i] = layer;
+      })
+      .catch(() => { images[i] = null; });
   }
 }
 

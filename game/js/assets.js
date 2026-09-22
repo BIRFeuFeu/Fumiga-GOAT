@@ -183,15 +183,81 @@ function assetBase() {
 }
 
 // -------------------------------------------------------------------- load --
-export function loadAll(onProgress) {
-  const keys = Object.keys(MANIFEST);
-  let done = 0;
-  return Promise.all(keys.map((k) => new Promise((res, rej) => {
+// O boot puxa ~140 imagens. A versão antiga mandava TODAS de uma vez dentro de
+// um Promise.all SEM prazo e SEM retry — no celular (4G/5G instável, iOS
+// limitando conexões, Wi-Fi cativo, aba suspensa) bastava UMA requisição
+// engasgar para a barra de carregamento congelar no meio PARA SEMPRE, sem
+// erro nenhum: era exatamente o "preso na tela de carregamento".
+// Agora: fila com poucas conexões simultâneas, prazo por imagem, uma segunda
+// tentativa (muda a query, furando a entrada envenenada do cache) e o estado
+// da fila visível na tela de carregamento (LOAD).
+export const LOAD = { total: 0, done: 0, inflight: 0, retries: 0, last: "", t0: 0 };
+
+// Ajustável por quem carrega o motor (testes headless encurtam o prazo).
+export const LOAD_CFG = {
+  concurrency: 8,     // ~o limite real de conexões do navegador no celular
+  timeoutMs: 12000,   // prazo de UMA tentativa: acima disso, tenta de novo
+  attempts: 2,        // tentativas por imagem antes de desistir dela
+};
+
+const nowMs = () => (typeof performance !== "undefined" && performance.now)
+  ? performance.now() : Date.now();
+
+/** Uma imagem, com prazo. Nunca fica pendurada: resolve ou rejeita. */
+export function loadImage(url) {
+  return new Promise((res, rej) => {
     const img = new Image();
-    img.onload = () => { IMG[k] = img; done++; onProgress && onProgress(done / keys.length); res(); };
-    img.onerror = () => rej(new Error("Falha ao carregar " + MANIFEST[k]));
-    img.src = assetUrl(MANIFEST[k]);
-  })));
+    let timer = 0, settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      img.onload = img.onerror = null;
+      if (ok) res(img); else rej(new Error("sem resposta"));
+    };
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    if (typeof setTimeout === "function") timer = setTimeout(() => finish(false), LOAD_CFG.timeoutMs);
+    img.src = url;
+  });
+}
+
+export async function loadAll(onProgress) {
+  const keys = Object.keys(MANIFEST);
+  LOAD.total = keys.length; LOAD.done = 0; LOAD.inflight = 0; LOAD.retries = 0;
+  LOAD.last = ""; LOAD.t0 = nowMs();
+  let next = 0;
+  const failed = [];
+
+  async function worker() {
+    while (next < keys.length) {
+      const k = keys[next++];
+      let img = null;
+      for (let a = 0; a < LOAD_CFG.attempts && !img; a++) {
+        if (a) LOAD.retries++;
+        LOAD.inflight++;
+        LOAD.last = MANIFEST[k];
+        try { img = await loadImage(assetUrl(MANIFEST[k]) + (a ? "&r=" + a : "")); }
+        catch (e) { img = null; }
+        LOAD.inflight--;
+      }
+      if (img) {
+        IMG[k] = img;
+        LOAD.done++;
+        if (onProgress) onProgress(LOAD.done / keys.length);
+      } else {
+        failed.push(MANIFEST[k]);
+      }
+    }
+  }
+
+  const workers = [];
+  for (let i = 0; i < Math.min(LOAD_CFG.concurrency, keys.length); i++) workers.push(worker());
+  await Promise.all(workers);
+  if (failed.length) {
+    throw new Error("Falha ao carregar " + failed[0] +
+      (failed.length > 1 ? " (+" + (failed.length - 1) + " outros)" : ""));
+  }
 }
 
 // --------------------------------------------------------------- rotações ---

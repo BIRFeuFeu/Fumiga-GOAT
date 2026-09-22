@@ -3,7 +3,7 @@
 // Atlas: grade 12 colunas; ordem = FONT.CHARS
 // ============================================================================
 import { G } from "./state.js";
-import { assetUrl } from "./assets.js";
+import { assetUrl, loadImage, LOAD_CFG } from "./assets.js";
 
 // Ordem idêntica à do pipeline (tools/prepare_assets.sh, array CHS):
 // 12 colunas por linha. Os glifos extras ficam no fim para não deslocar índice
@@ -29,13 +29,27 @@ const cache = new Map(); // key -> canvas
 let cacheCount = 0;
 const CACHE_MAX = 600;
 
-export function loadFonts() {
-  return Promise.all(Object.entries(FONT).map(([k, f]) => new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => { imgs[k] = img; res(); };
-    img.onerror = () => rej(new Error("fonte não carregou: " + f.src));
-    img.src = assetUrl(f.src);
-  })));
+// Mesma proteção do resto do boot (ver loadAll em assets.js): prazo por
+// imagem + uma segunda tentativa. Uma fonte pendurada deixava a barra de
+// carregamento parada para sempre no celular.
+export async function loadFonts() {
+  const entries = Object.entries(FONT);
+  const failed = [];
+  let next = 0;
+  async function worker() {
+    while (next < entries.length) {
+      const [k, f] = entries[next++];
+      let img = null;
+      for (let a = 0; a < LOAD_CFG.attempts && !img; a++) {
+        try { img = await loadImage(assetUrl(f.src) + (a ? "&r=1" : "")); } catch (e) { img = null; }
+      }
+      if (img) imgs[k] = img; else failed.push(f.src);
+    }
+  }
+  const workers = [];
+  for (let i = 0; i < Math.min(2, entries.length); i++) workers.push(worker());
+  await Promise.all(workers);
+  if (failed.length) throw new Error("fonte não carregou: " + failed[0]);
 }
 
 function tinted(img, color) {
