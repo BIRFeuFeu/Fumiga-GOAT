@@ -56,13 +56,17 @@ convert "$F/rework-rainha.png" \
   -shave 2x2 -trim +repage -filter point -resize x128 \
   "$OUT/sprites/ants/queen.png"
 echo "  rainha ($(identify -format '%wx%h' "$OUT/sprites/ants/queen.png"))"
-ant "$F/gen-f0b8f676-2347-4149-8649-a865599db323.png" e_runner.png    26
-ant "$F/gen-6a5cd3cd-5ec4-4ce8-be03-1292d3529de8.png" e_swarm.png     30
-ant "$F/gen-56160a10-922e-4c41-b97e-781930b8ecdc.png" e_warrior.png   44
-ant "$F/gen-56df2381-ab9e-4c70-b7de-5beef7e37bd2.png" e_spitter.png   42
-ant "$F/gen-78c7edb1-d4b6-4343-a2e9-834e7a8bd66c.png" e_reaper.png    40
-ant "$F/gen-686ee82a-5469-4aa3-86c7-37a4cf797843.png" e_matron.png    72
-ant "$F/gen-1573e56b-2049-49a6-b04d-571d2167ba4c.png" e_sentinel.png  56
+# FILHOS DA NÉVOA (Fase 2 da mega atualização): a horda deixa de ser só
+# formigas — fauna real corrompida pela Névoa, paleta pálida #e8f4ff/#c9bce8
+# com veias violeta e âmbar. Artes-fonte em inimigos/ (não-humanoides, Regra 8).
+E="$ROOT/inimigos"
+species "$E/larva.png"        e_runner.png    20 28   # LARVA RASTEJANTE DA NÉVOA
+species "$E/sauva.png"        e_swarm.png     26 32   # SAÚVA CORROMPIDA
+species "$E/mantis.png"       e_reaper.png    30 42   # CEIFADORA PÁLIDA (louva-a-deus)
+species "$E/besouro.png"      e_spitter.png   34 40   # BESOURO-PRAGA (bombardeiro)
+species "$E/vespa.png"        e_warrior.png   44 40   # VESPA CARRASCA
+species "$E/caranguejo.png"   e_sentinel.png  52 42   # SENTINELA DE CONCHA
+species "$E/aranha.png"       e_matron.png    64 52   # MATRONA PÁLIDA (aranha de ninhada)
 
 # Cores ORIGINAIS: nenhum -modulate nos sprites de formiga — as artes das
 # espécies (rework-*.png) entram exatamente como foram desenhadas.

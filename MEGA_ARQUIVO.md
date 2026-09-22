@@ -60,6 +60,53 @@ transformações visuais das Eras, biblioteca completa ou o chefe Pálida.
 Os 11 arquivos de arte existentes da Noite Branca continuam sendo 11 de 24;
 o fallback não deve ser contado como arte finalizada.
 
+## Registro técnico — rework de arte dos inimigos, Fase 2 (2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** rework dos inimigos com novos
+sprites segundo a Fase 2 da mega atualização (Filhos da Névoa pálidos), sem que a
+horda fosse apenas formigas. **Decisões confirmadas pelo usuário (Regra 1):**
+fauna real corrompida variada · paleta pálida da Névoa · arte + nomes lore.
+
+**Novos seres (arte-fonte em `inimigos/`, sprites finais em
+`game/assets/sprites/ants/e_*.png` via `tools/prepare_assets.sh`):**
+
+| Tipo | Antes | Agora | Nome lore |
+|------|-------|-------|-----------|
+| runner | formiga | larva de besouro | LARVA RASTEJANTE |
+| swarm | formiga | saúva corrompida | SAÚVA CORROMPIDA |
+| reaper | formiga | louva-a-deus | CEIFADORA PÁLIDA |
+| espitter | formiga | besouro bombardeiro | BESOURO-PRAGA |
+| warrior | formiga | vespa | VESPA CARRASCA |
+| sentinel | formiga | caranguejo blindado | SENTINELA DE CONCHA |
+| matron | formiga | aranha de ninhada | MATRONA PÁLIDA |
+
+Paleta harmônica (Regra 6): corpo osso `#e8f4ff`, sombra `#c9bce8`, veias
+violeta `#c77dff`, pontos âmbar `#ffd479`, contorno `#08060f` — casa com o véu
+pálido/olhos de névoa que o `render.js` (Fase 2) já aplica por cima. Nada
+humanoide (Regra 8). Chaves, stats, `bodyR` e mecânicas (matrona ainda choca
+larvas) intactos — só arte e nomes mudaram.
+
+**Inspirações (Regra 2):** Hollow Knight e Rain World (fauna corrompida com
+silhueta legível), Vampire Survivors (leitura de horda) e packs top-down de
+insetos do itch.io.
+
+**Verificação (Regras 3/4):** bateria headless completa (`boot`, `docs`,
+`assets`, `tree`, `stuck`, `layout`, `uitest`, `attack`, `prophecy`, `endless`,
+`sim` FORCE=3/6) — tudo passou; spawn dos 7 tipos + tique + spawn de adds da
+matrona exercitados pelo código real; decode pixel a pixel dos 7 PNGs (fundo
+100% transparente, cobertura 24–64%, paleta pálida/violeta/âmbar presente);
+assets servidos 200 com 1,2–4,4 KB cada. **Limitação declarada:** o sandbox não
+tem binário de navegador (download do Chromium bloqueado pelo proxy), então a
+inspeção visual em jogo fica por conta do preview ao vivo na porta 8000.
+
+**Correção de consistência encontrada:** `game/test/docs.mjs` falhava ANTES
+deste rework porque o bloco de `PROGRESSO_MEGA_ATUALIZACAO.md` embutido neste
+MEGA_ARQUIVO (e a linha de tamanho/hash do rodapé de integridade) estava
+desatualizado em relação ao arquivo avulso. O bloco e o rodapé foram
+ressincronizados byte a byte; os seis originais seguem intactos.
+
 ## Registro técnico — fechamento da Fase 1 Lore-Total (2026-09-22)
 
 **Status: implementação da Fase 1 concluída e verificada no escopo abaixo.**
@@ -1372,6 +1419,45 @@ Cada layer: alta resolução, pixel art detalhado, paleta violeta/âmbar, sem hu
 <!-- INICIO ORIGINAL: PROGRESSO_MEGA_ATUALIZACAO.md -->
 # PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
 
+**Data:** 2026-09-22 (continuação)
+**Branch:** arena/01a0c9ed-fumiga-goat
+
+## ✅ VERIFICAÇÃO FASE 1 — Fundação Lore (HUD Orgânico Total por Bioma + Feromônio H)
+
+Verificação feita em 2026-09-22 sobre o código atual do branch. Resultado: **FASE 1 100% FINALIZADA**.
+
+| # | Item verificação Fase 1 | Status | Onde |
+|---|-------------------------|--------|------|
+| 1 | HUD muda cor/textura/nome por bioma (6 biomas) | ✅ | `game/js/lore_hud.js` BIOME_HUD + `game.js` drawBiomeTexture em todos os painéis + `config.js` MAPS loreName |
+| 2 | Vida Rainha = gaster com coroa fungo/seda, pulsa <30% com veias vermelhas | ✅ | `drawGasterBar` (sprite `lore_gaster.png` 3 frames + fallback procedural) |
+| 3 | Comida muda ícone/label por bioma (trevo/musgo/alga/semente/outono/gelo) | ✅ | `drawFoodIcon` + `lore_icons.png` 192x16 (12 ícones) + foodLabel por bioma |
+| 4 | Essência = cristal geométrico hexagonal com partículas âmbar/violeta | ✅ | `drawEssenceCrystal` hexagonal + luz interna (polido na Fase 2, P11) |
+| 5 | Onda = Trilha Feromônio com formigas andando | ✅ | `trailProgress` + `drawTrailAnt` 7 formigas em `game.js` |
+| 6 | H mostra névoa verde comida / vermelha perigo + "A COLÔNIA VÊ COM CHEIRO" | ✅ | `drawPheromoneOverlay` + `drawPheromoneLegend` |
+| 7 | Performance (cache painéis, névoa 30Hz pré-rasterizada, reducedFX) | ✅ | `lore_hud.js` panelCache/fogStamp; validado servidor + scan estático |
+| 8 | Assets HUD servindo (panels/icons/gaster 200) | ✅ | `game/assets/ui/lore_*.png` — curl 200 em todos |
+
+## ✅ IMPLEMENTAÇÃO FASE 2 — Habilidades Lore VFX Médio + Inimigos Pálidos (P7=B, P13=C, P11=A)
+
+Implementado em 2026-09-22 neste branch.
+
+| # | Item verificação Fase 2 | Status | Onde |
+|---|-------------------------|--------|------|
+| 1 | 11 castas disparam aura cor + partícula + som + ícone lore | ✅ | `lore_vfx.js` ANT_VFX (sons: spore/honey/pheromone/silk/healCast/slam/crystal) + hooks em `units.js` (attackMelee, spitAt, healer 0.66s, scout 2.5s/4s, tank guard 3s, weaver deposit, carry 0.5s) |
+| 2 | Aura persistente por casta (1 elipse barata, sem gradiente) | ✅ | `drawAllyAura` em `lore_vfx.js`, chamada em `render.js` drawAnt |
+| 3 | Gather essência spawna cristal geométrico que sobe | ✅ | `spawnMemoryCrystal` com partículas `shape:"hex"` + SFX.crystal |
+| 4 | Inimigos comuns pálidos: véu screen #e8f4ff 0.28 + olhos #fff lighter + aura + rastro #c9bce8 | ✅ | `render.js` drawAnt (foes non-boss) + `enemies.js` rastro ~2/s |
+| 5 | Cristais essência hexagonais com luz interna + memória subindo | ✅ | `drawEssenceCrystal` hexagonal + `drawHexCrystal` + `combat.js` drawOrbs núcleo hex + `particles.js` shape hex |
+| 6 | Performance ≤30 partículas VFX/frame + gates áudio | ✅ | Orçamento `vfxAllow()` em `lore_vfx.js` + gates silk/honey/spore/crystal/crown/pheromone em `audio.js` |
+| 7 | Sem humanoide (só inseto/fauna, Regra 8) | ✅ | Auras/elipses/hexágonos/olhos de névoa — nenhuma forma humana |
+| 8 | Sintaxe + imports + preview | ✅ | `node --check` 8 arquivos OK, imports resolvidos 27/27, servidor 8000 no ar, assets 200 |
+
+**Commit:** `fase 2: VFX casta médio + inimigos pálidos filhos névoa`
+
+---
+
+# PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ANTERIOR
+
 **Data:** 2026-09-22
 **Branch:** arena/01a0c8d1-fumiga-goat
 
@@ -1724,7 +1810,7 @@ parte dos blocos originais.
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
-| `PROGRESSO_MEGA_ATUALIZACAO.md` | 4493 | `67f43b55e2897586d5e0ac96f7fe1b4329d1e95a2ca267fc821ed1dcf3997ae1` |
+| `PROGRESSO_MEGA_ATUALIZACAO.md` | 7782 | `308b60262d478b650659da247f62a0541f02631acb03768c6aefb04ae818243b` |
 | `DOCUMENTO_FASES_IMPLEMENTACAO.md` | 16125 | `d12395ae661c7b5a1c0546a1bb4a778b728a5c8d28c2944a3e4bbdbd50f1aba3` |
 
 **Conferência reproduzível:** `node game/test/docs.mjs`.

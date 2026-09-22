@@ -187,14 +187,18 @@ export const QUEEN = {
 };
 
 // ---------------------------------------------------------------- Inimigos --
+// FILHOS DA NÉVOA (Fase 2): a horda é fauna real corrompida pela Névoa —
+// larva, saúva, louva-a-deus, besouro bombardeiro, vespa, caranguejo e aranha.
+// Arte pálida em game/assets/sprites/ants/e_*.png (fontes em inimigos/),
+// véu/olhos de névoa aplicados no render.js. Nada humanoide (Regra 8).
 export const ENEMIES = {
-  runner:  { name: "RASTEJANTE",  hp: 22,  dmg: 3.5, speed: 84, range: 13, atkCd: 0.85, ess: 1,  pts: 1,   sprite: "e_runner" },
-  swarm:   { name: "SAÚVA",       hp: 26,  dmg: 5,  speed: 74, range: 13, atkCd: 0.8,  ess: 1,  pts: 1.5, sprite: "e_swarm" },
-  reaper:  { name: "CEIFADORA",   hp: 56,  dmg: 10, speed: 62, range: 16, atkCd: 0.9,  ess: 2,  pts: 2.5, sprite: "e_reaper" },
-  espitter:{ name: "COSPE-PRAGA", hp: 44,  dmg: 9,  speed: 56, range: 108, atkCd: 1.5, ess: 2,  pts: 3,   sprite: "e_spitter", projSpeed: 270 },
-  warrior: { name: "CARRASCA",    hp: 108, dmg: 15, speed: 52, range: 17, atkCd: 0.95, ess: 3,  pts: 4,   sprite: "e_warrior" },
-  sentinel:{ name: "SENTINELA",   hp: 185, dmg: 18, speed: 46, range: 18, atkCd: 1.1,  ess: 5,  pts: 7,   sprite: "e_sentinel" },
-  matron:  { name: "MATRONA",     hp: 470, dmg: 24, speed: 34, range: 22, atkCd: 1.2,  ess: 14, pts: 14,  sprite: "e_matron", spawns: "runner" },
+  runner:  { name: "LARVA RASTEJANTE",  hp: 22,  dmg: 3.5, speed: 84, range: 13, atkCd: 0.85, ess: 1,  pts: 1,   sprite: "e_runner" },
+  swarm:   { name: "SAÚVA CORROMPIDA",  hp: 26,  dmg: 5,  speed: 74, range: 13, atkCd: 0.8,  ess: 1,  pts: 1.5, sprite: "e_swarm" },
+  reaper:  { name: "CEIFADORA PÁLIDA",  hp: 56,  dmg: 10, speed: 62, range: 16, atkCd: 0.9,  ess: 2,  pts: 2.5, sprite: "e_reaper" },
+  espitter:{ name: "BESOURO-PRAGA",     hp: 44,  dmg: 9,  speed: 56, range: 108, atkCd: 1.5, ess: 2,  pts: 3,   sprite: "e_spitter", projSpeed: 270 },
+  warrior: { name: "VESPA CARRASCA",    hp: 108, dmg: 15, speed: 52, range: 17, atkCd: 0.95, ess: 3,  pts: 4,   sprite: "e_warrior" },
+  sentinel:{ name: "SENTINELA DE CONCHA", hp: 185, dmg: 18, speed: 46, range: 18, atkCd: 1.1,  ess: 5,  pts: 7,   sprite: "e_sentinel" },
+  matron:  { name: "MATRONA PÁLIDA",    hp: 470, dmg: 24, speed: 34, range: 22, atkCd: 1.2,  ess: 14, pts: 14,  sprite: "e_matron", spawns: "runner" },
 };
 
 // Escalonamento de inimigos por onda global
