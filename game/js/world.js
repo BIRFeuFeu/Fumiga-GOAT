@@ -6,6 +6,7 @@ import { WORLD_W, WORLD_H, PAL, MAPS } from "./config.js";
 import { mulberry32, rand, TAU, clamp } from "./utils.js";
 import { SpatialGrid } from "./utils.js";
 import { IMG } from "./assets.js";
+import { G } from "./state.js";
 
 export const world = {
   seed: 0,
@@ -40,6 +41,8 @@ export function genWorld(seed, mapIdx = 0) {
   A.x = WORLD_W / 2; A.y = WORLD_H / 2;
   const distA = (x, y) => Math.hypot(x - A.x, y - A.y);
   const margin = 90;
+  // MEGA LORE: Eras - mundo muda por Era (mais trilhas, seda, portas)
+  const era = (G.save && G.save.era) ? G.save.era : 0;
 
   const taken = []; // pontos ocupados (espalhamento)
   function free(x, y, minD) {

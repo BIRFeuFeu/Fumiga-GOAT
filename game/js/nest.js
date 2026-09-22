@@ -634,6 +634,22 @@ function drawRoyal(ctx, time) {
 function drawNursery(ctx, time) {
   const r = roomOf("nursery");
   const st = chamberState("nursery");
+  // MEGA LORE VFX: BERÇO DE SEDA - seda flutuando
+  for (let s=0; s<3 + st.lvl; s++) {
+    const sx = r.x + 20 + (s*41) % (r.w-20) + Math.sin(time*0.6+s)*8;
+    const sy = r.y + 12 + Math.cos(time*0.4+s*1.3)*6 + (s%2)*14;
+    ctx.strokeStyle = "rgba(232,244,255,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(sx+6, sy+8, sx+2, sy+18);
+    ctx.stroke();
+    // brilho seda
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.beginPath();
+    ctx.arc(sx+1, sy+6, 1.2, 0, TAU);
+    ctx.fill();
+  }
   const n = nest.larvae.length;
   for (let i = 0; i < n; i++) {
     const l = nest.larvae[i];
@@ -657,6 +673,25 @@ function drawNursery(ctx, time) {
 function drawPantry(ctx) {
   const r = roomOf("pantry");
   const st = chamberState("pantry");
+  const t = nest.t;
+  // MEGA LORE VFX: VENTRE DE ÂMBAR - mel escorrendo
+  for (let m=0; m<2+st.lvl; m++) {
+    const mx = r.x + 30 + m*32 + Math.sin(t*0.3+m)*4;
+    const my = r.y + 14;
+    ctx.fillStyle = "rgba(255,180,71,0.55)";
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(mx+3, my+18 + Math.sin(t+m)*2);
+    ctx.lineTo(mx-2, my+22 + Math.cos(t*0.7+m)*1);
+    ctx.closePath();
+    ctx.fill();
+    // gota caindo
+    const dy = (t*18 + m*40) % 26;
+    ctx.fillStyle = "rgba(255,212,121,0.8)";
+    ctx.beginPath();
+    ctx.arc(mx, my+dy, 2.2, 0, TAU);
+    ctx.fill();
+  }
   const pile = 14 + st.lvl * 8;
   for (let i = 0; i < pile; i++) {
     const px = r.x + 30 + (i % 7) * 17 + ((i / 7) | 0) * 5;
@@ -670,10 +705,26 @@ function drawPantry(ctx) {
 function drawBarracks(ctx) {
   const r = roomOf("barracks");
   const c = center(r);
-  // arma/escudo decorativos
-  ctx.strokeStyle = "#6b4a24"; ctx.lineWidth = 3;
+  const t = nest.t;
+  // MEGA LORE VFX: ARENA DE MANDÍBULAS - marcas de guerra, faíscas
+  ctx.strokeStyle = "rgba(107,74,36,0.5)"; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(r.x + 28, r.y + 24); ctx.lineTo(r.x + 40, r.y + 46); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(r.x + r.w - 28, r.y + 24); ctx.lineTo(r.x + r.w - 40, r.y + 46); ctx.stroke();
+  // faíscas guerra
+  if (Math.random() < 0.08) {
+    const fx = r.x + 40 + Math.random()*(r.w-80);
+    const fy = r.y + 30 + Math.random()*20;
+    ctx.fillStyle = "rgba(255,212,121,0.7)";
+    ctx.fillRect(fx, fy, 2, 2);
+  }
+  // aura vermelha leve de batalha
+  const grad = ctx.createRadialGradient(c.x, c.y, 10, c.x, c.y, r.w*0.5);
+  grad.addColorStop(0, "rgba(255,100,60,0.06)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, r.w*0.5, r.h*0.5, 0, 0, TAU);
+  ctx.fill();
   const g = nest.ants.find((n) => n.job === "colossus");
   if (!g) drawText(ctx, "SEM COLOSSO", c.x, r.y + r.h - 16, { color: PAL.textDim, align: "center" });
   else drawText(ctx, "DINOPONERA DE FOLGA", c.x, r.y + r.h - 16, { color: "#ffd479", align: "center" });
@@ -682,6 +733,15 @@ function drawBarracks(ctx) {
 function drawFungus(ctx, time) {
   const r = roomOf("fungus");
   const st = chamberState("fungus");
+  // esporos flutuando
+  for (let p=0; p<5+st.lvl*2; p++) {
+    const px = r.x + 18 + (p*27) % (r.w-10) + Math.sin(time*0.5+p)*10;
+    const py = r.y + 10 + (time*8 + p*19) % (r.h-10);
+    ctx.fillStyle = p%2 ? "rgba(201,160,255,0.5)" : "rgba(127,214,160,0.4)";
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5 + Math.sin(time+p)*0.6, 0, TAU);
+    ctx.fill();
+  }
   const n = 3 + st.lvl * 3;
   for (let i = 0; i < n; i++) {
     const fx = r.x + 30 + (i % 4) * 36;
@@ -702,10 +762,23 @@ function drawRefinery(ctx, time) {
     const cy = r.y + r.h - 30 - ((i / 3) | 0) * 16;
     const pulse = 0.6 + Math.sin(time * 2 + i) * 0.25;
     ctx.globalAlpha = pulse;
+    // MEGA LORE: cristais geométricos hexagonais
     ctx.fillStyle = "#c77dff";
+    ctx.strokeStyle = "#e8d5ff";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(cx, cy - 9); ctx.lineTo(cx + 6, cy); ctx.lineTo(cx, cy + 9); ctx.lineTo(cx - 6, cy);
-    ctx.closePath(); ctx.fill();
+    for (let k=0;k<6;k++) {
+      const ang = (k/6)*TAU + time*0.3;
+      const px = cx + Math.cos(ang)*7;
+      const py = cy + Math.sin(ang)*7;
+      if (k==0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // brilho interno
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.8, 0, TAU);
+    ctx.fill();
     ctx.globalAlpha = 1;
   }
 }

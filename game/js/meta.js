@@ -11,6 +11,40 @@ import { mouse, pressed } from "./input.js";
 import { SFX } from "./audio.js";
 import { clamp, lerp, TAU } from "./utils.js";
 
+// MEGA LORE: Mini-árvores por mapa como frutos da Árvore Real
+export const FRUIT_TREES = [
+  { id: "fruit_planicie", map: "planicie", name: "LIÇÕES DO TAMBORILADOR", color: "#7fd6a0", nodes: [
+    { id: "f_p_1", name: "Pulo Aprendido", desc: "+8% velocidade", cost: [20] },
+    { id: "f_p_2", name: "Tambor Resistente", desc: "+15% vida vs thump", cost: [35] },
+    { id: "f_p_3", name: "Orvalho Coletado", desc: "+10% comida Planície", cost: [50] },
+  ]},
+  { id: "fruit_floresta", map: "floresta", name: "SEDA DA CAÇADORA", color: "#6db7ff", nodes: [
+    { id: "f_f_1", name: "Faro Aguçado", desc: "+12% alcance visão", cost: [30] },
+    { id: "f_f_2", name: "Seda Invisível", desc: "Tecelã +20% speed", cost: [45] },
+    { id: "f_f_3", name: "Musgo Cura", desc: "Mata +10% cura", cost: [60] },
+  ]},
+  { id: "fruit_pantano", map: "pantano", name: "BRUMA DA SOMBRA", color: "#37e6c8", nodes: [
+    { id: "f_pa_1", name: "Asas de Névoa", desc: "Prata +15% speed", cost: [35] },
+    { id: "f_pa_2", name: "Grito Absorvido", desc: "Resistência shriek 20%", cost: [50] },
+    { id: "f_pa_3", name: "Wisp Guia", desc: "+1 essência por orb", cost: [70] },
+  ]},
+  { id: "fruit_deserto", map: "deserto", name: "FÚRIA DA MATRIARCA", color: "#ffb347", nodes: [
+    { id: "f_d_1", name: "Areia Resistente", desc: "+12% dano", cost: [40] },
+    { id: "f_d_2", name: "Prole Rival", desc: "+1 pop cap", cost: [55] },
+    { id: "f_d_3", name: "Calor Ámbar", desc: "+15% essência Deserto", cost: [75] },
+  ]},
+  { id: "fruit_outono", map: "outono", name: "COROA DO GALHADA", color: "#ff9a5c", nodes: [
+    { id: "f_o_1", name: "Folha Dourada", desc: "+12% comida Outono", cost: [45] },
+    { id: "f_o_2", name: "Chifre Quebrado", desc: "+18% vida tanques", cost: [60] },
+    { id: "f_o_3", name: "Tristeza Curada", desc: "Cura +15%", cost: [80] },
+  ]},
+  { id: "fruit_gelo", map: "gelo", name: "MEMÓRIA DO DEVASTADOR", color: "#e8f4ff", nodes: [
+    { id: "f_g_1", name: "Gelo Quebrado", desc: "+20% dano bosses", cost: [60] },
+    { id: "f_g_2", name: "Névoa Revelada", desc: "Vê Pálida no minimapa", cost: [80] },
+    { id: "f_g_3", name: "Topo do Mundo", desc: "Desbloqueia ERA +1", cost: [120] },
+  ]},
+];
+
 // rework das raridades: raio por tier (0 comum · 1 raro · 2 lendário)
 const NODE_R = [34, 42, 52];
 const TIER_NAME = ["COMUM", "RARO", "LENDÁRIO"];
@@ -425,8 +459,30 @@ function drawTreeBackground(ctx) {
 function drawTreeHUD(ctx) {
   const owned = META_NODES.filter((n) => metaLevel(n.id) > 0).length;
 
-  // painel título
-  panel(ctx, 12, 10, 440, 60, { border: "#8f6fd6", accentLine: "#8f6fd6" });
+  // painel título + frutos mini-árvores
+  panel(ctx, 12, 10, 520, 60, { border: "#8f6fd6", accentLine: "#8f6fd6" });
+  // desenha frutos como mini-árvores liberadas por mapa (lore)
+  let fx = 240;
+  for (const fruit of FRUIT_TREES) {
+    const mapSeen = G.save.cutscenes && G.save.cutscenes[fruit.map];
+    const owned = G.save.nodes && Object.keys(G.save.nodes).some(k => k.startsWith(fruit.id));
+    ctx.fillStyle = mapSeen ? fruit.color : "#2a2340";
+    ctx.globalAlpha = mapSeen ? 0.9 : 0.35;
+    ctx.beginPath();
+    ctx.arc(28 + fx, 38, 10, 0, Math.PI*2);
+    ctx.fill();
+    // brilho se tem nó comprado
+    if (owned) {
+      ctx.fillStyle = "#ffd479";
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(28 + fx, 38, 14, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    fx += 28;
+  }
+  drawText(ctx, "FRUTOS = MINI-ÁRVORES POR MAPA", 320, 54, { color: "#6b5a8a", scale: 0.7 });
   drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 20, { font: "big", scale: 1, color: "#ffd479" });
   drawText(ctx, "Evolua a colônia para sempre", 28, 44, { color: PAL.textDim });
   // progresso circular
@@ -442,7 +498,10 @@ function drawTreeHUD(ctx) {
   panel(ctx, VIEW_W - 520, 10, 160, 60, { border: "#c77dff" });
   drawEssence(ctx, VIEW_W - 512, 16);
 
-  // botões
+  // botões - MEGA LORE: biblioteca memórias
+  if (button(ctx, { x: VIEW_W - 640, y: 18, w: 150, h: 40, label: "MEMÓRIAS", id: "treeMemories", font: "small", accent: "#ffd479" })) {
+    return "memories";
+  }
   if (button(ctx, { x: VIEW_W - 480, y: 18, w: 140, h: 40, label: "PROFECIAS", id: "treeProphecy", font: "small", accent: "#6ee7ff" })) {
     return "prophecies";
   }
