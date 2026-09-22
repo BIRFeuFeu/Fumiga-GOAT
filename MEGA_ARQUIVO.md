@@ -498,6 +498,18 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - **Validação obrigatória:** rodar a suíte inteira antes de subir, incluindo `node game/test/mobile.mjs` (joga a versão mobile headless do boot até a expedição só com toque). Se uma mudança quebrar algo no mobile, os testes avisam antes do push.
 - As duas versões são **paralelas e sem conexão** (saves isolados por slot): progresso nunca é sincronizado entre elas.
 
+## Regra 10 — Sempre mostrar a arte gerada 🖼️
+
+> **Toda arte gerada (sprites, spritesheets, animações, ícones, cenários) deve ser mostrada ao usuário — nunca apenas descrita.**
+
+- Ao gerar qualquer arte, **abrir a imagem na frente do usuário** (viewer) para aprovação visual:
+  - spritesheets: mostrar a folha + mock aplicado em contexto de jogo;
+  - animações: mostrar os frames e, quando possível, o comportamento em jogo;
+  - sprites estáticos: mostrar a arte final no tamanho de uso e ampliada.
+- Descrição em texto não substitui o olhar do usuário: arte sem exibição não conta como entregue.
+- Se a arte for refeita ou ajustada, mostrar a nova versão também.
+- Manter os previews acessíveis e citar os caminhos para o usuário revisitar.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -505,10 +517,11 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
 4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6) + Regra 8 não-humanóide
-5. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
-6. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
-7. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
-8. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
+5. MOSTRAR    → exibir toda arte gerada para aprovação visual (Regra 10)
+6. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
+7. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
+8. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
+9. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,
@@ -1892,7 +1905,7 @@ parte dos blocos originais.
 
 | Arquivo original | Bytes preservados | SHA-256 |
 |---|---:|---|
-| `REGRAS_DE_TRABALHO.md` | 10718 | `31c453894502a6ae86e8749b49caa493316a2c9ac29eb9fb8b4cc2e484b26a31` |
+| `REGRAS_DE_TRABALHO.md` | 11570 | `e7c8021d6c9020ff8f11e278864095e9e5ba63cfb47e1031a2ff17bb2e5e55d2` |
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
