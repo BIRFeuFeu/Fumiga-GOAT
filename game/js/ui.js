@@ -2,9 +2,9 @@
 // FUMIGA-GOAT — primitivos de UI desenhados em canvas (estilo Dead Cells V2)
 // Painéis refinados, botões com profundidade, caixas de texto in-game
 // ============================================================================
-import { PAL } from "./config.js";
+import { PAL, VIEW_W, VIEW_H } from "./config.js";
 import { drawText, textWidth, FONT } from "./font.js";
-import { mouse } from "./input.js";
+import { mouse, touchMode } from "./input.js";
 import { SFX } from "./audio.js";
 import { G } from "./state.js";
 import { drawLoreTextbox, hudBiome, drawWoodBarFrame } from "./lore_hud.js";
@@ -41,17 +41,58 @@ export function pointInRect(px, py, x, y, w, h) {
   return px >= x && px <= x + w && py >= y && py <= y + h;
 }
 
-function isTouchDevice() {
-  return typeof window !== 'undefined' && ('ontouchstart' in window || window.innerWidth < 900);
+// É MOBILE? A resposta vem do shell, não do tamanho da janela.
+//   • touchMode.on   → true só na versão mobile (game/mobile/ carrega touch.js)
+//   • pointer:coarse → aparelho de toque de verdade (celular/tablet)
+// Antes bastava `innerWidth < 900`, que tratava como "mobile" qualquer janela
+// estreita no PC — e era isso que estourava o layout (ver hitRect).
+export function isTouchUI() {
+  if (touchMode.on) return true;
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch (e) { /* sem matchMedia: segue como PC */ }
+  return false;
 }
 
-// aumenta hitbox para toque - alvo mínimo 104px (escolha PC+Mobile)
+function isTouchDevice() { return isTouchUI(); }
+
+// ----------------------------------------------------------------------------
+// ALVO DE TOQUE — o tamanho do DEDO é a área SENSÍVEL, nunca o painel desenhado.
+// No mobile o canvas 960x540 é REDUZIDO para caber no celular (ex.: 844x390 →
+// escala 0.72), então ~61px do canvas já são os 44pt que a Apple pede e os
+// 48dp do Material (a WCAG 2.2 exige só 24px). Encher o botão de 104px "para
+// caber no dedo" foi o que quebrou as telas no celular: as pilhas de botões
+// saíam do canvas (botões cortados e sem legenda) e os alvos vizinhos se
+// sobrepunham (um toque acionava dois controles). Agora o desenho fica intacto
+// e a hitbox cresce no máximo HIT_PAD por lado — folga menor que qualquer
+// espaçamento de layout, então vizinhos nunca se encostam.
+// ----------------------------------------------------------------------------
+const MIN_TOUCH = 61;   // px do canvas (≈44px reais no iPhone em paisagem)
+const HIT_PAD = 10;     // teto da folga por lado (px do canvas)
+
+/** Guarda qualquer retângulo de UI dentro do canvas — nada mais fora da tela. */
+export function clampToView(r) {
+  let { x, y, w, h } = r;
+  if (w > VIEW_W) { x = 0; w = VIEW_W; }
+  if (h > VIEW_H) { y = 0; h = VIEW_H; }
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + w > VIEW_W) x = VIEW_W - w;
+  if (y + h > VIEW_H) y = VIEW_H - h;
+  return { x, y, w, h };
+}
+
+/** Área sensível de um retângulo desenhado à mão (fora de button()): mesmo
+ *  aumento de alvo do toque, sem mexer no desenho. */
+export function touchPad(x, y, w, h) { return hitRect(x, y, w, h); }
+
+// aumenta a hitbox para toque SEM mudar o desenho do botão
 function hitRect(x, y, w, h) {
   if (!isTouchDevice()) return { x, y, w, h };
-  const minTouch = 104;
-  const padX = Math.max(12, (minTouch - w) / 2 + 12);
-  const padY = Math.max(12, (minTouch - h) / 2 + 12);
-  return { x: x - padX, y: y - padY, w: w + padX * 2, h: h + padY * 2 };
+  const padX = Math.min(HIT_PAD, Math.max(0, (MIN_TOUCH - w) / 2));
+  const padY = Math.min(HIT_PAD, Math.max(0, (MIN_TOUCH - h) / 2));
+  return clampToView({ x: x - padX, y: y - padY, w: w + padX * 2, h: h + padY * 2 });
 }
 
 /** Painel com borda dupla, cantos chanfrados e estética Dead Cells refinada */
@@ -148,18 +189,11 @@ function chamfer(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/** Botão textual refinado — Dead Cells style com animação suave + mobile 104px */
+/** Botão refinado — Dead Cells style. No mobile o DESENHO é o do PC; o que
+ *  cresce é só a área sensível ao dedo (hitRect), que nunca sai do canvas. */
 export function button(ctx, opt) {
-  let { x, y, w, h } = opt;
-  // FASE 6: visual height 88->104 quando mobile
-  if (isTouchDevice() && opt.compact) h = Math.max(h, 44);
-  if (isTouchDevice() && h < 104 && opt.id !== "hudMore" && !opt.compact) {
-    // mantém x,y centralizado se aumentar
-    const diff = 104 - h;
-    y = y - diff/2;
-    h = 104;
-  }
-  const hr = opt.compact ? {x,y,w,h} : hitRect(x, y, w, h);
+  const { x, y, w, h } = clampToView(opt);
+  const hr = opt.compact ? { x, y, w, h } : hitRect(x, y, w, h);
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const down = hot && mouse.down && !dis;
@@ -233,7 +267,10 @@ export function button(ctx, opt) {
     by + h / 2 - (opt.font === "big" ? 15 : 8) - 2,
     { font: opt.font || "small", scale, color: col, align: "center", shadow: true, maxWidth: w - (opt.icon ? 40 : 20) });
 
-  buttons.push({ x, y, w, h, id: opt.id, disabled: dis });
+  // o retângulo publicado é o da HITBOX: é ele que decide se o toque é da UI
+  // (uiCapture) — publicar o desenho deixaria o dedo "atravessar" a borda do
+  // botão no mobile (acionava o botão E a ordem no mundo ao mesmo tempo)
+  buttons.push({ x: hr.x, y: hr.y, w: hr.w, h: hr.h, id: opt.id, disabled: dis });
   if (clicked) SFX.uiClick();
   return clicked;
 }
@@ -255,15 +292,10 @@ function hex2rgb(hex) {
   return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
 }
 
-/** Botão de ícone (loja / hotbar) refinado - mobile 104px touch */
+/** Botão de ícone (loja / hotbar). No mobile o desenho é o do PC: só a hitbox
+ *  cresce (e continua dentro do canvas), senão o rodapé engoliria o mundo. */
 export function iconButton(ctx, opt) {
-  let { x, y, w, h } = opt;
-  // FASE 6: visual height 88->104 quando mobile
-  if (isTouchDevice() && h < 104) {
-    const diff = 104 - h;
-    y = y - diff/2;
-    h = 104;
-  }
+  const { x, y, w, h } = clampToView(opt);
   let hr = hitRect(x, y, w, h);
   // cards compactos: limita a margem extra horizontal do toque para que as
   // hitboxes de vizinhos (pitch pequeno) não se sobreponham
@@ -308,7 +340,8 @@ export function iconButton(ctx, opt) {
     ctx.fillRect(x + 2, y + lift + 2, w - 4, h - 4);
   }
 
-  buttons.push({ x, y, w, h, id: opt.id, disabled: dis });
+  // idem button(): publica a hitbox, para o toque não vazar para o mundo
+  buttons.push({ x: hr.x, y: hr.y, w: hr.w, h: hr.h, id: opt.id, disabled: dis });
   if (clicked) SFX.uiClick();
   return { clicked, hot };
 }

@@ -4,7 +4,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, PAL, GIANT_SCALE, ANT_SIZES, GATHERER_SIZE } from "./config.js";
 import { G, loadSave } from "./state.js";
-import { loadAll, bakeRot, dupSprite, setRotDrawScale } from "./assets.js";
+import { loadAll, bakeRot, dupSprite, setRotDrawScale, LOAD } from "./assets.js";
 import { loadFonts, drawText } from "./font.js";
 import { initAudio } from "./audio.js";
 import { endTick } from "./input.js";
@@ -31,6 +31,28 @@ fit();
 // Tamanhos de assado vêm de config.js (fonte única compartilhada com os testes).
 
 let progress = 0, phase = "CARREGANDO ESPOROS", ready = false, loadError = null;
+let lastProgressAt = (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+// Quanto tempo sem NENHUMA imagem chegar antes de admitir que a conexão
+// travou. Acima disso a tela passa a oferecer o toque de "tentar de novo".
+const STALL_MS = 9000;
+const stalled = () => !ready && !loadError &&
+  (typeof performance !== "undefined" ? performance.now() : Date.now()) - lastProgressAt > STALL_MS;
+
+/**
+ * Espera UM frame de pintura, mas NUNCA depende só dele. Em celular a aba é
+ * congelada (notificação, troca de app, tela bloqueada) e o requestAnimationFrame
+ * para de disparar — com o await cru, o boot ficava preso para sempre em
+ * "ASSANDO PIXELS... 90%". O timeout é a saída pela porta de serviço.
+ */
+function nextFrame(maxMs = 120) {
+  return new Promise((res) => {
+    let done = false;
+    const go = () => { if (done) return; done = true; clearTimeout(t); res(); };
+    const t = setTimeout(go, maxMs);
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(go);
+  });
+}
 
 function drawLoading() {
   ctx.fillStyle = "#0a0812";
@@ -86,17 +108,42 @@ function drawLoading() {
   ctx.fillStyle = "rgba(255,255,255,0.3)";
   ctx.fillRect(bx + 2, by + 2, fillW, 2);
 
-  ctx.fillStyle = loadError ? "#ff4d5a" : "#9a8fc0";
+  ctx.fillStyle = loadError || stalled() ? "#ff4d5a" : "#9a8fc0";
   ctx.font = "11px 'Courier New', monospace";
   ctx.textAlign = "center";
   ctx.fillText(loadError ? ("ERRO: " + loadError.message) : (phase + "... " + Math.floor(progress * 100) + "%"), cx, by + bh + 22);
 
+  // fila de assets visível: em celular "62%" sozinho não diz se está lento ou
+  // travado — aqui aparece quantas imagens faltam e qual está pendurada
+  if (!ready && LOAD.total) {
+    const pend = Math.max(0, LOAD.total - LOAD.done);
+    const extra = LOAD.retries ? "  (" + LOAD.retries + " repetidas)" : "";
+    ctx.fillStyle = "rgba(154,143,192,0.75)";
+    ctx.font = "10px 'Courier New', monospace";
+    ctx.fillText("IMAGENS " + LOAD.done + "/" + LOAD.total +
+      (pend ? "  •  " + pend + " na fila" + extra : ""), cx, by + bh + 40);
+  }
+
   // A tela de erro usa fonte nativa: funciona mesmo se o atlas não carregar.
-  ctx.fillStyle = loadError ? "#efe9ff" : "rgba(154,143,192,0.5)";
+  ctx.fillStyle = loadError || stalled() ? "#efe9ff" : "rgba(154,143,192,0.5)";
   ctx.font = "10px 'Courier New', monospace";
   ctx.fillText(loadError
     ? "Verifique a conexão e recarregue a página para tentar novamente."
-    : "Inspirado em Dead Cells • Colônia Eterna", cx, VIEW_H - 20);
+    : (stalled()
+      ? "A CONEXÃO TRAVOU • TOQUE NA TELA PARA RECARREGAR"
+      : "Inspirado em Dead Cells • Colônia Eterna"), cx, VIEW_H - 20);
+
+  // botão de recomeço (toque ou clique) — só quando realmente não dá mais
+  if (loadError || stalled()) {
+    const bw2 = 260, bh2 = 40, bx2 = cx - bw2 / 2, by2 = VIEW_H - 96;
+    ctx.fillStyle = "rgba(255,77,90,0.16)";
+    ctx.fillRect(bx2, by2, bw2, bh2);
+    ctx.strokeStyle = "#ff4d5a"; ctx.lineWidth = 2;
+    ctx.strokeRect(bx2 + 0.5, by2 + 0.5, bw2 - 1, bh2 - 1);
+    ctx.fillStyle = "#ffd7db";
+    ctx.font = "bold 13px 'Courier New', monospace";
+    ctx.fillText("▶ TENTAR DE NOVO", cx, by2 + 25);
+  }
 }
 
 // --------------------------------------------------------------- loop -------
@@ -119,10 +166,10 @@ function loop(t) {
 async function bootAll() {
   loadSave();
   await loadFonts();
-  await loadAll((p) => { progress = p * 0.9; });
+  await loadAll((p) => { progress = p * 0.9; lastProgressAt = performance.now(); });
   await loadLoreHUD();
   phase = "ASSANDO PIXELS";
-  await new Promise(r => requestAnimationFrame(r));
+  await nextFrame();
   // DINOPONERA: a colosso é a FORMIGA-BALA tingida de violeta profundo,
   // DINOPONERA: a arte da soldado com as MESMAS cores originais (sem tinteamento),
   // assada no tamanho 5x e ampliada na hora (ver setRotDrawScale)
@@ -142,11 +189,26 @@ async function bootAll() {
 window.addEventListener("pointerdown", () => initAudio(), { once: true });
 window.addEventListener("keydown", () => initAudio(), { once: true });
 
+// Rede de segurança do MOBILE: se o carregamento morreu (falha ou conexão
+// travada), o PRÓXIMO toque recarrega — sem teclado, "F5" não existe no celular.
+// Um toque só por recarga, para nunca entrar em loop de reload.
+let reloadArmed = false;
+function armReload() {
+  if (ready || reloadArmed) return;
+  if (!loadError && !stalled()) return;
+  reloadArmed = true;
+  try { location.reload(); } catch (e) { /* sem location: testes headless */ }
+}
+window.addEventListener("pointerdown", armReload, { passive: true });
+window.addEventListener("keydown", armReload, { passive: true });
+
 bootAll().catch((error) => {
   // Não continuar com sprites/fontes ausentes nem deixar uma rejeição solta
   // e a barra de carregamento parada para sempre.
   ready = false;
   loadError = error instanceof Error ? error : new Error(String(error));
   console.error("Falha ao iniciar FUMIGA:", loadError);
+  // a barra para de andar: avisa na tela que o toque serve para tentar de novo
+  lastProgressAt = 0;
 });
 requestAnimationFrame(loop);

@@ -30,6 +30,18 @@ trocar à mão: o link na página inicial e o botão **VERSÃO MOBILE / VERSÃO 
   (`fumiga_goat_mobile_save_v1`), progresso independente.
 - **Enquadramento:** o canvas 960×540 é escalado mantendo a proporção 16:9 (letterbox), sem
   distorcer; em pé aparece a faixa "gire o celular" (paisagem é a experiência recomendada).
+- **Alvo de toque = hitbox, não tamanho de botão.** `ui.js` (`isTouchUI`, `hitRect`) amplia só a
+  área sensível ao dedo (mín. 61px do canvas ≈ 44px reais no celular, o piso da Apple HIG /
+  Material) e nunca o painel desenhado — assim o layout do mobile é o do PC e nada sai do canvas.
+  Todo retângulo de UI passa por `clampToView`, e o `test/layout.mjs` re-audita as telas em MODO
+  TOQUE: nenhum botão fora do 960×540 e nenhuma hitbox sobreposta (botão inflado a 104px fazia
+  "VOLTAR", "REINICIAR", "SAIR" e "COMO JOGAR" sumirem da tela no celular).
+- **Carregamento à prova de 4G.** `assets.js` (`loadAll`/`loadImage`) não manda mais as ~140
+  imagens de uma vez: fila de 8 conexões, **prazo de 12s por imagem** e **duas tentativas**
+  (a 2ª muda a query, furando a entrada envenenada do cache). Uma requisição presa não congela
+  mais a barra para sempre — vira `ERRO: Falha ao carregar <arquivo>` com o botão
+  **▶ TENTAR DE NOVO**, que também aparece se a conexão travar (o celular não tem F5).
+  Coberto pelo cenário `pendurado` do `test/boot.mjs`.
 - **Controles de toque:** arrastar 1 dedo move a câmera · toque dá ordem às selecionadas ·
   toque numa formiga a seleciona · toque duplo seleciona o tipo · arrastar 2 dedos faz a caixa
   de seleção · pinça dá zoom · botões virtuais cobrem pausa, ninho, rali, onda, zoom e centro.

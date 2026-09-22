@@ -176,14 +176,35 @@ if (scenario === "boot-mobile") {
   assert.equal(isPaused(), false, "botão PAUSA retomou");
   console.log("ok    HUD virtual pausa e retoma o jogo");
 
-  const a = units.allies.find((u) => !u.dead && !u.dying && u.type !== "queen");
-  assert.ok(a, "havia formiga viva para tocar");
+  // Irmã fora da HUD: toque em cima de botão é da UI (uiCapture) e não
+  // seleciona — era isso que tornava este passo instável (a formiga sorteada
+  // às vezes estava sobre a barra da loja, no rodapé).
+  const ui = await import(JS + "ui.js");
+  const sobUI = (x, y) => ui.uiButtons().some((b) => ui.pointInRect(x, y, b.x, b.y, b.w, b.h));
+  const a = (() => {
+    for (const u of units.allies) {
+      if (u.dead || u.dying || u.type === "queen") continue;
+      const sp = worldToScreen(u.x, u.y);
+      if (sp.x < 40 || sp.y < 40 || sp.x > 920 || sp.y > 400) continue;   // vista útil
+      if (sobUI(sp.x, sp.y)) continue;
+      return u;
+    }
+    return null;
+  })();
+  assert.ok(a, "havia formiga viva fora da HUD para tocar");
   // um draft aberto rouba o foco de entrada; descarta antes do toque seletivo
   for (let i = 0; i < 20 && G.run.draft; i++) { G.run.draft = null; await wait(100); }
   assert.equal(!!G.run.draft, false, "nenhum draft aberto no momento do toque");
-  const s = worldToScreen(a.x, a.y);
-  await tap(s.x, s.y, 60); await wait(150);
-  assert.ok(units.selectedCount() >= 1, "toque na formiga a selecionou");
+  // a formiga continua andando: mira na posição ATUAL e repete se o frame
+  // adiantou entre a leitura e o toque
+  let sel = 0;
+  for (let r = 0; r < 8 && sel < 1; r++) {
+    const sp = worldToScreen(a.x, a.y);
+    if (sobUI(sp.x, sp.y)) { await wait(80); continue; }
+    await tap(sp.x, sp.y, 60 + r); await wait(120);
+    sel = units.selectedCount();
+  }
+  assert.ok(sel >= 1, "toque na formiga a selecionou");
   console.log("ok    toque inteligente selecionou (" + units.selectedCount() + ")");
 
   assert.equal(store.has("fumiga_goat_mobile_save_v1"), true, "save no slot mobile");
