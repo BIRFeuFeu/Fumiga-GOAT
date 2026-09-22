@@ -346,7 +346,7 @@ function advanceMap() {
     burst(A.x, A.y, { n: 30, color: ["#ffd479", "#7fd6a0", "#fff"], spMin: 30, spMax: 160, life: 0.8, glow: true });
   }
 
-  run.banner = { title: "MAPA " + (director.mapIdx + 1) + "/" + MAPS.length + " — " + m.name, sub: m.sub, t: 4.6 };
+  run.banner = { title: "MAPA " + (director.mapIdx + 1) + "/" + MAPS.length + " — " + m.name, sub: (m.sub ? m.sub + " • " : "") + "O VASO MUDA: " + (m.loreName || ""), t: 4.6 };
   run.transition = false;
   SFX.chime();
   floatText(A.x, A.y - 120, "A COLÔNIA MIGRA PARA NOVAS TERRAS", { color: "#ffd479", life: 2.2, scale: 2 });

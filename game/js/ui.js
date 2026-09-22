@@ -7,6 +7,7 @@ import { drawText, textWidth, FONT } from "./font.js";
 import { mouse } from "./input.js";
 import { SFX } from "./audio.js";
 import { G } from "./state.js";
+import { drawLoreTextbox, hudBiome } from "./lore_hud.js";
 
 let buttons = [];
 // Animação de interface: hover/pressão de cada botão são NÚMEROS que correm
@@ -376,14 +377,21 @@ export function dialogBox(ctx, x, y, w, h, opt = {}) {
   chamfer(ctx, x + 4, y + 5, w, h, opt.r || 6);
   ctx.fill();
 
-  // painel principal
-  panel(ctx, x, y, w, h, {
-    fill: opt.fill || "#1e1932",
-    border,
-    r: opt.r || 6,
-    accentLine: opt.accent || border,
-    glow: opt.glow ? border : null,
-  });
+  // Fase 2: caixa de texto orgânica 9-slice do bioma atual (menus = colônia).
+  // Sem arte (testes headless) cai no painel procedural clássico.
+  const lore = opt.lore !== false &&
+    drawLoreTextbox(ctx, x, y, w, h, opt.biome || hudBiome());
+
+  if (!lore) {
+    // painel principal
+    panel(ctx, x, y, w, h, {
+      fill: opt.fill || "#1e1932",
+      border,
+      r: opt.r || 6,
+      accentLine: opt.accent || border,
+      glow: opt.glow ? border : null,
+    });
+  }
 
   // linha decorativa superior
   if (opt.title) {

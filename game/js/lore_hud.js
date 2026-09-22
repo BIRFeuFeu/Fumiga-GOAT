@@ -1,5 +1,6 @@
 import { G } from "./state.js";
 import { drawText } from "./font.js";
+import { MAPS } from "./config.js";
 
 // ============================================================================
 // LORE HUD — Sistema Orgânico Total por Bioma
@@ -121,6 +122,26 @@ export const BIOME_HUD = {
     waveLabel: "TRILHA DA NÉVOA",
     iconLeaf: "gelo",
   },
+  // Tema neutro dos menus fora da expedição (vaso da Colônia Ancestral).
+  colonia: {
+    id: "colonia",
+    loreName: "VASO DA COLÔNIA",
+    border: "#8f6fd6",
+    bg: "rgba(40,30,56,0.92)",
+    bg2: "rgba(34,26,48,0.88)",
+    accent: "#ffd479",
+    foodLabel: "FOLHA TENRA",
+    foodIcon: "🍃",
+    foodColor: "#8f6fd6",
+    essenceLabel: "PÓLEN ÂMBAR",
+    essenceColor: "#ffd479",
+    texture: "#3a2c4c",
+    gasterColor: "#ffd479",
+    gasterVein: "#8f6fd6",
+    minimapBorder: "#8f6fd6",
+    waveLabel: "TRILHA DA COLÔNIA",
+    iconLeaf: "trevo",
+  },
 };
 
 export function getBiomeHUD(mapId) {
@@ -128,13 +149,14 @@ export function getBiomeHUD(mapId) {
 }
 
 // Atlas originais: master 4x, exportação nearest. Nenhum asset criado no loop.
-const BIOMES = Object.keys(BIOME_HUD);
+// BIOMES fixo: a ordem das células nos atlas (painéis/ícones/textboxes).
+const BIOMES = ["planicie", "floresta", "pantano", "deserto", "outono", "gelo"];
 const art = {};
 const panelCache = new Map();
 const fogCache = [];
 let loading;
 export function loadLoreHUD() {
-  if (!loading) loading = Promise.all(["panels", "icons", "gaster"].map(key => new Promise((resolve, reject) => {
+  if (!loading) loading = Promise.all(["panels", "icons", "gaster", "textbox"].map(key => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => { art[key] = img; panelCache.clear(); resolve(); };
     img.onerror = () => reject(new Error("HUD não carregou: lore_" + key + ".png"));
@@ -143,41 +165,104 @@ export function loadLoreHUD() {
   return loading;
 }
 
-// Os cantos não esticam; apenas as faixas e o centro. Cache limitado por tamanho.
+// --------------------------------------------- MUDA DE QUITINA (Fase 2) ------
+// Ao trocar de bioma o HUD "troca de pele": o tema antigo dá lugar ao novo com
+// um dissolve curto + fio de luz. Só dois blits cacheados por frame, sem
+// alocação. Acessibilidade (reducedFX) troca seco, sem animação.
+const MOLT_DUR = 0.6;
+let lastBiomeId = null, moltFromId = null, moltStart = -10;
+function noteBiome(id) {
+  if (lastBiomeId && id !== lastBiomeId && BIOME_HUD[id] && BIOME_HUD[lastBiomeId]) {
+    moltFromId = lastBiomeId;
+    moltStart = G.time;
+  }
+  lastBiomeId = id;
+}
+
+/** Bioma vivo do HUD: o mapa atual da expedição, ou o Vaso da Colônia nos menus. */
+export function hudBiome() {
+  const m = G.run && typeof G.run.mapIdx === "number" ? MAPS[G.run.mapIdx] : null;
+  return m && BIOME_HUD[m.id] ? m.id : "colonia";
+}
+
+function tbIndex(id) { return id === "colonia" ? 6 : Math.max(0, BIOMES.indexOf(id)); }
+
+// Os cantos nunca esticam; apenas as faixas e o centro. Cache limitado por uso.
+function tileOf(kind, styleId, w, h) {
+  const key = kind + ":" + styleId + ":" + w + ":" + h;
+  let tile = panelCache.get(key);
+  if (tile) return tile;
+  tile = document.createElement("canvas"); tile.width = w; tile.height = h;
+  const c = tile.getContext("2d"); c.imageSmoothingEnabled = false;
+  c.fillStyle = "#1a1427"; c.fillRect(0, 0, w, h);
+  const img = kind === "panels" ? art.panels : art.textbox;
+  if (img) {
+    const idx = kind === "panels"
+      ? Math.max(0, BIOMES.indexOf(styleId === "colonia" ? "planicie" : styleId))
+      : tbIndex(styleId);
+    const sx = idx * 32;
+    const edge = Math.min(8, Math.floor(w / 2), Math.floor(h / 2));
+    const src = [0, 8, 24], size = [8, 16, 8];
+    const dx = [0, edge, w - edge], dy = [0, edge, h - edge];
+    const dw = [edge, w - edge * 2, edge], dh = [edge, h - edge * 2, edge];
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+      if (dw[col] > 0 && dh[row] > 0) c.drawImage(img, sx + src[col], src[row], size[col], size[row], dx[col], dy[row], dw[col], dh[row]);
+    }
+  }
+  if (kind === "panels") {
+    // Quitina/cera determinística, preparada uma vez, sem gradientes por frame.
+    const style = getBiomeHUD(styleId);
+    c.globalAlpha = 0.12; c.fillStyle = style.border;
+    for (let i = 0; i < Math.floor(w * h / 350); i++) {
+      const px = 8 + (i * 37 % Math.max(1, w - 16)), py = 8 + (i * 17 % Math.max(1, h - 16));
+      if (px < w - 8 && py < h - 8) c.fillRect(px, py, 2, 1);
+    }
+  }
+  if (panelCache.size >= 160) panelCache.delete(panelCache.keys().next().value);
+  panelCache.set(key, tile);
+  return tile;
+}
+
+function blitMolt(ctx, kind, styleId, x, y, w, h) {
+  x = Math.round(x); y = Math.round(y);
+  const dt = G.time - moltStart;
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  if (moltFromId && dt >= 0 && dt < MOLT_DUR && !reducedFX()) {
+    const t = dt / MOLT_DUR, e = t * t * (3 - 2 * t);
+    ctx.drawImage(tileOf(kind, moltFromId, w, h), x, y);
+    ctx.globalAlpha = e;
+    ctx.drawImage(tileOf(kind, styleId, w, h), x, y);
+    // fio de luz da muda varrendo a caixa
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.3 * (1 - t);
+    ctx.fillStyle = getBiomeHUD(styleId).accent;
+    ctx.fillRect(x + Math.round(w * e) - 1, y, 2, h);
+  } else {
+    ctx.drawImage(tileOf(kind, styleId, w, h), x, y);
+  }
+  ctx.restore();
+}
+
 export function drawBiomeTexture(ctx, x, y, w, h, biome, time) {
   w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
   const style = getBiomeHUD(biome);
-  const key = style.id + ":" + w + ":" + h;
-  let tile = panelCache.get(key);
-  if (!tile) {
-    tile = document.createElement("canvas"); tile.width = w; tile.height = h;
-    const c = tile.getContext("2d"); c.imageSmoothingEnabled = false;
-    c.fillStyle = "#1a1427"; c.fillRect(0, 0, w, h);
-    if (art.panels) {
-      const sx = BIOMES.indexOf(style.id) * 32;
-      const edge = Math.min(8, Math.floor(w / 2), Math.floor(h / 2));
-      const src = [0, 8, 24], size = [8, 16, 8];
-      const dx = [0, edge, w-edge], dy = [0, edge, h-edge];
-      const dw = [edge, w-edge*2, edge], dh = [edge, h-edge*2, edge];
-      for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
-        if (dw[col] > 0 && dh[row] > 0) c.drawImage(art.panels, sx+src[col], src[row], size[col], size[row], dx[col], dy[row], dw[col], dh[row]);
-      }
-    }
-    // Quitina/cera determinística, preparada uma vez, sem gradientes por frame.
-    c.globalAlpha = 0.12; c.fillStyle = style.border;
-    for (let i = 0; i < Math.floor(w*h/350); i++) {
-      const px = 8 + (i*37 % Math.max(1,w-16)), py = 8 + (i*17 % Math.max(1,h-16));
-      if (px < w-8 && py < h-8) c.fillRect(px,py,2,1);
-    }
-    if (panelCache.size >= 96) panelCache.delete(panelCache.keys().next().value);
-    panelCache.set(key,tile);
-  }
-  ctx.save(); ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(tile,Math.round(x),Math.round(y));
+  noteBiome(style.id);
+  blitMolt(ctx, "panels", style.id, x, y, w, h);
   // Respiração discreta sem movimentar texto ou hitboxes.
-  ctx.globalAlpha *= reducedFX() ? 0.12 : 0.16 + Math.sin(time*2)*0.06;
-  ctx.fillStyle = style.accent; ctx.fillRect(Math.round(x)+8,Math.round(y)+3,Math.max(0,w-16),1);
+  ctx.save();
+  ctx.globalAlpha = reducedFX() ? 0.12 : 0.16 + Math.sin(time * 2) * 0.06;
+  ctx.fillStyle = style.accent; ctx.fillRect(Math.round(x) + 8, Math.round(y) + 3, Math.max(0, w - 16), 1);
   ctx.restore();
+}
+
+// Caixa de texto orgânica 9-slice do bioma (diálogos, tooltips, menus).
+// Retorna false sem arte carregada — o chamador volta ao painel procedural.
+export function drawLoreTextbox(ctx, x, y, w, h, biome) {
+  if (!art.textbox) return false;
+  const id = BIOME_HUD[biome] ? biome : "colonia";
+  noteBiome(id);
+  blitMolt(ctx, "textbox", id, x, y, Math.max(16, Math.round(w)), Math.max(16, Math.round(h)));
+  return true;
 }
 
 function reducedFX() { return !!G.save?.accessibility?.reducedParticles || G.save?.settings?.particles === false; }

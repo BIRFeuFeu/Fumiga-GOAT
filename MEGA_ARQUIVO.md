@@ -60,6 +60,44 @@ transformações visuais das Eras, biblioteca completa ou o chefe Pálida.
 Os 11 arquivos de arte existentes da Noite Branca continuam sendo 11 de 24;
 o fallback não deve ser contado como arte finalizada.
 
+## Registro técnico — rework de HUD Fase 2: slice boxes e caixas de texto (2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** rework da Fase 2 do HUD —
+slice boxes e caixas de texto com spritesheets próprias, segundo o MEGA
+ARQUIVO (HUD orgânico por bioma, P1/P22), incluindo a mudança de estilo ao
+progredir de mapa. **Decisões confirmadas (Regra 1):** caixas em todas as
+telas (RUN + diálogos + tooltips + menus) · arte pelo gerador procedural rico ·
+transição "muda de quitina" com dissolve + banner.
+
+**Entregas:**
+
+- `tools/make_lore_hud.py` evoluído: `lore_panels.png` com quitina dupla,
+  motif do bioma nos 4 cantos (trevo/cogumelo/alga/semente/folha/líquen —
+  zona fixa do 9-slice), costuras de seda e nós de cera; novo
+  `lore_textbox.png` (224×32) com 7 temas de caixa de texto (6 biomas +
+  colônia para menus). ~2 KiB cada (Regra 5), nada humanoide (Regra 8).
+- `game/js/lore_hud.js`: loader inclui `textbox`; `tileOf`/`blitMolt`
+  (dissolve 0,6 s + fio de luz na troca de bioma, cache de tiles, sem alocação
+  por frame); `drawLoreTextbox` exportado; `hudBiome()` (mapa atual ou
+  colônia).
+- `game/js/ui.js`: `dialogBox`/`tooltip` desenham a caixa orgânica do bioma,
+  com fallback procedural quando a arte não está carregada (testes headless).
+- `game/js/game.js`: banner de migração anuncia "O VASO MUDA: <nome lore>".
+- `game/assets/ui/README.md` atualizado.
+
+**Inspirações (Regra 2):** Dead Cells/Hollow Knight/Hyper Light Drifter (UI
+limpa com paleta casada) e kits 9-slice temáticos (Nuhemu 6 temas, OpenGameArt
+750 assets).
+
+**Verificação (Regras 3/4):** bateria headless completa passou (`boot`,
+`docs`, `assets`, `tree`, `stuck`, `layout`, `uitest`, `attack`, `prophecy`,
+`endless`, `sim` FORCE=6); QA visual do 9-slice composto (cantos íntegros,
+faixas esticadas) e dos atlas ampliados; `lore_textbox.png` servido 200 no
+preview. **Limitação já declarada:** sem binário de navegador no sandbox, a
+inspeção em jogo fica no preview ao vivo (porta 8000).
+
 ## Registro técnico — rework de arte dos inimigos, Fase 2 (2026-09-22)
 
 Esta seção é nova e não modifica os seis textos originais.

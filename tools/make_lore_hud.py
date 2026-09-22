@@ -1,6 +1,11 @@
 """Arte original FUMIGA, paleta da rainha existente. Requer Pillow só no pipeline.
 Desenha em master 4x alinhado à grade; exporta nearest sem antialiasing.
 Uso: python tools/make_lore_hud.py [--master /caminho/fora/do/repo]
+
+Fase 2 (rework de HUD): painéis 9-slice mais ricos (quitina dupla, motif do
+bioma nos 4 cantos — cantos nunca esticam — costuras de seda, nós de cera) e
+novo atlas lore_textbox.png com 7 temas (6 biomas + colônia) para caixas de
+texto/diálogos. Nada humanoide (Regra 8).
 """
 from pathlib import Path
 import argparse
@@ -9,8 +14,10 @@ from PIL import Image, ImageDraw
 OUT = Path(__file__).resolve().parents[1] / 'game/assets/ui'
 S = 4
 INK, DARK, MID, SILK = '#100c1c', '#21182f', '#4a365c', '#efe2c4'
+FIELD = '#1a1427'
 COLORS = ['#7fd6a0', '#bfffa8', '#37e6c8', '#ffb347', '#ff9a5c', '#b9e5ff']
 SHADES = ['#38553f', '#354b3e', '#244a48', '#62432c', '#61342e', '#394c69']
+LIGHTS = ['#a8f0c8', '#e2ffc9', '#8ff0dc', '#ffd479', '#ffc09a', '#e8f4ff']
 
 class Pixel:
     def __init__(self, w, h):
@@ -40,34 +47,122 @@ class Pixel:
             self.im.save(Path(master)/name,optimize=True)
 
 
+# Motifs 6x6 por bioma (0 trevo, 1 cogumelo, 2 alga, 3 semente, 4 folha,
+# 5 líquen/cristal, 6 coroa-de-fungo da colônia). Desenhados em coords locais;
+# stamp() espelha nos cantos. Nunca humanos: só flora/fauna do bioma.
+def glyph(d, i, c, light):
+    if i == 0:  # trevo
+        for a,b in [(1,1),(3,1),(2,3)]: d.rect((a,b,a+1,b+1),c)
+        d.line([(2,4),(2,5)],'#d6b779')
+    elif i == 1:  # cogumelo
+        d.poly([(0,3),(2,0),(4,0),(5,3),(4,4),(1,4)],INK)
+        d.poly([(1,3),(2,1),(4,1),(4,3),(1,3)],c)
+        d.rect((2,4,3,5),SILK)
+    elif i == 2:  # alga
+        d.line([(1,5),(2,3),(1,1)],INK); d.line([(2,5),(3,3),(2,1)],c)
+        d.line([(4,5),(4,2),(3,0)],c); d.rect((4,0,4,0),light)
+    elif i == 3:  # semente
+        d.poly([(2,0),(4,1),(4,4),(2,5),(1,3)],INK)
+        d.poly([(2,1),(3,2),(3,4),(2,4),(2,2)],c)
+        d.rect((2,2,2,2),'#ffd479')
+    elif i == 4:  # folha de outono
+        d.poly([(0,3),(2,0),(5,1),(4,4),(1,5)],INK)
+        d.poly([(1,3),(2,1),(4,2),(3,4),(1,4)],c)
+        d.line([(1,4),(3,2)],'#ffd479')
+    elif i == 5:  # cristal/líquen gelado
+        d.poly([(2,0),(4,1),(4,4),(2,5),(0,3)],INK)
+        d.poly([(2,1),(3,2),(3,4),(2,4),(1,3)],c)
+        d.line([(2,1),(2,4)],SILK)
+    else:  # colônia: coroa de fungo/seda
+        for a in (1,3,5):
+            d.rect((a,3,a,4),SILK); d.rect((a-1,1,a+1,2),'#ffd479')
+        d.rect((3,0,3,0),SILK)
+
+
+class D:
+    """Acumulador com espelhamento p/ carimbar o motif nos 4 cantos."""
+    def __init__(self, p, x, fx, fy, gx, gy):
+        self.p, self.x = p, x
+        self.fx, self.fy, self.gx, self.gy = fx, fy, gx, gy
+    def _t(self, pts):
+        out = []
+        for a,b in pts:
+            a = 5-a if self.fx else a
+            b = 5-b if self.fy else b
+            out.append((self.x+self.gx+a, self.gy+b))
+        return out
+    def rect(self, box, col):
+        a,b,r,d2 = box
+        pts = [(a,b),(r,b),(r,d2),(a,d2)]
+        self.p.poly(self._t(pts), col)
+    def poly(self, pts, col): self.p.poly(self._t(pts), col)
+    def line(self, pts, col): self.p.line(self._t(pts), col)
+
+
+def stamp_corners(p, x, i, c, light, inset):
+    for fx, fy, gx, gy in [(0,0,inset,inset),(1,0,25-inset,inset),
+                           (0,1,inset,25-inset),(1,1,25-inset,25-inset)]:
+        glyph(D(p, x, fx, fy, gx, gy), i, c, light)
+
+
 def make(master=None):
-    # Six 32x32 nine-slices, 8px fixed corners, center dark for readability.
+    # ------------------------------------------------ painéis 9-slice ricos --
+    # Six 32x32 nine-slices, 8px fixed corners (motif do bioma nos cantos),
+    # quitina dupla, costuras de seda nas bordas e nós de cera âmbar.
     p = Pixel(192,32)
-    for i,(c,shade) in enumerate(zip(COLORS,SHADES)):
+    for i,(c,shade,light) in enumerate(zip(COLORS,SHADES,LIGHTS)):
         x=i*32
         def poly(pts,col): p.poly([(x+a,b) for a,b in pts],col)
         def rect(box,col): a,b,r,d=box; p.rect((x+a,b,x+r,d),col)
+        def line(pts,col): p.line([(x+a,b) for a,b in pts],col)
+        # anel externo de quitina (INK) + anel interno (sombra do bioma)
         poly([(0,5),(5,0),(26,0),(31,5),(31,26),(26,31),(5,31),(0,26)],INK)
         poly([(1,6),(6,1),(25,1),(30,6),(30,25),(25,30),(6,30),(1,25)],shade)
-        rect((6,3,25,3),c); rect((3,6,3,25),c)
-        rect((6,5,25,26),DARK); rect((5,7,26,24),DARK)
-        rect((8,8,23,23),'#1a1427')
-        # Chitin seams, amber wax nodes and silk stitches; different biome motifs.
-        for a,b in [(5,5),(26,5),(5,26),(26,26)]:
+        # segunda placa de quitina: bisel claro em cima, escuro embaixo
+        poly([(2,7),(7,2),(24,2),(29,7),(29,24),(24,29),(7,29),(2,24)],INK)
+        rect((7,3,24,3),c); rect((3,7,3,24),c)          # veia colorida topo/esq
+        rect((7,28,24,28),shade); rect((28,7,28,24),shade)  # sombra baixo/dir
+        line([(8,4),(23,4)],light)                      # brilho de cera superior
+        # campo interno de leitura
+        rect((6,6,25,25),DARK); rect((5,7,26,24),DARK); rect((8,8,23,23),FIELD)
+        # motif do bioma nos 4 cantos (zona fixa do 9-slice, nunca estica)
+        stamp_corners(p, x, i, c, light, 1)
+        # costuras de seda no meio das bordas (zona esticável, padrão ralo)
+        for a in (12,16,20):
+            rect((a,1,a+1,1),SILK); rect((a+2,30,a+3,30),SILK)
+        for b in (12,16,20):
+            rect((1,b,1,b+1),SILK); rect((30,b+2,30,b+3),SILK)
+        # nós de cera âmbar nos pontos médios do anel interno
+        for a,b in [(4,15),(15,4),(27,16),(16,27)]:
             rect((a-1,b-1,a+1,b+1),INK); rect((a,b,a,b),'#ffd479')
-        for a in (10,18):
-            rect((a,2,a+2,2),MID); rect((a+2,28,a+4,28),c)
-        if i==0: poly([(2,9),(6,7),(5,12),(2,14)],c)
-        elif i==1:
-            rect((1,10,4,14),shade); rect((1,10,3,11),c); rect((26,18,29,20),c)
-        elif i==2: p.line([(x+2,9),(x+4,12),(x+2,16),(x+4,20)],c)
-        elif i==3:
-            for a,b in [(2,12),(28,11),(3,19),(27,22)]: rect((a,b,a+1,b+1),'#ffd479')
-        elif i==4: poly([(1,12),(5,9),(6,13),(3,17)],c)
-        else:
-            poly([(1,9),(5,7),(4,16)],c); poly([(27,18),(30,15),(29,24)],SILK)
     p.save('lore_panels.png',master)
 
+    # --------------------------------------- caixas de texto 9-slice (7 temas) --
+    # 6 biomas + colônia (menus). Moldura fina orgânica: fio de seda no topo,
+    # nó de cera, motif pequeno nos cantos e pespontos na base.
+    p = Pixel(224,32)
+    TB = list(zip(COLORS,SHADES,LIGHTS)) + [('#8f6fd6','#3a2c4c','#d9c2ff')]
+    for i,(c,shade,light) in enumerate(TB):
+        x=i*32
+        def poly(pts,col): p.poly([(x+a,b) for a,b in pts],col)
+        def rect(box,col): a,b,r,d=box; p.rect((x+a,b,x+r,d),col)
+        def line(pts,col): p.line([(x+a,b) for a,b in pts],col)
+        poly([(0,4),(4,0),(27,0),(31,4),(31,27),(27,31),(4,31),(0,27)],INK)
+        poly([(1,5),(5,1),(26,1),(30,5),(30,26),(26,30),(5,30),(1,26)],shade)
+        poly([(2,6),(6,2),(25,2),(29,6),(29,25),(25,29),(6,29),(2,25)],DARK)
+        rect((4,4,27,27),FIELD)
+        # fio de seda no topo + nó de cera âmbar central
+        line([(6,2),(25,2)],SILK); rect((15,1,16,2),'#ffd479')
+        # pespontos na base e veias ralas nas laterais
+        for a in (8,12,16,20,24): rect((a,29,a+1,29),MID)
+        for b in (9,14,19,24): rect((2,b,2,b),shade); rect((29,b+2,29,b+2),shade)
+        # motif do bioma nos cantos (menor, 6x6 com inset 2)
+        stamp_corners(p, x, i if i < 6 else 6, c, light, 2)
+        # brilho de leitura no topo do campo
+        line([(6,4),(25,4)],'#241b36')
+    p.save('lore_textbox.png',master)
+
+    # ---------------------------------------------------------- ícones 16px --
     # 16px cells: foods 0..5, amber/violet crystals 6..7, walking ants 8..11.
     p=Pixel(192,16)
     for i,c in enumerate(COLORS):
@@ -119,6 +214,7 @@ def make(master=None):
         p.line([(x+12,6),(x+14,4)],SILK); p.line([(x+12,9),(x+14,11)],SILK)
     p.save('lore_icons.png',master)
 
+    # ------------------------------------------------------- gaster 64x24 ----
     # Three 64x24 gaster cells: empty / amber / injured. Crown is always visible.
     p=Pixel(192,24)
     for i in range(3):
