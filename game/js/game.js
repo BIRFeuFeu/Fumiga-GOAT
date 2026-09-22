@@ -38,7 +38,9 @@ import {
   transitionFx, notePointer, drawTitleLogo
 } from "./render.js";
 import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
-import { colony } from "./brain.js";
+import { colony, foodTrailAt, dangerAt } from "./brain.js";
+import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay } from "./lore_hud.js";
+import { startCutscene, updateCutscene, drawCutscene, handleCutsceneInput, isCutsceneActive, startLoadingCutscene, getCutsceneDefs } from "./cutscenes.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
 import { nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover } from "./nest.js";
@@ -191,6 +193,7 @@ function newRun(mode = null) {
     queenMinHp: 1,           // PROFECIAS: pior momento da rainha
     deaths: 0,               // PROFECIAS: formigas perdidas
     ascFood: 1,              // ASCENSÃO nv14: COLHEITA MAGRA
+    invertT: 0,              // FASE2 grouse inverte controles
     chambers: { nursery: 0, pantry: 0, barracks: 0, fungus: 0, refinery: 0 },
   };
   G.run = run;
@@ -232,6 +235,16 @@ function newRun(mode = null) {
   setCombat(0);
 
   if (!G.save.tutorial) startTutorial(); else stopTutorial(false);
+
+  // MEGA LORE: trigger Noite Branca na primeira expedição
+  if (!G.save.cutscenes || !G.save.cutscenes["noite_branca"]) {
+    setTimeout(() => startCutscene("noite_branca", { force: true }), 600);
+  } else if (mSel.mapIdx !== undefined) {
+    const mapId = MAPS[mSel.mapIdx] ? MAPS[mSel.mapIdx].id : null;
+    if (mapId && (!G.save.cutscenes[mapId])) {
+      setTimeout(() => startCutscene(mapId, { force: true }), 800);
+    }
+  }
 
   // transição de entrada
   startTransition("auto", "MODE", "RUN", 0, null);
@@ -405,6 +418,7 @@ export function update(dt) {
     case "OPTIONS": updateOptions(dt); break;
     case "TREE": updateTreeScreen(dt); break;
     case "PROPHECY": updateProphecyScreen(dt); break;
+    case "MEMORY": updateMemoryScreen(dt); break;
     case "HELP": break;
     case "RUN": updateRun(dt); break;
   }
@@ -505,6 +519,18 @@ function updateTreeScreen(dt) {
 function updateRun(dt) {
   const run = G.run;
   if (!run) { G.screen = "TITLE"; return; }
+  // cutscene HQ update
+  if (isCutsceneActive()) {
+    const res = updateCutscene(dt);
+    if (res === "close") {
+      // loading closed, continue
+    }
+    // input handled in separate?
+    if (handleCutsceneInput(pressed, mouse)) {
+      // handled
+    }
+    return;
+  }
   // FASE 2: gameSpeed + acessibilidade slowMo combinados
   const baseSpeed = G.save.settings.gameSpeed || 1;
   const slowMult = G.save.accessibility.slowMo ? 0.5 : 1;
@@ -549,11 +575,16 @@ function updateRun(dt) {
     return;
   }
 
+  // FASE2 SOMBRA ALADA: inverte controles
+  if (G.run && G.run.invertT > 0) {
+    G.run.invertT -= dt;
+  }
   let mx = 0, my = 0;
   if (keys.KeyA || keys.ArrowLeft) mx -= 1;
   if (keys.KeyD || keys.ArrowRight) mx += 1;
   if (keys.KeyW || keys.ArrowUp) my -= 1;
   if (keys.KeyS || keys.ArrowDown) my += 1;
+  if (G.run && G.run.invertT > 0) { mx = -mx; my = -my; }
   if (mx && my) { mx *= 0.7071; my *= 0.7071; }
   if (mx || my) { TUT.camAccum += 400 * dt; }
   updateCam(dt, mx, my);
@@ -851,9 +882,11 @@ export function render(dt) {
       const hud = drawTree(ctx, dt);
       if (hud === "back") backFromTree();
       else if (hud === "prophecies") openProphecies();
+      else if (hud === "memories") openMemories();
       break;
     }
     case "PROPHECY": renderProphecyScreen(); break;
+    case "MEMORY": renderMemoryScreen(); break;
     case "RUN": renderRun(); break;
   }
   ctx.restore();
@@ -1270,6 +1303,11 @@ let shopTooltip = null;
 function renderRun() {
   const run = G.run;
   if (!run) { G.screen = "TITLE"; return; }
+  // cutscene HQ tem prioridade
+  if (isCutsceneActive()) {
+    drawCutscene(ctx, G.time);
+    return;
+  }
   drawRun(ctx, dtClampForAnim());
 
   const modal = paused || !!run.draft || !!run.transition || !!run.baseOpen || run.status !== "running";
@@ -1315,54 +1353,79 @@ function hudTopSlot() {
   return tut ? tut.y + tut.h + 6 : 72;
 }
 
+
 function drawHUD() {
   const run = G.run;
   const m = mapDef();
   const q = allies.queen;
   const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
+  const biomeId = m ? m.id : "planicie";
+  const bh = BIOME_HUD[biomeId] || BIOME_HUD.planicie;
+  const era = G.save.era || 0;
 
-  // --------------------------------------- painel slim da colônia ----
-  // Rework minimalista (refs: Thronefall/Dome Keeper): só o vital na tela —
-  // vida da rainha, nível/XP, comida, essência e população. O resto fica no
-  // botão "+" e na fileira de mutações sempre visível (ref. Vampire Survivors).
-  const pw = 300;
-  const ph = run.modeDef ? 70 : 54;
-  panel(ctx, 10, 8, pw, ph, { border: "#4a3a6e", accentLine: run.modeDef ? run.modeDef.color : "#37e6c8" });
+  // --- FEROMÔNIO OVERLAY H ---
+  if (keys.KeyH && live) {
+    drawPheromoneOverlay(ctx, cam, VIEW_W, VIEW_H, worldToScreen, foodTrailAt, dangerAt, G.time);
+  }
 
-  // botão "+"/"-" — expande os detalhes da colônia (antigo VER MAIS)
-  const moreHot = pointInRect(mouse.x, mouse.y, 284, 12, 18, 16);
-  ctx.fillStyle = moreHot ? "#3a3054" : "#241c38";
-  ctx.fillRect(284, 12, 18, 16);
-  ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
-  ctx.strokeRect(284.5, 12.5, 17, 15);
-  drawText(ctx, hudExpanded ? "-" : "+", 293, 15, { color: moreHot ? "#efe9ff" : PAL.textDim, align: "center" });
-  uiButtons().push({ x: 284, y: 12, w: 18, h: 16, id: "hudMore" });
+  // --------------------------------------- painel orgânico da colônia (quitina/cera por bioma) ----
+  const pw = 320;
+  const ph = run.modeDef ? 78 : 62;
+  // fundo com textura biome
+  drawBiomeTexture(ctx, 10, 8, pw, ph, biomeId, G.time);
+  panel(ctx, 10, 8, pw, ph, { border: bh.border, accentLine: bh.accent, fill: "rgba(0,0,0,0)" });
+  // brilho topo quitina
+  ctx.fillStyle = bh.border;
+  ctx.globalAlpha = 0.22;
+  ctx.fillRect(10, 8, pw, 3);
+  ctx.globalAlpha = 1;
+
+  // botão "+"/"-" orgânico
+  const moreHot = pointInRect(mouse.x, mouse.y, 304, 12, 18, 16);
+  ctx.fillStyle = moreHot ? "rgba(58,48,84,0.9)" : "rgba(36,28,56,0.85)";
+  ctx.fillRect(304, 12, 18, 16);
+  ctx.strokeStyle = bh.border; ctx.lineWidth = 1;
+  ctx.strokeRect(304.5, 12.5, 17, 15);
+  drawText(ctx, hudExpanded ? "-" : "+", 313, 15, { color: moreHot ? "#efe9ff" : bh.accent, align: "center" });
+  uiButtons().push({ x: 304, y: 12, w: 18, h: 16, id: "hudMore" });
   if (live && moreHot && mouse.justDown) { hudExpanded = !hudExpanded; SFX.uiClick(); }
 
   let yy = 14;
   if (run.modeDef) {
-    drawText(ctx, run.modeDef.name, 20, yy, { color: run.modeDef.color, font: "small" });
-    yy += 16;
+    drawText(ctx, run.modeDef.name + (era ? " • ERA " + era : ""), 20, yy, { color: run.modeDef.color, font: "small" });
+    yy += 14;
+    drawText(ctx, bh.loreName, 20, yy, { color: bh.texture, scale: 0.8 });
+    yy += 10;
+  } else {
+    drawText(ctx, bh.loreName, 20, yy, { color: bh.texture, scale: 0.8 });
+    yy += 14;
   }
   const hpFrac = q && q.maxHp ? clamp(q.hp / q.maxHp, 0, 1) : 0;
-  drawText(ctx, "RAINHA", 20, yy, { color: "#ffd479" });
-  bar(ctx, 80, yy + 3, 116, 9, hpFrac, { c1: hpFrac < 0.3 ? "#ff4d5a" : "#ffd479", c2: "#a32e3a", segments: 10 });
-  if (q && q.maxHp) drawText(ctx, Math.ceil(q.hp) + "/" + q.maxHp, 278, yy, { color: PAL.textDim, align: "right" });
-  yy += 20;
-  drawText(ctx, "NV " + run.level, 20, yy, { color: "#6db7ff" });
+  const low = hpFrac < 0.32;
+  // Label lore: SILENCIOSA (Rainha Silenciosa)
+  drawText(ctx, low ? "SILENCIOSA FERIDA!" : "SILENCIOSA", 20, yy, { color: low ? "#ff4d5a" : "#ffd479", font: low ? "big" : "small" });
+  // gaster bar orgânico com coroa fungo/seda
+  drawGasterBar(ctx, 96, yy + 1, 122, 12, hpFrac, biomeId, low, G.time);
+  if (q && q.maxHp) drawText(ctx, Math.ceil(q.hp) + "/" + q.maxHp, 298, yy, { color: low ? "#ff8a94" : PAL.textDim, align: "right", scale: 0.85 });
+  yy += 18;
+  // XP como ANÉIS DA ÁRVORE
+  drawText(ctx, "ANEL " + run.level, 20, yy, { color: "#6db7ff", scale: 0.9 });
   const xpFrac = run.xpNext > 0 ? clamp(run.xp / run.xpNext, 0, 1) : 0;
-  bar(ctx, 70, yy + 4, 38, 6, xpFrac, { c1: "#8fd3ff", c2: "#4060a8", segments: 0 });
-  if (IMG.i_food) ctx.drawImage(IMG.i_food, 114, yy - 1, 13, 13);
-  drawText(ctx, fmt(run.food), 131, yy, { color: "#ffd479" });
-  if (IMG.i_essence) ctx.drawImage(IMG.i_essence, 174, yy - 1, 13, 13);
-  drawText(ctx, fmt(run.essencePool), 191, yy, { color: "#c77dff" });
+  // anel visual
+  ctx.strokeStyle = "#241c38"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(68, yy+6, 8, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = "#8fd3ff"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(68, yy+6, 8, -Math.PI/2, -Math.PI/2 + Math.PI*2*xpFrac); ctx.stroke();
+  // comida por bioma
+  drawText(ctx, bh.foodLabel + " " + fmt(run.food), 88, yy, { color: bh.foodColor, scale: 0.85 });
+  // essência cristal geométrico
+  drawText(ctx, bh.essenceLabel + " " + fmt(run.essencePool), 188, yy, { color: bh.essenceColor, scale: 0.85 });
   {
     const used = popUsed(), cap = popCapTotal();
-    if (IMG.i_egg) ctx.drawImage(IMG.i_egg, 234, yy - 1, 13, 13);
-    drawText(ctx, used + "/" + cap, 251, yy, { color: used >= cap ? "#ff4d5a" : PAL.text });
+    drawText(ctx, "IRMÃS " + used + "/" + cap, 278, yy, { color: used >= cap ? "#ff4d5a" : PAL.text, align: "right", scale: 0.85 });
   }
 
-  // ---- fileira de mutações SEMPRE visível (estilo Vampire Survivors) ----
+  // ---- fileira de mutações como SEIVA Dourada (Vampire Survivors) ----
   const mutY = 8 + ph + 6;
   let mutTip = null;
   const mutLog = run.mutationLog;
@@ -1370,96 +1433,126 @@ function drawHUD() {
     let ix = 12;
     for (const mm of mutLog.slice(0, 10)) {
       const icon = IMG["i_" + mm.icon];
-      ctx.fillStyle = "rgba(20,14,32,0.85)";
+      // fundo quitina
+      drawBiomeTexture(ctx, ix, mutY, 20, 20, biomeId, G.time*0.5);
+      ctx.fillStyle = "rgba(20,14,32,0.55)";
       ctx.fillRect(ix, mutY, 20, 20);
       ctx.strokeStyle = RARITY[mm.rar].color; ctx.lineWidth = 1;
       ctx.strokeRect(ix + 0.5, mutY + 0.5, 19, 19);
       if (icon) ctx.drawImage(icon, ix + 2, mutY + 2, 16, 16);
+      // brilho seiva por baixo
+      ctx.fillStyle = RARITY[mm.rar].color;
+      ctx.globalAlpha = 0.18;
+      ctx.fillRect(ix, mutY+14, 20, 6);
+      ctx.globalAlpha = 1;
       if (pointInRect(mouse.x, mouse.y, ix, mutY, 20, 20)) mutTip = mm;
       ix += 25;
     }
     if (mutLog.length > 10) drawText(ctx, "+" + (mutLog.length - 10), ix + 2, mutY + 4, { color: PAL.textDim });
   }
-  // base da pilha esquerda — a barra do chefe nunca cobre esses elementos
   let leftStackBottom = mutLog.length > 0 ? mutY + 26 : 0;
 
-  // ---- detalhes da colônia (botão "+") ----
+  // ---- detalhes da colônia expandidos com lore bioma ----
   if (hudExpanded) {
     const ey = mutY + (mutLog.length > 0 ? 26 : 6);
-    panel(ctx, 10, ey, pw, 74, { border: "#4a3a6e" });
+    drawBiomeTexture(ctx, 10, ey, pw, 88, biomeId, G.time*0.3);
+    panel(ctx, 10, ey, pw, 88, { border: bh.border, fill: "rgba(0,0,0,0)" });
     const n = colony.needs, hc = colony.headcount;
-    drawText(ctx, "COLÔNIA PENSANDO", 20, ey + 8, { color: "#8f7bb5" });
-    drawText(ctx, "ABATES " + run.kills, 290, ey + 8, { color: PAL.textDim, align: "right" });
-    const cy = ey + 26;
+    drawText(ctx, "COLÔNIA PENSA EM FEROMÔNIO", 20, ey + 8, { color: bh.border, scale: 0.85 });
+    drawText(ctx, "ABATES " + run.kills + " • " + bh.waveLabel, 310, ey + 8, { color: PAL.textDim, align: "right", scale: 0.8 });
+    const cy = ey + 24;
     let bx = 20;
     const needBar = (label, v, col) => {
-      drawText(ctx, label, bx, cy, { color: col });
-      bar(ctx, bx, cy + 12, 56, 6, v, { c1: col, c2: col, segments: 0 });
+      drawText(ctx, label, bx, cy, { color: col, scale: 0.8 });
+      // barra orgânica gaster mini
+      drawGasterBar(ctx, bx, cy + 12, 56, 6, v, biomeId, false, G.time);
       bx += 74;
     };
     needBar("FOME", n.food, "#ffd479");
     needBar("GUERRA", n.defense, "#ff4d5a");
     needBar("CURA", n.medical, "#7fd6a0");
-    drawText(ctx, "COLETANDO " + hc.gather + "  •  EXPLORANDO " + hc.explore, 20, cy + 28, { color: PAL.textDim });
-    leftStackBottom = ey + 80;
+    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • [H] VER CHEIRO", 20, cy + 28, { color: bh.texture, scale: 0.8 });
+    drawText(ctx, "COMIDA: " + bh.foodLabel + " | ESSÊNCIA: " + bh.essenceLabel, 20, cy + 42, { color: PAL.textDim, scale: 0.75 });
+    leftStackBottom = ey + 94;
   }
 
-  // ------------------------------------ status da invasão (topo-centro) ----
-  const cw = 300, cx0 = VIEW_W / 2 - cw / 2;
-  panel(ctx, cx0, 8, cw, 60, { border: "#4a3a6e" });
+  // ------------------------------------ status da invasão como TRILHA FEROMÔNIO (topo-centro) ----
+  const cw = 320, cx0 = VIEW_W / 2 - cw / 2;
+  drawBiomeTexture(ctx, cx0, 8, cw, 62, biomeId, G.time*0.2);
+  panel(ctx, cx0, 8, cw, 62, { border: bh.minimapBorder, fill: "rgba(0,0,0,0)" });
   if (run.status === "running") {
     if (director.phase === "calm") {
-      // anel de contagem regressiva estilo Thronefall: enche até a invasão
       const rest = calmFrac();
       const frac = 1 - rest;
+      // trilha feromônio visual: pontinhos que se aproximam
+      const trailY = 42;
+      for (let i = 0; i < 10; i++) {
+        const prog = (frac + i*0.12) % 1;
+        const tx = cx0 + 20 + prog * (cw - 40);
+        const alpha = 0.3 + prog * 0.7;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = rest < 0.25 ? "#ff4d5a" : bh.foodColor;
+        ctx.beginPath();
+        ctx.arc(tx, trailY, 2 + prog*1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // anel contagem
       const rcx = cx0 + 27, rcy = 38, rr = 15;
       ctx.lineWidth = 4;
-      ctx.strokeStyle = "#241c38";
-      ctx.beginPath(); ctx.arc(rcx, rcy, rr, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "rgba(36,28,56,0.9)";
+      ctx.beginPath(); ctx.arc(rcx, rcy, rr, 0, Math.PI*2); ctx.stroke();
       if (frac > 0.004) {
-        ctx.strokeStyle = rest < 0.25 ? "#ff4d5a" : "#37e6c8";
-        ctx.beginPath(); ctx.arc(rcx, rcy, rr, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.stroke();
+        ctx.strokeStyle = rest < 0.25 ? "#ff4d5a" : bh.foodColor;
+        ctx.beginPath(); ctx.arc(rcx, rcy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI*2 * frac); ctx.stroke();
       }
       if (!run.draft) drawText(ctx, Math.max(0, Math.ceil(director.timer)), rcx, rcy - 8, { color: rest < 0.25 ? "#ff8a94" : PAL.text, align: "center" });
-      drawText(ctx, run.endless ? "SOBREVIVÊNCIA" : "CALMARIA", cx0 + 52, 14, { font: "small", color: "#37e6c8" });
+      drawText(ctx, run.endless ? "SOBREVIVÊNCIA • " + bh.waveLabel : bh.waveLabel, cx0 + 52, 14, { font: "small", color: bh.border, scale: 0.85 });
       const cycTag = run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : "";
-      drawText(ctx, run.draft ? "ESCOLHA UMA MUTAÇÃO" : ("ONDA " + (director.waveInMap + 1) + "/" + m.waves.length + cycTag), cx0 + 52, 40, { color: PAL.textDim });
+      drawText(ctx, run.draft ? "ESCOLHA UMA MEMÓRIA" : ("ONDA " + (director.waveInMap + 1) + "/" + m.waves.length + cycTag), cx0 + 52, 40, { color: PAL.textDim, scale: 0.85 });
     } else if (director.phase === "mapClear") {
-      drawText(ctx, "MAPA LIMPO!", VIEW_W / 2, 18, { font: "small", color: "#ffd479", align: "center" });
+      drawText(ctx, "MAPA LIMPO! " + bh.loreName, VIEW_W / 2, 18, { font: "small", color: bh.accent, align: "center" });
       drawText(ctx, m.name, VIEW_W / 2, 40, { color: PAL.textDim, align: "center" });
     } else {
-      drawText(ctx, "ONDA " + director.waveInMap + "/" + m.waves.length + (run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : ""), cx0 + 16, 12, { font: "big", color: "#ff4d5a" });
+      drawText(ctx, "INVASÃO " + director.waveInMap + "/" + m.waves.length + (run.endless ? (director.cycle ? " • CICLO " + (director.cycle + 1) : " • INF") : ""), cx0 + 16, 12, { font: "big", color: "#ff4d5a", scale: 0.9 });
       let aliveF = 0;
       for (const f of foes) if (!f.dead) aliveF++;
-      drawText(ctx, "RESTAM " + aliveF + (director.budget > 0 ? "+" : ""), cx0 + cw - 16, 22, { color: "#ff8a94", align: "right" });
-      bar(ctx, cx0 + 16, 38, cw - 32, 10, waveProgress(), { c1: "#ff7a6a", c2: "#a32e46", segments: 0 });
+      drawText(ctx, "RESTAM " + aliveF + (director.budget > 0 ? "+" : ""), cx0 + cw - 16, 22, { color: "#ff8a94", align: "right", scale: 0.85 });
+      // barra como trilha feromônio perigosa
+      ctx.fillStyle = "rgba(20,10,16,0.9)";
+      ctx.fillRect(cx0+16, 38, cw-32, 10);
+      const grad = ctx.createLinearGradient(cx0+16, 38, cx0+cw-16, 38);
+      grad.addColorStop(0, "#ff4d5a");
+      grad.addColorStop(1, "#a32e46");
+      ctx.fillStyle = grad;
+      ctx.fillRect(cx0+16, 38, (cw-32)*waveProgress(), 10);
       const wDef2 = waveDef();
-      drawText(ctx, wDef2 && wDef2.title ? wDef2.title : m.name, cx0 + 16, 50, { color: PAL.textDim });
+      drawText(ctx, wDef2 && wDef2.title ? wDef2.title : m.name, cx0 + 16, 50, { color: PAL.textDim, scale: 0.8 });
     }
   } else {
-    drawText(ctx, run.status === "won" || (run.payout && run.payout.winBonus > 0) ? "VITÓRIA!" : "A COLÔNIA CAIU",
-      VIEW_W / 2, 20, { font: "small", color: "#ffd479", align: "center" });
+    drawText(ctx, run.status === "won" || (run.payout && run.payout.winBonus > 0) ? "VITÓRIA DA COLÔNIA!" : "A COLÔNIA CAIU • " + bh.loreName,
+      VIEW_W / 2, 20, { font: "small", color: bh.accent, align: "center" });
   }
 
-  // barra larga de chefe — slot próprio no topo, sem disputar com o INVOCAR
   const bossUp = !!(boss && !boss.dead && run.status === "running" && (boss.revealT > 0 || fogVisible(boss.x, boss.y)));
   if (live && director.phase === "calm") {
     const by = hudTopSlot() + (bossUp ? 48 : 0);
-    if (button(ctx, { x: cx0, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  +ESS", id: "skip", accent: "#c77dff" })) {
+    if (button(ctx, { x: cx0, y: by, w: cw, h: 26, label: "▶ INVOCAR (G)  " + bh.waveLabel + " +ESS", id: "skip", accent: bh.essenceColor })) {
       skipPeace();
     }
   }
 
-  // ----------------------------------------- barra de formigas (rodapé) ----
-  // Cards compactos: sprite + custo + atalho; nome/dica completos no tooltip.
-  // (largura total da fileira aberta: ~482 px, antes 804 px — −40 %)
+  // ----------------------------------------- barra de formigas orgânica (rodapé) ----
   shopTooltip = null;
-  const footY = VIEW_H - (isMobileLayout() ? 84 : 64); // no toque o iconButton cresce p/ 104 px
+  const footY = VIEW_H - (isMobileLayout() ? 84 : 64);
+  // textura bioma no rodapé
+  drawBiomeTexture(ctx, 10, footY, 92, 64, biomeId, G.time*0.15);
   const shopSprite = rotFrame("worker", Math.PI / 2);
-  const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? "#ffd479" : "#37e6c8", selected: shopOpen, maxPadX: 12 });
+  const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? bh.accent : bh.border, selected: shopOpen, maxPadX: 12 });
   ctx.drawImage(shopSprite, 56 - shopSprite.width * 0.17, footY + 3, shopSprite.width * 0.34, shopSprite.height * 0.34);
-  drawText(ctx, "FORMIGAS", 56, footY + 35, { color: PAL.text, align: "center" });
-  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 48, { color: shopOpen ? "#ffd479" : "#37e6c8", align: "center" });
+  drawText(ctx, "IRMÃS", 56, footY + 35, { color: PAL.text, align: "center" });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 48, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85 });
+
   if (live && rShop.clicked) { shopOpen = !shopOpen; }
 
   if (shopOpen) {
@@ -1467,24 +1560,26 @@ function drawHUD() {
     let gx = x0, lastGroup = null;
     for (let i = 0; i < SHOP.length; i++) {
       const sp = SHOP[i];
-      if (lastGroup && sp.group !== lastGroup) gx += 12; // respiro entre grupos
+      if (lastGroup && sp.group !== lastGroup) gx += 12;
       lastGroup = sp.group;
       const x = gx;
       const cost = unitCost(sp.type);
       const canBuy = run.food >= cost && popUsed() < popCapTotal() && unitLimitLeft(sp.type);
+      // fundo orgânico por card
+      drawBiomeTexture(ctx, x, footY, SHOP_W, 64, biomeId, G.time*0.1 + i);
       const r = iconButton(ctx, { x, y: footY, w: SHOP_W, h: 64, id: "shop" + sp.type, disabled: !canBuy, frame: sp.accent, maxPadX: 2 });
-      // barra de grupo: vermelho = combate, verde = coleta, azul = criação
       ctx.fillStyle = SHOP_GROUPS[sp.group] || "#4a3a6e";
+      ctx.globalAlpha = 0.9;
       ctx.fillRect(x + 3, footY + 3, SHOP_W - 6, 3);
+      ctx.globalAlpha = 1;
       const frame = rotFrame(UNITS[sp.type].sprite, Math.PI / 2);
       const sc2 = (sp.iconScale !== undefined ? sp.iconScale : sp.type === "worker" || sp.type === "scout" || sp.type === "gatherer" || sp.type === "weaver" ? 0.5 : 0.42) * 0.62;
       ctx.globalAlpha = canBuy ? 1 : 0.35;
       ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 5, frame.width * sc2, frame.height * sc2);
       ctx.globalAlpha = 1;
-      drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? "#ffd479" : "#a32e46", align: "center" });
-      // atalho: 1-9 nas nove primeiras, 0 na Tecelã; Dinoponera sem número
+      drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? bh.accent : "#a32e46", align: "center" });
       const hot = i < 9 ? String(i + 1) : i === 9 ? "0" : "";
-      if (hot) drawText(ctx, hot, x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right" });
+      if (hot) drawText(ctx, hot, x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right", scale: 0.8 });
       if (r.hot) shopTooltip = sp;
       if (live && r.clicked) {
         const res = buyUnit(sp.type);
@@ -1502,16 +1597,17 @@ function drawHUD() {
     const tipLines = wrapText(uDef.tip, 248, {});
     const th = 58 + tipLines.length * 16;
     const tb = footY - 12 - th;
-    panel(ctx, 10, tb, 268, th, { border: "#8f6fd6" });
-    // FUNÇÃO primeiro e em destaque, na cor do grupo — leitura de relance
+    drawBiomeTexture(ctx, 10, tb, 268, th, biomeId, G.time);
+    panel(ctx, 10, tb, 268, th, { border: bh.border, fill: "rgba(0,0,0,0)" });
     drawText(ctx, "▶ " + (uDef.fn || ""), 20, tb + 6,
-      { font: "big", scale: 0.8, color: SHOP_GROUPS[shopTooltip.group] || "#ffd479" });
-    drawText(ctx, uDef.name, 20, tb + 32, { color: "#ffd479" });
-    tipLines.forEach((L, li) => drawText(ctx, L, 20, tb + 52 + li * 16, { color: PAL.text }));
+      { font: "big", scale: 0.8, color: SHOP_GROUPS[shopTooltip.group] || bh.accent });
+    drawText(ctx, uDef.name, 20, tb + 32, { color: bh.accent, scale: 0.9 });
+    tipLines.forEach((L, li) => drawText(ctx, L, 20, tb + 52 + li * 16, { color: PAL.text, scale: 0.85 }));
   }
 
-  const nw = 132, nx2 = VIEW_W - 10 - nw;
-  const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 64, id: "nestBtn", frame: "#ffd479" });
+  const nw = 142, nx2 = VIEW_W - 10 - nw;
+  drawBiomeTexture(ctx, nx2, footY, nw, 64, biomeId, G.time*0.12);
+  const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 64, id: "nestBtn", frame: bh.accent });
   const nestImg = IMG.nest || IMG.i_essence;
   if (nestImg) ctx.drawImage(nestImg, nx2 + nw / 2 - 14, footY + 2, 28, 28);
   {
@@ -1520,12 +1616,23 @@ function drawHUD() {
       const tp = (t + i * 0.33) % 1;
       const ax = nx2 + nw / 2 - 26 + tp * 52;
       const ay = footY + 28 - Math.sin(tp * Math.PI) * 5;
-      ctx.fillStyle = "#ffd479";
+      ctx.fillStyle = bh.accent;
+      ctx.globalAlpha = 0.9;
       ctx.fillRect(ax, ay, 3, 2);
+      ctx.globalAlpha = 1;
     }
   }
-  drawText(ctx, "FORMIGUEIRO", nx2 + nw / 2, footY + 33, { color: PAL.text, align: "center" });
-  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 46, { color: "#ffd479", align: "center" });
+  // nomes lore formigueiro por bioma
+  const nestNames = {
+    planicie: "VENTRE ÂMBAR",
+    floresta: "JARDIM ETERNO",
+    pantano: "CÂMARA SILENCIOSA",
+    deserto: "FORNALHA REAL",
+    outono: "BERÇO DOURADO",
+    gelo: "GASTER DE GELO"
+  };
+  drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 33, { color: PAL.text, align: "center", scale: 0.9 });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 46, { color: bh.accent, align: "center", scale: 0.85 });
   if (live && rNest.clicked) {
     openNest(run);
     return;
@@ -1535,64 +1642,86 @@ function drawHUD() {
 
   let bossBottom = 0;
   if (bossUp) {
-    const bw = 520, bx0 = VIEW_W / 2 - bw / 2, by = Math.max(hudTopSlot(), leftStackBottom);
-    panel(ctx, bx0 - 8, by, bw + 16, 44, { border: "#ff4d5a" });
-    drawText(ctx, boss.def.name, VIEW_W / 2, by + 6, { font: "small", color: "#ff4d5a", align: "center" });
-    bar(ctx, bx0, by + 24, bw, 12, boss.hp / boss.maxHp, { c1: "#ff7a6a", c2: "#a32e46", segments: 8 });
+    const bw = 540, bx0 = VIEW_W / 2 - bw / 2, by = Math.max(hudTopSlot(), leftStackBottom);
+    drawBiomeTexture(ctx, bx0 - 8, by, bw + 16, 44, biomeId, G.time*0.25);
+    panel(ctx, bx0 - 8, by, bw + 16, 44, { border: "#ff4d5a", fill: "rgba(0,0,0,0)" });
+    drawText(ctx, boss.def.name + " • FILHO DA NÉVOA", VIEW_W / 2, by + 6, { font: "small", color: "#ff4d5a", align: "center" });
+    // gaster do boss pálido
+    drawGasterBar(ctx, bx0, by + 24, bw, 12, boss.hp / boss.maxHp, biomeId, boss.hp/boss.maxHp < 0.5, G.time);
+    // fase 2 indicador
+    if (boss.hp / boss.maxHp < 0.5) {
+      drawText(ctx, "FASE 2: NÉVOA DESPERTA", VIEW_W/2, by + 38, { color: "#ffd479", align: "center", scale: 0.7 });
+    }
     bossBottom = by + 50;
   }
   hudFloorY = Math.max(leftStackBottom, bossBottom);
 
-  // tooltip da fileira de mutações (após a loja, para não brigar com ela)
   if (mutTip && !shopTooltip) {
     const lines = wrapText(mutTip.name + " — " + mutTip.desc, 220, {});
     const th = 22 + lines.length * 15;
-    panel(ctx, 12, mutY + 24, 236, th, { border: RARITY[mutTip.rar].color });
+    drawBiomeTexture(ctx, 12, mutY + 24, 236, th, biomeId, G.time*0.4);
+    panel(ctx, 12, mutY + 24, 236, th, { border: RARITY[mutTip.rar].color, fill: "rgba(0,0,0,0)" });
     lines.forEach((L, li) => drawText(ctx, L, 20, mutY + 30 + li * 15, { color: PAL.text }));
   }
 
   const sc = selectedCount();
   if (sc > 0 && !run.draft) {
-    const lbl = sc + " SELECIONADAS";
+    const lbl = sc + " IRMÃS NA TRILHA";
     const tw = textWidth(lbl, {});
-    drawText(ctx, lbl, clamp(mouse.x + 16, 6, VIEW_W - tw - 6), clamp(mouse.y + 10, 6, VIEW_H - 22), { color: "#37e6c8" });
+    drawText(ctx, lbl, clamp(mouse.x + 16, 6, VIEW_W - tw - 6), clamp(mouse.y + 10, 6, VIEW_H - 22), { color: bh.foodColor });
   }
 
   if (sel.active && sel.moved) {
     const a = worldToScreen(sel.x0, sel.y0), b = worldToScreen(sel.x1, sel.y1);
-    ctx.strokeStyle = "rgba(55,230,200,0.9)";
-    ctx.fillStyle = "rgba(55,230,200,0.12)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = bh.border;
+    ctx.fillStyle = bh.foodColor;
+    ctx.globalAlpha = 0.12;
     ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 1;
     ctx.strokeRect(a.x + 0.5, a.y + 0.5, b.x - a.x, b.y - a.y);
-    ctx.fillStyle = "rgba(55,230,200,0.9)";
+    ctx.fillStyle = bh.border;
+    ctx.globalAlpha = 0.9;
     const cs = 6;
     ctx.fillRect(a.x - cs/2, a.y - cs/2, cs, cs);
     ctx.fillRect(b.x - cs/2, a.y - cs/2, cs, cs);
     ctx.fillRect(a.x - cs/2, b.y - cs/2, cs, cs);
     ctx.fillRect(b.x - cs/2, b.y - cs/2, cs, cs);
+    ctx.globalAlpha = 1;
   }
 
   if (run.elapsed < 14 && run.status === "running") {
-    ctx.fillStyle = "rgba(10,8,16,0.6)";
-    ctx.fillRect(VIEW_W/2 - 260, VIEW_H - 124, 520, 16);
-    drawText(ctx, "ESQ: CÂMERA/ORDEM  •  DIR: SELECIONAR  •  Q: FORMIGAS  •  B: FORMIGUEIRO  •  ESC: PAUSA",
-      VIEW_W / 2, VIEW_H - 120, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4 });
+    ctx.fillStyle = "rgba(10,8,16,0.65)";
+    ctx.fillRect(VIEW_W/2 - 300, VIEW_H - 124, 600, 16);
+    drawText(ctx, "ESQ: CÂMERA/ORDEM • DIR: SELECIONAR • Q: IRMÃS • B: " + ({"planicie":"VENTRE","floresta":"JARDIM","pantano":"CÂMARA","deserto":"FORNALHA","outono":"BERÇO","gelo":"GASTER"}[biomeId]||"NINHO") + " • H: FEROMÔNIO • ESC: PAUSA",
+      VIEW_W / 2, VIEW_H - 120, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4, scale: 0.85 });
+  }
+  // dica H sempre visível pequena
+  if (!keys.KeyH && live) {
+    drawText(ctx, "[H] VISÃO FEROMÔNIO • A COLÔNIA VÊ COM CHEIRO", VIEW_W/2, VIEW_H - 6, { color: bh.texture, align: "center", scale: 0.7, alpha: 0.6 });
   }
 }
 
+
 let hudExpanded = false;
-let hudFloorY = 0; // base da pilha de painéis do HUD — o banner da onda desce abaixo dela
+let hudFloorY = 0;
+
 
 function drawMinimap() {
   const run = G.run;
+  const m = mapDef();
+  const biomeId = m ? m.id : "planicie";
+  const bh = BIOME_HUD[biomeId] || BIOME_HUD.planicie;
   const mw = MINI.w, mh = MINI.h;
   const mx = VIEW_W - mw - 10, my = 10;
   uiButtons().push({ x: mx - 3, y: my - 3, w: mw + 6, h: mh + 6, id: "minimap" });
-  panel(ctx, mx - 5, my - 5, mw + 10, mh + 10, { fill: "rgba(10,8,16,0.8)", border: "#4a3a6e", r: 3 });
+  drawBiomeTexture(ctx, mx - 5, my - 5, mw + 10, mh + 10, biomeId, G.time*0.2);
+  panel(ctx, mx - 5, my - 5, mw + 10, mh + 10, { fill: "rgba(0,0,0,0)", border: bh.minimapBorder, r: 3 });
   if (world.mini) ctx.drawImage(world.mini, mx, my);
-  ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
+  ctx.strokeStyle = bh.minimapBorder; ctx.lineWidth = 1.2;
   ctx.strokeRect(mx - 0.5, my - 0.5, mw + 1, mh + 1);
+  // label bioma no minimapa
+  drawText(ctx, bh.loreName, mx + mw/2, my - 10, { color: bh.border, align: "center", scale: 0.7 });
 
   const sx = mw / WORLD_W, sy = mh / WORLD_H;
   for (const a of allies) {
@@ -2070,7 +2199,92 @@ function drawEnd(run) {
   }
 }
 
+
+// ------------------------------------------- MEGA LORE: Biblioteca Memórias da Colônia ----
+let memoryHover = -1;
+let memoryRects = [];
+
+function openMemories() {
+  notePointer(mouse.x, mouse.y);
+  SFX.uiClick();
+  memoryHover = -1;
+  startTransition("auto", "TREE", "MEMORY", 0, () => { G.screen = "MEMORY"; });
+}
+
+function updateMemoryScreen(dt) {
+  const defs = getCutsceneDefs();
+  memoryHover = -1;
+  for (let i=0;i<memoryRects.length;i++) {
+    const r = memoryRects[i];
+    if (pointInRect(mouse.x, mouse.y, r.x, r.y, r.w, r.h)) { memoryHover = i; break; }
+  }
+  if (mouse.justDown && memoryHover >= 0) {
+    const id = memoryRects[memoryHover].id;
+    SFX.uiClick();
+    startTransition("auto", "MEMORY", "RUN", 0, () => {
+      G.screen = "RUN";
+      // abre cutscene da memória em modo biblioteca
+      setTimeout(() => startCutscene(id, { fromLibrary: true, force: true }), 400);
+    });
+  }
+  if (pressed.Escape) {
+    notePointer(VIEW_W/2, VIEW_H/2);
+    startTransition("auto", "MEMORY", "TREE", 0, () => { G.screen = "TREE"; });
+  }
+}
+
+function renderMemoryScreen() {
+  drawSolidMenuBg(ctx, "#0a0812");
+  ctx.fillStyle = "rgba(10,8,16,0.78)";
+  ctx.fillRect(0,0,VIEW_W,VIEW_H);
+  const PX=24, PY=16, PW=VIEW_W-48, PH=VIEW_H-32;
+  dialogBox(ctx, PX, PY, PW, PH, { border: "#ffd479", accent: "#7fd6a0" });
+  drawText(ctx, "MEMÓRIAS DA COLÔNIA", VIEW_W/2, PY+14, { font:"big", scale:2, color:"#ffd479", align:"center" });
+  drawText(ctx, "Biblioteca de cutscenes HQ Dead Cells — 8 layers parallax 320x180 • Auto primeira vez + rever aqui", VIEW_W/2, PY+48, { color:"#9a8fc0", align:"center", scale:0.85 });
+
+  const defs = getCutsceneDefs();
+  const ids = Object.keys(defs);
+  memoryRects = [];
+  let y = PY+80;
+  let x = PX+24;
+  const cw = 300, ch = 64, gap=12;
+  let col=0;
+  for (const id of ids) {
+    if (id.startsWith("loading_")) continue;
+    const def = defs[id];
+    const seen = G.save.cutscenes && G.save.cutscenes[id];
+    const isHover = memoryHover === memoryRects.length;
+    const border = seen ? (isHover ? "#ffd479" : "#4a3a6e") : "#2a2340";
+    const fill = seen ? (isHover ? "rgba(255,212,121,0.12)" : "rgba(20,14,32,0.85)") : "rgba(10,8,16,0.5)";
+    panel(ctx, x, y, cw, ch, { border, fill });
+    drawText(ctx, (seen ? "✓ " : "○ ") + def.title, x+10, y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
+    drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.75 });
+    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.7 });
+    if (seen) {
+      drawText(ctx, "VER", x+cw-30, y+22, { color: isHover ? "#000" : "#ffd479", align:"center" });
+      if (isHover) {
+        ctx.fillStyle = "#ffd479";
+        ctx.fillRect(x+cw-40, y+10, 30, 24);
+        drawText(ctx, "VER", x+cw-25, y+16, { color:"#000", align:"center", scale:0.8 });
+      }
+    }
+    memoryRects.push({ x, y, w:cw, h:ch, id });
+    col++;
+    if (col%3===0) { col=0; x=PX+24; y+=ch+gap; }
+    else { x+=cw+gap; }
+    if (y > PY+PH-80) break;
+  }
+
+  const mobile = isMobileLayout();
+  if (button(ctx, { x: VIEW_W/2-110, y: VIEW_H-44, w: mobile?240:220, h: mobile?104:36, label:"VOLTAR ÁRVORE", id:"memBack", accent:"#8f6fd6" })) {
+    notePointer(mouse.x, mouse.y);
+    startTransition("auto", "MEMORY", "TREE", 0, () => { G.screen = "TREE"; });
+  }
+  drawText(ctx, "ESC: VOLTAR • CLIQUE PARA REVER CUTSCENE • 320x180 8 LAYERS", VIEW_W/2, VIEW_H-16, { color:"#5a4f78", align:"center", scale:0.8 });
+}
+
 // ---------------------------------------------------------------- exports ---
+export function gameHelpReturn() { return helpReturn; }// ---------------------------------------------------------------- exports ---
 export function gameHelpReturn() { return helpReturn; }
 export function setPaused(v) { paused = v; }
 export function boot() {

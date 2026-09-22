@@ -19,6 +19,7 @@ export const G = {
     ascension: 0,        // PÓS-FINAL: maior ASCENSÃO DA NÉVOA vencida (campanha)
     era: 0,              // PÓS-FINAL: gerações do Formigueiro Eterno (1 por vitória)
     prophecies: {},      // PÓS-FINAL: vaticínios cumpridos (id -> true)
+    cutscenes: {},       // MEGA LORE: memórias vistas (Noite Branca + 6 degraus + Pálida)
     tutorial: 0,         // 1 = tutorial concluído (ou pulado)
     accessibility: {     // ♿ modo acessível - escolha do usuário
       invincible: false,
@@ -61,6 +62,7 @@ export function loadSave() {
         G.save.ascension = Math.max(0, data.ascension | 0 || 0);
         G.save.era = Math.max(0, data.era | 0 || 0);
         G.save.prophecies = data.prophecies && typeof data.prophecies === "object" ? data.prophecies : {};
+        G.save.cutscenes = data.cutscenes && typeof data.cutscenes === "object" ? data.cutscenes : {};
         G.save.tutorial = data.tutorial ? 1 : 0;
         if (data.accessibility && typeof data.accessibility === "object") {
           G.save.accessibility = Object.assign(G.save.accessibility, data.accessibility);

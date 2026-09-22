@@ -329,7 +329,57 @@ export function updateBoss(dt, allies) {
   b.atkT -= dt;
   b.hitT = Math.max(0, b.hitT - dt);
   b.revealT = Math.max(0, (b.revealT || 0) - dt);
+  b.phase2T = Math.max(0, (b.phase2T || 0) - dt);
+  b.invisibleT = Math.max(0, (b.invisibleT || 0) - dt);
   if (tickBurn(b, dt, killBoss)) return;
+
+  // --- FASE 2: <50% vida ---
+  if (!b.phase2 && b.hp / b.maxHp < 0.5) {
+    b.phase2 = true;
+    b.phase2T = 2.5;
+    const p2 = b.def.phase2;
+    // VFX névoa branca despertando
+    burst(b.x, b.y, { n: 40, color: ["#e8f4ff", "#c77dff", "#ffd479", "#fff"], spMin: 30, spMax: 180, life: 1.2, glow: true });
+    ring(b.x, b.y, { r0: 20, r1: 260, life: 1.0, color: "#e8f4ff", width: 6 });
+    ring(b.x, b.y, { r0: 10, r1: 180, life: 0.8, color: "#c77dff", width: 4 });
+    floatText(b.x, b.y - 80, p2 ? p2.phrase : "A NÉVOA DESPERTA!", { color: "#ffd479", life: 2.4, scale: 2 });
+    SFX.roar();
+    // Era-specific buffs applied in per-boss updaters via b.phase2 check
+    if (b.kind === "hare") {
+      b.def = { ...b.def, dashChain: p2.dashChain, thumpRange: p2.thumpRange, thumpDmg: p2.thumpDmg, speed: p2.speed };
+    } else if (b.kind === "fox") {
+      b.invisibleT = p2.invisibleDur;
+    } else if (b.kind === "grouse" && G.run) {
+      G.run.invertT = p2.invertDur;
+      floatText(world.anthill.x, world.anthill.y - 100, "CONTROLES INVERTIDOS!", { color: "#a8c8e8", life: 1.2, scale: 1.5 });
+    } else if (b.kind === "matriarch") {
+      // frenesi imediato
+      matriarchFrenzy(b, p2.summonCount);
+    } else if (b.kind === "deer") {
+      // folhas douradas curam tristeza
+      for (let i=0;i<12;i++) {
+        spawnPart({ x: b.x + rand(-60,60), y: b.y - 40, vx: rand(-20,20), vy: rand(10,30), life: rand(2,4), size: rand(2,4), color: "#ff9a5c", glow: false, drag: 1 });
+      }
+    } else if (b.kind === "boar") {
+      // névoa atrás
+      for (let i=0;i<20;i++) {
+        spawnPart({ x: b.x + rand(-120,120), y: b.y + rand(60,120), vx: rand(-10,10), vy: rand(-20,-5), life: rand(2,4), size: rand(3,6), color: "#e8f4ff", glow: true, drag: 1 });
+      }
+    }
+  }
+  // fase 2 active VFX pulse
+  if (b.phase2 && Math.random() < 0.08) {
+    spawnPart({ x: b.x + rand(-30,30), y: b.y + rand(-20,20), vx: rand(-10,10), vy: rand(-20,-5), life: rand(0.8,1.5), size: rand(1.5,3), color: "#e8f4ff", glow: true });
+  }
+  // fox invisível
+  if (b.kind === "fox" && b.invisibleT > 0) {
+    // pisca
+    if (Math.floor(G.time*12) % 2 === 0) {
+      // não desenha? mas deixa rastro
+      if (Math.random() < 0.15) spawnPart({ x: b.x, y: b.y, life: 0.3, size: 2, color: "#8f7bb5", glow: true });
+    }
+  }
+
 
   const q = allies.queen;
   const A = world.anthill;
@@ -537,15 +587,20 @@ function updateFox(b, dt, allies, q, A) {
   if (b.sub === "recover") { b.t -= dt; if (b.t <= 0) b.sub = "walk"; return; }
 
   // andar em órbita ao redor do formigueiro esperando o bote
-  const tgt = nearestPackTarget(b, allies, 460);
+  const tgt = nearestPackTarget(b, allies, b.phase2 ? 620 : 460);
+  // fase2: re-trigger invisível a cada 8s
+  if (b.phase2 && b.special <= 0 && b.invisibleT <= 0) {
+    b.invisibleT = b.def.phase2 ? b.def.phase2.invisibleDur : 1.2;
+    floatText(b.x, b.y - 50, "NÉVOA!", { color: "#8f7bb5", life: 0.8 });
+  }
   if (b.special <= 0 && (tgt || (q && !q.dead))) {
-    b.special = D.pounceCd * rand(0.9, 1.15);
+    b.special = (b.phase2 ? (D.pounceCd*0.7) : D.pounceCd) * rand(0.9, 1.15);
     b.sub = "aim";
     b.t = 0.75;
     const aim = tgt || { x: A.x, y: A.y };
     b.tx = aim.x; b.ty = aim.y;
     b.dir = 0;
-    ring(b.x, b.y, { r0: 8, r1: 60, life: 0.7, color: "#ff4d5a", width: 2 });
+    ring(b.x, b.y, { r0: 8, r1: b.phase2 ? 90 : 60, life: 0.7, color: "#ff4d5a", width: 2 });
     SFX.stinger();
     return;
   }
@@ -636,17 +691,21 @@ function updateMatriarch(b, dt, allies, q, A) {
     matriarchFrenzy(b, 3);
   }
 
-  // cospe rajada em leque na aliada mais próxima
+  // cospe rajada em leque na aliada mais próxima - FASE2 5 direções
   const tgt = nearestPackTarget(b, allies, 360);
   if (b.atkT <= 0 && tgt) {
-    b.atkT = D.spitCd * (frac < 0.4 ? 0.65 : 1);
+    const isP2 = !!b.phase2;
+    b.atkT = (isP2 ? (b.def.phase2 ? b.def.phase2.spitCd : 1.6) : D.spitCd) * (frac < 0.4 ? 0.65 : 1);
     const ang0 = Math.atan2(tgt.y - b.y, tgt.x - b.x);
     b.angle = angLerp(b.angle, ang0, 0.5);
-    for (let i = -1; i <= 1; i++) {
-      const ang = ang0 + i * 0.22;
+    const count = isP2 ? (b.def.phase2 ? b.def.phase2.spitCount : 5) : 3;
+    const spread = isP2 ? 0.32 : 0.22;
+    const start = -(count-1)/2;
+    for (let i = 0; i < count; i++) {
+      const ang = ang0 + (start + i) * spread;
       spawnProj({ x: b.x + Math.cos(ang) * 42, y: b.y + Math.sin(ang) * 42,
         vx: Math.cos(ang) * 250, vy: Math.sin(ang) * 250,
-        dmg: D.spitDmg, faction: "enemy", color: "#c86bff", size: 3 });
+        dmg: D.spitDmg, faction: "enemy", color: isP2 ? "#e8f4ff" : "#c86bff", size: 3 });
     }
     SFX.spit();
     burst(b.x + Math.cos(ang0) * 40, b.y + Math.sin(ang0) * 40, { n: 6, color: "#c86bff", spMin: 20, spMax: 70, life: 0.4, glow: true });
