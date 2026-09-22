@@ -29,6 +29,38 @@ repetições, datas, branches, checklists e notas históricas foram preservados.
 > Divergências permanecem visíveis, sem apagar conteúdo. O que efetivamente
 > funciona deve ser confirmado por testes e inspeção no preview.
 
+## Registro técnico — Regra 10 na prática: exibir arte no viewer (lição de sessão, 2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais. Ela operacionaliza a
+**Regra 10 — Sempre mostrar a arte gerada** após uma sessão em que a arte foi
+inspecionada pelo agente mas nunca aberta para o usuário (violação confirmada da
+regra). Para que nenhum chat repita o erro:
+
+1. **`read_file` em imagem NÃO é exibição.** A imagem chega apenas ao agente.
+   Exibição de verdade = abrir a imagem no viewer do usuário (`present_file`).
+2. **Toda arte gerada, recriada ou ajustada deve ser aberta no viewer antes de a
+   entrega ser declarada pronta**, nas vistas que fizerem sentido:
+   - tamanho de uso (o PNG final, como é blitado no jogo);
+   - ampliada (crop 2–3× nearest da região crítica, para aprovar detalhes);
+   - mock em contexto (composição sobre as demais camadas nos retângulos exatos
+     de `drawImage`, como o jogo monta a tela).
+3. **Citar o arquivo por nome não é mostrar.** A convenção de “apresentar o
+   deliverable principal e mencionar os demais por nome” não substitui a
+   Regra 10: abra CADA imagem criada no turno no viewer do usuário.
+4. **Candidatos de `generate_image` com `offer_options` contam como mostrados**
+   (o usuário vota neles), mas o artefato final processado depois da escolha
+   precisa ser exibido de novo — Regra 10: “Se a arte for refeita ou ajustada,
+   mostrar a nova versão também”.
+5. **Checklist pré-entrega:** para cada imagem criada ou alterada no turno,
+   existe um `present_file` correspondente? Se não existe, a entrega não está
+   pronta e o check-in (Regra 3) deve apontar o item como pendente.
+
+Precedente da sessão: camada 2 do parallax do TITLE recriada sem artefatos de
+chroma-key; vistas entregues no viewer em tamanho de uso
+(`game/assets/parallax/menu/layer2_main_grass_ruins_anthill.png`), ampliada
+(crop do céu) e em contexto (mock composto das 4 camadas nos retângulos de
+`drawTitleBg()`).
+
 ## Registro técnico desta entrega — inicialização
 
 Esta seção é nova e não modifica os seis textos originais.
