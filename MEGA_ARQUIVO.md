@@ -60,6 +60,125 @@ transformações visuais das Eras, biblioteca completa ou o chefe Pálida.
 Os 11 arquivos de arte existentes da Noite Branca continuam sendo 11 de 24;
 o fallback não deve ser contado como arte finalizada.
 
+## Registro técnico — kit de UI de madeira viva por bioma (Fase 2, continuação, 2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** caixas de texto no estilo do
+kit de tábuas de madeira da referência (plank UI), personalizadas pelo MEGA
+ARQUIVO e pela mudança de mapa. **Decisões confirmadas (Regra 1):** madeira
+viva por bioma · kit completo (caixas + banners-seta + barras + check/cross).
+
+**Entregas:**
+
+- `lore_textbox.png` virou tábua viva: veios, bisel luz/sombra, nó de cera,
+  sulco de placa, cantos chunky com motif do bioma; 7 madeiras (fresca,
+  musgosa, úmida, calcinada, dourada, gelada, colônia).
+- `lore_kit.png` novo (280×52, ~3 KiB): 7 tábuas-seta de banner 40×24,
+  7 molduras de barra 32×12 com centro transparente e ícones check/cross/gema/
+  botão âmbar.
+- `lore_hud.js`: layouts 9-slice configuráveis (`L_BOX`, `L_BANNER`, `L_BAR`),
+  `drawWoodBanner` (com placa gravada de legibilidade), `drawWoodBarFrame`,
+  `drawKitIcon`.
+- `ui.js`: `bar()` ganha moldura de madeira do bioma (fallback procedural).
+- `game.js`: banner de onda/mapa vira tábua-seta do bioma; toggles de
+  acessibilidade/vídeo, profecias e memórias usam check/cross de madeira;
+  gemas ladeiam "MUTAÇÃO DISPONÍVEL"; botão âmbar no painel acessível.
+- `tools/make_lore_hud.py` e `game/assets/ui/README.md` atualizados.
+
+**Inspirações (Regra 2):** kits cozy de madeira tipo Stardew Valley
+(Pixelwood Valley, Rustic Wood UI) e tábuas pixel art de itch.io/Pinterest.
+
+**Verificação (Regras 3/4):** bateria headless completa passou; QA visual do
+9-slice composto de banners (600×84) e barras com fill; `lore_kit.png` servido
+200 no preview. **Limitação já declarada:** sem navegador no sandbox — a
+inspeção jogando fica no preview ao vivo (porta 8000).
+
+## Registro técnico — rework de HUD Fase 2: slice boxes e caixas de texto (2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** rework da Fase 2 do HUD —
+slice boxes e caixas de texto com spritesheets próprias, segundo o MEGA
+ARQUIVO (HUD orgânico por bioma, P1/P22), incluindo a mudança de estilo ao
+progredir de mapa. **Decisões confirmadas (Regra 1):** caixas em todas as
+telas (RUN + diálogos + tooltips + menus) · arte pelo gerador procedural rico ·
+transição "muda de quitina" com dissolve + banner.
+
+**Entregas:**
+
+- `tools/make_lore_hud.py` evoluído: `lore_panels.png` com quitina dupla,
+  motif do bioma nos 4 cantos (trevo/cogumelo/alga/semente/folha/líquen —
+  zona fixa do 9-slice), costuras de seda e nós de cera; novo
+  `lore_textbox.png` (224×32) com 7 temas de caixa de texto (6 biomas +
+  colônia para menus). ~2 KiB cada (Regra 5), nada humanoide (Regra 8).
+- `game/js/lore_hud.js`: loader inclui `textbox`; `tileOf`/`blitMolt`
+  (dissolve 0,6 s + fio de luz na troca de bioma, cache de tiles, sem alocação
+  por frame); `drawLoreTextbox` exportado; `hudBiome()` (mapa atual ou
+  colônia).
+- `game/js/ui.js`: `dialogBox`/`tooltip` desenham a caixa orgânica do bioma,
+  com fallback procedural quando a arte não está carregada (testes headless).
+- `game/js/game.js`: banner de migração anuncia "O VASO MUDA: <nome lore>".
+- `game/assets/ui/README.md` atualizado.
+
+**Inspirações (Regra 2):** Dead Cells/Hollow Knight/Hyper Light Drifter (UI
+limpa com paleta casada) e kits 9-slice temáticos (Nuhemu 6 temas, OpenGameArt
+750 assets).
+
+**Verificação (Regras 3/4):** bateria headless completa passou (`boot`,
+`docs`, `assets`, `tree`, `stuck`, `layout`, `uitest`, `attack`, `prophecy`,
+`endless`, `sim` FORCE=6); QA visual do 9-slice composto (cantos íntegros,
+faixas esticadas) e dos atlas ampliados; `lore_textbox.png` servido 200 no
+preview. **Limitação já declarada:** sem binário de navegador no sandbox, a
+inspeção em jogo fica no preview ao vivo (porta 8000).
+
+## Registro técnico — rework de arte dos inimigos, Fase 2 (2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** rework dos inimigos com novos
+sprites segundo a Fase 2 da mega atualização (Filhos da Névoa pálidos), sem que a
+horda fosse apenas formigas. **Decisões confirmadas pelo usuário (Regra 1):**
+fauna real corrompida variada · paleta pálida da Névoa · arte + nomes lore.
+
+**Novos seres (arte-fonte em `inimigos/`, sprites finais em
+`game/assets/sprites/ants/e_*.png` via `tools/prepare_assets.sh`):**
+
+| Tipo | Antes | Agora | Nome lore |
+|------|-------|-------|-----------|
+| runner | formiga | larva de besouro | LARVA RASTEJANTE |
+| swarm | formiga | saúva corrompida | SAÚVA CORROMPIDA |
+| reaper | formiga | louva-a-deus | CEIFADORA PÁLIDA |
+| espitter | formiga | besouro bombardeiro | BESOURO-PRAGA |
+| warrior | formiga | vespa | VESPA CARRASCA |
+| sentinel | formiga | caranguejo blindado | SENTINELA DE CONCHA |
+| matron | formiga | aranha de ninhada | MATRONA PÁLIDA |
+
+Paleta harmônica (Regra 6): corpo osso `#e8f4ff`, sombra `#c9bce8`, veias
+violeta `#c77dff`, pontos âmbar `#ffd479`, contorno `#08060f` — casa com o véu
+pálido/olhos de névoa que o `render.js` (Fase 2) já aplica por cima. Nada
+humanoide (Regra 8). Chaves, stats, `bodyR` e mecânicas (matrona ainda choca
+larvas) intactos — só arte e nomes mudaram.
+
+**Inspirações (Regra 2):** Hollow Knight e Rain World (fauna corrompida com
+silhueta legível), Vampire Survivors (leitura de horda) e packs top-down de
+insetos do itch.io.
+
+**Verificação (Regras 3/4):** bateria headless completa (`boot`, `docs`,
+`assets`, `tree`, `stuck`, `layout`, `uitest`, `attack`, `prophecy`, `endless`,
+`sim` FORCE=3/6) — tudo passou; spawn dos 7 tipos + tique + spawn de adds da
+matrona exercitados pelo código real; decode pixel a pixel dos 7 PNGs (fundo
+100% transparente, cobertura 24–64%, paleta pálida/violeta/âmbar presente);
+assets servidos 200 com 1,2–4,4 KB cada. **Limitação declarada:** o sandbox não
+tem binário de navegador (download do Chromium bloqueado pelo proxy), então a
+inspeção visual em jogo fica por conta do preview ao vivo na porta 8000.
+
+**Correção de consistência encontrada:** `game/test/docs.mjs` falhava ANTES
+deste rework porque o bloco de `PROGRESSO_MEGA_ATUALIZACAO.md` embutido neste
+MEGA_ARQUIVO (e a linha de tamanho/hash do rodapé de integridade) estava
+desatualizado em relação ao arquivo avulso. O bloco e o rodapé foram
+ressincronizados byte a byte; os seis originais seguem intactos.
+
 ## Registro técnico — fechamento da Fase 1 Lore-Total (2026-09-22)
 
 **Status: implementação da Fase 1 concluída e verificada no escopo abaixo.**
