@@ -149,14 +149,14 @@ export function getBiomeHUD(mapId) {
 }
 
 // Atlas originais: master 4x, exportação nearest. Nenhum asset criado no loop.
-// BIOMES fixo: a ordem das células nos atlas (painéis/ícones/textboxes).
+// BIOMES fixo: a ordem das células nos atlas (painéis/ícones/textboxes/kit).
 const BIOMES = ["planicie", "floresta", "pantano", "deserto", "outono", "gelo"];
 const art = {};
 const panelCache = new Map();
 const fogCache = [];
 let loading;
 export function loadLoreHUD() {
-  if (!loading) loading = Promise.all(["panels", "icons", "gaster", "textbox"].map(key => new Promise((resolve, reject) => {
+  if (!loading) loading = Promise.all(["panels", "icons", "gaster", "textbox", "kit"].map(key => new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => { art[key] = img; panelCache.clear(); resolve(); };
     img.onerror = () => reject(new Error("HUD não carregou: lore_" + key + ".png"));
@@ -187,26 +187,33 @@ export function hudBiome() {
 
 function tbIndex(id) { return id === "colonia" ? 6 : Math.max(0, BIOMES.indexOf(id)); }
 
+// Layouts 9-slice dos atlas do kit (célula + margens fixas que nunca esticam).
+const L_BOX    = { cw: 32, ch: 32, l: 8, r: 8, t: 8, b: 8 };  // painéis e tábuas
+const L_BANNER = { cw: 40, ch: 24, l: 8, r: 14, t: 8, b: 8 }; // tábua-seta
+const L_BAR    = { cw: 32, ch: 12, l: 4, r: 4, t: 4, b: 4 };  // moldura de barra
+
 // Os cantos nunca esticam; apenas as faixas e o centro. Cache limitado por uso.
-function tileOf(kind, styleId, w, h) {
+function tileOf(kind, styleId, w, h, L) {
   const key = kind + ":" + styleId + ":" + w + ":" + h;
   let tile = panelCache.get(key);
   if (tile) return tile;
   tile = document.createElement("canvas"); tile.width = w; tile.height = h;
   const c = tile.getContext("2d"); c.imageSmoothingEnabled = false;
-  c.fillStyle = "#1a1427"; c.fillRect(0, 0, w, h);
-  const img = kind === "panels" ? art.panels : art.textbox;
+  if (kind !== "bar") { c.fillStyle = "#1a1427"; c.fillRect(0, 0, w, h); }
+  const img = kind === "panels" ? art.panels : kind === "textbox" ? art.textbox : art.kit;
   if (img) {
     const idx = kind === "panels"
       ? Math.max(0, BIOMES.indexOf(styleId === "colonia" ? "planicie" : styleId))
       : tbIndex(styleId);
-    const sx = idx * 32;
-    const edge = Math.min(8, Math.floor(w / 2), Math.floor(h / 2));
-    const src = [0, 8, 24], size = [8, 16, 8];
-    const dx = [0, edge, w - edge], dy = [0, edge, h - edge];
-    const dw = [edge, w - edge * 2, edge], dh = [edge, h - edge * 2, edge];
+    const sx = idx * L.cw, sy = kind === "bar" ? 24 : kind === "banner" ? 0 : 0;
+    const ex = Math.min(L.l, Math.floor(w / 2)), ey = Math.min(L.t, Math.floor(h / 2));
+    const exr = Math.min(L.r, Math.floor(w / 2)), eyb = Math.min(L.b, Math.floor(h / 2));
+    const srcX = [0, L.l, L.cw - L.r], sizeX = [L.l, L.cw - L.l - L.r, L.r];
+    const srcY = [0, L.t, L.ch - L.b], sizeY = [L.t, L.ch - L.t - L.b, L.b];
+    const dx = [0, ex, w - exr], dw = [ex, w - ex - exr, exr];
+    const dy = [0, ey, h - eyb], dh = [ey, h - ey - eyb, eyb];
     for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
-      if (dw[col] > 0 && dh[row] > 0) c.drawImage(img, sx + src[col], src[row], size[col], size[row], dx[col], dy[row], dw[col], dh[row]);
+      if (dw[col] > 0 && dh[row] > 0) c.drawImage(img, sx + srcX[col], sy + srcY[row], sizeX[col], sizeY[row], dx[col], dy[row], dw[col], dh[row]);
     }
   }
   if (kind === "panels") {
@@ -223,22 +230,22 @@ function tileOf(kind, styleId, w, h) {
   return tile;
 }
 
-function blitMolt(ctx, kind, styleId, x, y, w, h) {
+function blitMolt(ctx, kind, styleId, x, y, w, h, L) {
   x = Math.round(x); y = Math.round(y);
   const dt = G.time - moltStart;
   ctx.save(); ctx.imageSmoothingEnabled = false;
   if (moltFromId && dt >= 0 && dt < MOLT_DUR && !reducedFX()) {
     const t = dt / MOLT_DUR, e = t * t * (3 - 2 * t);
-    ctx.drawImage(tileOf(kind, moltFromId, w, h), x, y);
+    ctx.drawImage(tileOf(kind, moltFromId, w, h, L), x, y);
     ctx.globalAlpha = e;
-    ctx.drawImage(tileOf(kind, styleId, w, h), x, y);
+    ctx.drawImage(tileOf(kind, styleId, w, h, L), x, y);
     // fio de luz da muda varrendo a caixa
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.3 * (1 - t);
     ctx.fillStyle = getBiomeHUD(styleId).accent;
     ctx.fillRect(x + Math.round(w * e) - 1, y, 2, h);
   } else {
-    ctx.drawImage(tileOf(kind, styleId, w, h), x, y);
+    ctx.drawImage(tileOf(kind, styleId, w, h, L), x, y);
   }
   ctx.restore();
 }
@@ -247,7 +254,7 @@ export function drawBiomeTexture(ctx, x, y, w, h, biome, time) {
   w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
   const style = getBiomeHUD(biome);
   noteBiome(style.id);
-  blitMolt(ctx, "panels", style.id, x, y, w, h);
+  blitMolt(ctx, "panels", style.id, x, y, w, h, L_BOX);
   // Respiração discreta sem movimentar texto ou hitboxes.
   ctx.save();
   ctx.globalAlpha = reducedFX() ? 0.12 : 0.16 + Math.sin(time * 2) * 0.06;
@@ -261,7 +268,41 @@ export function drawLoreTextbox(ctx, x, y, w, h, biome) {
   if (!art.textbox) return false;
   const id = BIOME_HUD[biome] ? biome : "colonia";
   noteBiome(id);
-  blitMolt(ctx, "textbox", id, x, y, Math.max(16, Math.round(w)), Math.max(16, Math.round(h)));
+  blitMolt(ctx, "textbox", id, x, y, Math.max(16, Math.round(w)), Math.max(16, Math.round(h)), L_BOX);
+  return true;
+}
+
+// Tábua-seta de madeira do bioma para banners (onda/mapa/muda).
+export function drawWoodBanner(ctx, x, y, w, h, biome) {
+  if (!art.kit) return false;
+  const id = BIOME_HUD[biome] ? biome : "colonia";
+  noteBiome(id);
+  w = Math.max(32, Math.round(w)); h = Math.max(24, Math.round(h));
+  blitMolt(ctx, "banner", id, x, y, w, h, L_BANNER);
+  // placa gravada p/ legibilidade do texto (a tábua continua visível nas bordas)
+  ctx.save();
+  ctx.fillStyle = "rgba(12,8,20,0.5)";
+  ctx.fillRect(Math.round(x) + 10, Math.round(y) + 8, w - 20, h - 16);
+  ctx.restore();
+  return true;
+}
+
+// Moldura de barra de madeira (centro transparente: o fill vem do chamador).
+export function drawWoodBarFrame(ctx, x, y, w, h, biome) {
+  if (!art.kit) return false;
+  const id = BIOME_HUD[biome] ? biome : "colonia";
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tileOf("bar", id, Math.max(8, Math.round(w)), Math.max(8, Math.round(h)), L_BAR), Math.round(x), Math.round(y));
+  ctx.restore();
+  return true;
+}
+
+// Ícones do kit: 0 check · 1 cross · 2 gema · 3 botão. false sem arte.
+export function drawKitIcon(ctx, kind, x, y, size = 16) {
+  if (!art.kit) return false;
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(art.kit, kind * 16, 36, 16, 16, Math.round(x), Math.round(y), size, size);
+  ctx.restore();
   return true;
 }
 

@@ -7,7 +7,7 @@ import { drawText, textWidth, FONT } from "./font.js";
 import { mouse } from "./input.js";
 import { SFX } from "./audio.js";
 import { G } from "./state.js";
-import { drawLoreTextbox, hudBiome } from "./lore_hud.js";
+import { drawLoreTextbox, hudBiome, drawWoodBarFrame } from "./lore_hud.js";
 
 let buttons = [];
 // Animação de interface: hover/pressão de cada botão são NÚMEROS que correm
@@ -350,10 +350,14 @@ export function bar(ctx, x, y, w, h, frac, opt = {}) {
     }
   }
 
-  // borda externa
-  ctx.strokeStyle = opt.border || "#000";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  // borda externa: Fase 2 — moldura de madeira do bioma (kit), senão procedural
+  if (opt.wood !== false && drawWoodBarFrame(ctx, x - 2, y - 2, w + 4, h + 4, opt.biome || hudBiome())) {
+    // moldura assada por cima; o centro transparente deixa o fill à mostra
+  } else {
+    ctx.strokeStyle = opt.border || "#000";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  }
 
   // brilho de preenchimento animado
   if (frac > 0.05 && opt.shimmer !== false) {

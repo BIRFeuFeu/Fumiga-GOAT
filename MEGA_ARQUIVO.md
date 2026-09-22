@@ -60,6 +60,40 @@ transformações visuais das Eras, biblioteca completa ou o chefe Pálida.
 Os 11 arquivos de arte existentes da Noite Branca continuam sendo 11 de 24;
 o fallback não deve ser contado como arte finalizada.
 
+## Registro técnico — kit de UI de madeira viva por bioma (Fase 2, continuação, 2026-09-22)
+
+Esta seção é nova e não modifica os seis textos originais.
+
+**Branch:** arena/01a0ca3a-fumiga-goat. **Pedido:** caixas de texto no estilo do
+kit de tábuas de madeira da referência (plank UI), personalizadas pelo MEGA
+ARQUIVO e pela mudança de mapa. **Decisões confirmadas (Regra 1):** madeira
+viva por bioma · kit completo (caixas + banners-seta + barras + check/cross).
+
+**Entregas:**
+
+- `lore_textbox.png` virou tábua viva: veios, bisel luz/sombra, nó de cera,
+  sulco de placa, cantos chunky com motif do bioma; 7 madeiras (fresca,
+  musgosa, úmida, calcinada, dourada, gelada, colônia).
+- `lore_kit.png` novo (280×52, ~3 KiB): 7 tábuas-seta de banner 40×24,
+  7 molduras de barra 32×12 com centro transparente e ícones check/cross/gema/
+  botão âmbar.
+- `lore_hud.js`: layouts 9-slice configuráveis (`L_BOX`, `L_BANNER`, `L_BAR`),
+  `drawWoodBanner` (com placa gravada de legibilidade), `drawWoodBarFrame`,
+  `drawKitIcon`.
+- `ui.js`: `bar()` ganha moldura de madeira do bioma (fallback procedural).
+- `game.js`: banner de onda/mapa vira tábua-seta do bioma; toggles de
+  acessibilidade/vídeo, profecias e memórias usam check/cross de madeira;
+  gemas ladeiam "MUTAÇÃO DISPONÍVEL"; botão âmbar no painel acessível.
+- `tools/make_lore_hud.py` e `game/assets/ui/README.md` atualizados.
+
+**Inspirações (Regra 2):** kits cozy de madeira tipo Stardew Valley
+(Pixelwood Valley, Rustic Wood UI) e tábuas pixel art de itch.io/Pinterest.
+
+**Verificação (Regras 3/4):** bateria headless completa passou; QA visual do
+9-slice composto de banners (600×84) e barras com fill; `lore_kit.png` servido
+200 no preview. **Limitação já declarada:** sem navegador no sandbox — a
+inspeção jogando fica no preview ao vivo (porta 8000).
+
 ## Registro técnico — rework de HUD Fase 2: slice boxes e caixas de texto (2026-09-22)
 
 Esta seção é nova e não modifica os seis textos originais.

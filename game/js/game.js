@@ -39,7 +39,7 @@ import {
 } from "./render.js";
 import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
 import { colony, foodTrailAt, dangerAt } from "./brain.js";
-import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay, drawPheromoneLegend, drawFoodIcon, drawEssenceCrystal, drawTrailAnt, trailProgress, drawTreeRings, drawScentMinimap } from "./lore_hud.js";
+import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay, drawPheromoneLegend, drawFoodIcon, drawEssenceCrystal, drawTrailAnt, trailProgress, drawTreeRings, drawScentMinimap, drawWoodBanner, drawKitIcon, hudBiome } from "./lore_hud.js";
 import { startCutscene, updateCutscene, drawCutscene, handleCutsceneInput, isCutsceneActive, startLoadingCutscene, getCutsceneDefs } from "./cutscenes.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
@@ -1112,7 +1112,8 @@ function renderOptions() {
     ];
     for (const o of opts) {
       const on = s[o.key];
-      drawText(ctx, o.label + ": " + (on ? "LIGADO" : "DESLIGADO"), colX, cy, { color: on ? "#7fd6a0" : "#5a4f78" });
+      const kit = drawKitIcon(ctx, on ? 0 : 1, colX, cy - 1, 14);
+      drawText(ctx, o.label + ": " + (on ? "LIGADO" : "DESLIGADO"), colX + (kit ? 18 : 0), cy, { color: on ? "#7fd6a0" : "#5a4f78" });
       if (button(ctx, { x: colX + 360, y: cy - 4, w: 110, h: isMobile ? 32 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "vid_"+o.key, accent: on ? "#ff4d5a" : "#7fd6a0" })) {
         s[o.key] = !s[o.key]; persistSave(); SFX.uiClick();
       }
@@ -1160,7 +1161,9 @@ function renderOptions() {
     ];
     for (const o of accOpts) {
       const on = a[o.key];
-      drawText(ctx, (on ? "✓ " : "○ ") + o.label, colX, cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
+      const kit = drawKitIcon(ctx, on ? 0 : 1, colX, cy - 1, 14);
+      if (!kit) drawText(ctx, on ? "✓ " : "○ ", colX, cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
+      drawText(ctx, o.label, colX + (kit ? 18 : 0), cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
       if (button(ctx, { x: colX + 400, y: cy - 4, w: 100, h: isMobile ? 30 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "acc_"+o.key, accent: o.color })) {
         a[o.key] = !a[o.key]; persistSave(); SFX.uiClick();
       }
@@ -1188,7 +1191,8 @@ function renderOptions() {
     cy += 36;
     if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
       panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
-      drawText(ctx, "♿ ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 8, cy + 8, { color: "#7fd6a0", scale: 0.8 });
+      drawKitIcon(ctx, 3, colX + 6, cy + 8, 16);
+      drawText(ctx, "♿ ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
     }
   } else if (optionsTab === 4) { // IDIOMA
     drawText(ctx, "IDIOMA / LANGUAGE", colX, cy, { font: "big", color: "#ffd479" }); cy += 28;
@@ -1767,7 +1771,10 @@ function drawBanner(b) {
   y = Math.max(y, hudFloorY + 6);
 
   const bw = 600;
-  dialogBox(ctx, VIEW_W/2 - bw/2, y - 14, bw, 84, { border: "#ffd479", accent: "#ffd479" });
+  // Fase 2: banner como tábua-seta de madeira do bioma (fallback: dialogBox)
+  if (!drawWoodBanner(ctx, VIEW_W/2 - bw/2, y - 14, bw, 84, hudBiome())) {
+    dialogBox(ctx, VIEW_W/2 - bw/2, y - 14, bw, 84, { border: "#ffd479", accent: "#ffd479" });
+  }
   drawText(ctx, b.title, VIEW_W / 2, y, { font: "big", scale: 2, color: "#ffd479", align: "center", maxWidth: bw-40 });
   if (b.sub) {
     const lines = wrapText(b.sub, 560, {});
@@ -1787,6 +1794,7 @@ function drawDraft(draft) {
   drawText(ctx, "MUTAÇÃO DISPONÍVEL", VIEW_W / 2, 48, { font: "big", scale: 2.1, color: "#c77dff", align: "center" });
   ctx.restore();
   drawText(ctx, "MUTAÇÃO DISPONÍVEL", VIEW_W / 2, 48, { font: "big", scale: 2, color: "#c77dff", align: "center" });
+  drawKitIcon(ctx, 2, VIEW_W / 2 - 220, 42, 22); drawKitIcon(ctx, 2, VIEW_W / 2 + 198, 42, 22);
   drawText(ctx, "A colônia evolui. Escolha 1 de 3 — vale só nesta expedição.", VIEW_W / 2, 96, { color: PAL.textDim, align: "center" });
 
   const cw = 220, ch = 300, gap = 26;
@@ -2089,7 +2097,9 @@ function renderProphecyScreen() {
     const x = x0 + col * (colW + 20), y = y0 + row * step;
     const ok = !!(G.save.prophecies || {})[p.id];
     panel(ctx, x, y, colW, 46, { border: ok ? "#7fd6a0" : "#3a3054", fill: ok ? "rgba(26,42,32,0.75)" : "rgba(16,12,26,0.75)" });
-    drawText(ctx, (ok ? "✓ " : "• ") + p.name, x + 10, y + 7, { color: ok ? "#7fd6a0" : "#6ee7ff" });
+    const kitP = drawKitIcon(ctx, ok ? 0 : 1, x + 10, y + 6, 14);
+    if (!kitP) drawText(ctx, ok ? "✓ " : "• ", x + 10, y + 7, { color: ok ? "#7fd6a0" : "#6ee7ff" });
+    drawText(ctx, p.name, x + 10 + (kitP ? 18 : 0), y + 7, { color: ok ? "#7fd6a0" : "#6ee7ff" });
     drawText(ctx, p.desc, x + 10, y + 26, { color: ok ? PAL.textDim : PAL.text, scale: 0.9 });
     drawText(ctx, "+" + p.reward, x + colW - 12, y + 26, { color: "#c77dff", align: "right" });
   });
@@ -2256,7 +2266,9 @@ function renderMemoryScreen() {
     const border = seen ? (isHover ? "#ffd479" : "#4a3a6e") : "#2a2340";
     const fill = seen ? (isHover ? "rgba(255,212,121,0.12)" : "rgba(20,14,32,0.85)") : "rgba(10,8,16,0.5)";
     panel(ctx, x, y, cw, ch, { border, fill });
-    drawText(ctx, (seen ? "✓ " : "○ ") + def.title, x+10, y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
+    const kitM = drawKitIcon(ctx, seen ? 0 : 1, x+10, y+7, 14);
+    if (!kitM) drawText(ctx, seen ? "✓ " : "○ ", x+10, y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
+    drawText(ctx, def.title, x+10+(kitM ? 18 : 0), y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
     drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.75 });
     drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.7 });
     if (seen) {

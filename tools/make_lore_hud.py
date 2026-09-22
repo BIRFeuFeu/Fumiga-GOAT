@@ -137,30 +137,113 @@ def make(master=None):
             rect((a-1,b-1,a+1,b+1),INK); rect((a,b,a,b),'#ffd479')
     p.save('lore_panels.png',master)
 
-    # --------------------------------------- caixas de texto 9-slice (7 temas) --
-    # 6 biomas + colônia (menus). Moldura fina orgânica: fio de seda no topo,
-    # nó de cera, motif pequeno nos cantos e pespontos na base.
+    # ------------------------- caixas de texto TÁBUA VIVA (7 temas, Fase 2) --
+    # Madeira que "respira" o bioma: veios, sulco de placas, cantos chunky com
+    # motif do bioma e nó de cera. Centro escuro de leitura (MEGA ARQUIVO).
+    WOODS = [
+        ('#8a5a33', '#c08a52', '#5a3a20'),  # planicie: madeira fresca
+        ('#6f5a36', '#a39058', '#46361f'),  # floresta: madeira musgosa
+        ('#55483a', '#7d6c56', '#332a22'),  # pantano: madeira úmida escura
+        ('#a3764a', '#d0a06a', '#6b4a2a'),  # deserto: madeira calcinada
+        ('#96602c', '#c88d4a', '#5e3a1a'),  # outono: madeira dourada
+        ('#6e7688', '#a8b4c8', '#454c5c'),  # gelo: madeira gelada pálida
+        ('#4a365c', '#7a5f92', '#2c2038'),  # colonia: quitina-amadeirada
+    ]
     p = Pixel(224,32)
-    TB = list(zip(COLORS,SHADES,LIGHTS)) + [('#8f6fd6','#3a2c4c','#d9c2ff')]
-    for i,(c,shade,light) in enumerate(TB):
+    for i,(wbase,wlight,wdark) in enumerate(WOODS):
         x=i*32
+        c = COLORS[i] if i < 6 else '#8f6fd6'
+        light = LIGHTS[i] if i < 6 else '#d9c2ff'
         def poly(pts,col): p.poly([(x+a,b) for a,b in pts],col)
         def rect(box,col): a,b,r,d=box; p.rect((x+a,b,x+r,d),col)
         def line(pts,col): p.line([(x+a,b) for a,b in pts],col)
-        poly([(0,4),(4,0),(27,0),(31,4),(31,27),(27,31),(4,31),(0,27)],INK)
-        poly([(1,5),(5,1),(26,1),(30,5),(30,26),(26,30),(5,30),(1,26)],shade)
-        poly([(2,6),(6,2),(25,2),(29,6),(29,25),(25,29),(6,29),(2,25)],DARK)
-        rect((4,4,27,27),FIELD)
-        # fio de seda no topo + nó de cera âmbar central
-        line([(6,2),(25,2)],SILK); rect((15,1,16,2),'#ffd479')
-        # pespontos na base e veias ralas nas laterais
-        for a in (8,12,16,20,24): rect((a,29,a+1,29),MID)
-        for b in (9,14,19,24): rect((2,b,2,b),shade); rect((29,b+2,29,b+2),shade)
-        # motif do bioma nos cantos (menor, 6x6 com inset 2)
+        # contorno chunky 2px + tábua base
+        poly([(0,6),(6,0),(25,0),(31,6),(31,25),(25,31),(6,31),(0,25)],INK)
+        poly([(1,6),(6,1),(25,1),(30,6),(30,25),(25,30),(6,30),(1,25)],wbase)
+        # bisel: brilho em cima/esq, sombra embaixo/dir (luz de cima)
+        line([(6,2),(25,2)],wlight); line([(2,6),(2,25)],wlight)
+        line([(6,29),(25,29)],wdark); line([(29,6),(29,25)],wdark)
+        # veios de madeira (esticam como linhas longas nas faixas)
+        for a in (8,14,20):
+            rect((a,4,a+3,4),wdark); rect((a+2,27,a+4,27),wdark)
+        for b in (10,16,21):
+            rect((4,b,4,b+1),wdark); rect((27,b+2,27,b+3),wdark)
+        # nó de madeira com cera âmbar no topo (zona fixa do canto)
+        rect((19,3,20,4),wdark); rect((19,3,19,3),wlight); rect((20,4,20,4),'#ffd479')
+        # sulco de placa ao redor do campo de leitura
+        line([(6,6),(25,6)],wdark); line([(6,25),(25,25)],wdark)
+        line([(6,6),(6,25)],wdark); line([(25,6),(25,25)],wdark)
+        rect((7,7,24,24),FIELD)
+        line([(7,7),(24,7)],'#241b36')
+        # placas dos cantos: arco de luz + motif do bioma (nunca esticam)
+        line([(1,5),(5,1)],wlight); line([(26,1),(30,5)],wlight)
+        line([(1,26),(5,30)],wdark); line([(26,30),(30,26)],wdark)
         stamp_corners(p, x, i if i < 6 else 6, c, light, 2)
-        # brilho de leitura no topo do campo
-        line([(6,4),(25,4)],'#241b36')
     p.save('lore_textbox.png',master)
+
+    # ------------------------------- kit de UI: banner-seta, barras, ícones --
+    # linha 0: 7 banners-seta 40x24 · linha 24: 7 molduras de barra 32x12
+    # (centro transparente) · linha 36: check/cross/gema/botão 16x16 neutros.
+    p = Pixel(280,52)
+    for i,(wbase,wlight,wdark) in enumerate(WOODS):
+        x=i*40
+        c = COLORS[i] if i < 6 else '#8f6fd6'
+        def poly(pts,col): p.poly([(x+a,b) for a,b in pts],col)
+        def rect(box,col): a,b,r,d=box; p.rect((x+a,b,x+r,d),col)
+        def line(pts,col): p.line([(x+a,b) for a,b in pts],col)
+        # tábua-seta (banner): cap arredondado à esquerda, ponta à direita
+        poly([(0,5),(5,0),(27,0),(39,10),(39,13),(27,23),(5,23),(0,18)],INK)
+        poly([(1,5),(5,1),(26,1),(38,10),(38,13),(26,22),(5,22),(1,18)],wbase)
+        line([(5,2),(26,2)],wlight); line([(27,2),(36,9)],wlight)
+        line([(5,21),(26,21)],wdark); line([(27,21),(36,14)],wdark)
+        for a in (8,14,20):
+            rect((a,4,a+3,4),wdark); rect((a+2,18,a+4,18),wdark)
+        # sulcos da placa central; a faixa esticável vira tábua com veios
+        line([(5,6),(26,6)],wdark); line([(5,17),(26,17)],wdark)
+        for a in (9,15,21):
+            rect((a,9,a+2,9),wdark); rect((a+2,14,a+4,14),wdark)
+        line([(9,11),(13,11)],wlight)
+        rect((28,10,29,12),'#ffd479')  # nó de cera na ponta da seta
+        # moldura de barra 32x12 com centro transparente (o fill vem do jogo)
+        x=i*40  # barras ficam em y=24, mesma coluna
+        def poly2(pts,col): p.poly([(x+a,24+b) for a,b in pts],col)
+        def line2(pts,col): p.line([(x+a,24+b) for a,b in pts],col)
+        def rect2(box,col): a,b,r,d=box; p.rect((x+a,24+b,x+r,24+d),col)
+        poly2([(0,3),(3,0),(28,0),(31,3),(31,8),(28,11),(3,11),(0,8)],INK)
+        poly2([(1,3),(3,1),(28,1),(30,3),(30,8),(28,10),(3,10),(1,8)],wbase)
+        line2([(3,2),(28,2)],wlight); line2([(3,9),(28,9)],wdark)
+        # sulco interno (anel) — centro fica transparente
+        line2([(3,3),(28,3)],wdark); line2([(3,8),(28,8)],wdark)
+        line2([(3,3),(3,8)],wdark); line2([(28,3),(28,8)],wdark)
+        rect2((2,5,2,6),wdark); rect2((2,5,2,5),wlight)  # nó pequeno à esquerda
+        # centro transparente: o preenchimento da barra vem do jogo
+        p.d.rectangle(((x+4)*S,(24+4)*S,(x+28)*S-1,(24+8)*S-1), fill=(0,0,0,0))
+    # ícones neutros 16x16 (madeira da colônia): check, cross, gema, botão
+    wx, wl, wd = WOODS[6]
+    def krect(x,box,col): a,b,r,d=box; p.rect((x+a,b+36,x+r,b+36+d),col)
+    def kpoly(x,pts,col): p.poly([(x+a,36+b) for a,b in pts],col)
+    def kline(x,pts,col): p.line([(x+a,36+b) for a,b in pts],col)
+    # check verde
+    kpoly(0,[(2,7),(5,10),(12,2),(14,4),(6,13),(1,9)],INK)
+    kpoly(0,[(3,7),(5,9),(12,3),(13,4),(6,11),(2,9)],'#7fd6a0')
+    kline(0,[(4,7),(6,9)],'#d2ffe4')
+    # cross vermelho
+    kpoly(16,[(3,2),(5,2),(8,5),(11,2),(13,2),(13,4),(10,7),(13,10),(13,12),(11,12),(8,9),(5,12),(3,12),(3,10),(6,7),(3,4)],INK)
+    kpoly(16,[(4,3),(5,3),(8,6),(11,3),(12,3),(12,4),(9,7),(12,10),(12,11),(11,11),(8,8),(5,11),(4,11),(4,10),(7,7),(4,4)],'#ff4d5a')
+    # gema verde em anel de madeira
+    kpoly(32,[(8,0),(13,3),(15,8),(13,13),(8,15),(3,13),(1,8),(3,3)],INK)
+    kpoly(32,[(8,1),(12,3),(14,8),(12,12),(8,14),(4,12),(2,8),(4,3)],wx)
+    kpoly(32,[(8,3),(11,5),(12,8),(11,11),(8,12),(5,11),(4,8),(5,5)],'#3fae74')
+    kpoly(32,[(7,4),(9,4),(10,6),(8,8),(6,6)],'#7fd6a0')
+    kline(32,[(6,5),(7,4)],'#d2ffe4')
+    # botão quadrado âmbar em moldura de madeira
+    kpoly(48,[(0,3),(3,0),(12,0),(15,3),(15,12),(12,15),(3,15),(0,12)],INK)
+    kpoly(48,[(1,3),(3,1),(12,1),(14,3),(14,12),(12,14),(3,14),(1,12)],wx)
+    krect(48,(4,4,11,11),'#823c1e')
+    krect(48,(5,5,10,10),'#ff7a3d')
+    krect(48,(5,5,10,6),'#ffb347')
+    krect(48,(6,6,8,6),'#ffd479')
+    p.save('lore_kit.png',master)
 
     # ---------------------------------------------------------- ícones 16px --
     # 16px cells: foods 0..5, amber/violet crystals 6..7, walking ants 8..11.
