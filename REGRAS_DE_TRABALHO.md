@@ -159,6 +159,17 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - Se a arte for refeita ou ajustada, mostrar a nova versão também.
 - Manter os previews acessíveis e citar os caminhos para o usuário revisitar.
 
+## Regra 11 — Salvar no GitHub: CREATE PR + MERGE PR juntos 🔀
+
+> **Sempre realize as ações CREATE PR e MERGE PR ao mesmo tempo quando o usuário disser para salvar o projeto no GitHub.**
+
+- Ao receber “salve o projeto no GitHub” (ou equivalente), executar **as duas ações juntas**:
+  1. `git push origin <branch da sessão>` com todos os commits da sessão;
+  2. **CREATE PR** do branch da sessão para `main` (`gh pr create`);
+  3. **MERGE PR** em seguida, no mesmo fluxo (`gh pr merge`), sem esperar nova confirmação.
+- Não deixar o PR aberto aguardando merge manual — salvo pedido explícito em contrário.
+- Não deletar o branch da sessão após o merge (a sessão continua associada a ele).
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -171,6 +182,7 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 7. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
 8. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
 9. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
+10. SALVAR    → “salvar no GitHub” = CREATE PR + MERGE PR juntos (Regra 11)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,
