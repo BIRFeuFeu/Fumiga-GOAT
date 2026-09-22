@@ -599,6 +599,11 @@ let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formig
 let torchFlicker = 0;
 let dayPhase = 0;
 
+// Altura da camada de montanhas do menu: as 4 camadas de parallax são geradas
+// por tools/fix_title_parallax.py já no tamanho exato em que são desenhadas
+// (blit 1:1 — anti-aliasing embutido no PNG, sem reamostragem na tela).
+const MTN_DRAW_H = 335;
+
 function ensureMotes() {
   if (titleMotes.length) return;
   // motes subindo (Dead Cells)
@@ -848,11 +853,14 @@ export function drawTitleBg(ctx) {
     ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
 
     // ----- CAMADA 4: Montanhas silhueta (meio-fundo, 0.03x) -----
+    // ALTURA 335 = altura do PNG (tools/fix_title_parallax.py gera cada camada
+    // já no tamanho exato do drawImage). Antes era VIEW_H * 0.62 = 334.8,
+    // o que forçava reamostragem e borrava a crista.
     const mtnImg = IMG.parallax_mountains;
     const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
     const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
     ctx.globalAlpha = 0.96;
-    ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, VIEW_H * 0.62);
+    ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, MTN_DRAW_H);
     ctx.globalAlpha = 1;
 
     // ----- CAMADA 3: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----

@@ -35,3 +35,7 @@ arvore-layout.png
 .env
 .env.*
 *.log
+
+# originais das camadas do TITLE guardados por tools/fix_title_parallax.py
+# (o script é re-executável a partir deles; o git também guarda a versão anterior)
+game/assets/parallax/menu/_orig/
