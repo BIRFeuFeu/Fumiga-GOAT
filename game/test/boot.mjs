@@ -20,7 +20,7 @@ if (!scenario) {
     assert.equal(result.status, 0, name + ": " + result.stderr);
   }
   console.log("ok    sintaxe ESM dos " + modules.length + " módulos");
-  for (const name of ["normal", "save-invalido", "falha-fonte", "falha-sprite"]) {
+  for (const name of ["normal", "save-invalido", "falha-fonte", "falha-sprite", "falha-hud"]) {
     const result = spawnSync(process.execPath, [fileURLToPath(import.meta.url), name], {
       encoding: "utf8", timeout: 15000,
     });
@@ -70,7 +70,8 @@ if (!scenario) {
       requested.push(value);
       queueMicrotask(() => {
         const fail = scenario === "falha-fonte" && value.includes("font_big.png")
-          || scenario === "falha-sprite" && value.includes("ants/worker.png");
+          || scenario === "falha-sprite" && value.includes("ants/worker.png")
+          || scenario === "falha-hud" && value.includes("ui/lore_icons.png");
         if (fail) this.onerror?.(new Error("imagem indisponível"));
         else this.onload?.();
       });

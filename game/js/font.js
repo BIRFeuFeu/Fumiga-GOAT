@@ -77,7 +77,7 @@ export function textWidth(text, { font = "small", scale = 1 } = {}) {
 /** Renderiza (com cache) uma linha de texto e a desenha em ctx. FASE 2: bigFont + highContrast */
 export function drawText(ctx, text, x, y, {
   font = "small", scale = 1, color = "#fff", align = "left", shadow = true,
-  shadowColor = "rgba(10,8,18,0.9)", alpha = 1,
+  shadowColor = "rgba(10,8,18,0.9)", alpha = 1, maxWidth = Infinity,
 } = {}) {
   text = String(text).toUpperCase();
   // FASE 2: acessibilidade bigFont aumenta 30% e highContrast força sombra mais forte
@@ -89,6 +89,8 @@ export function drawText(ctx, text, x, y, {
     shadow = true;
     shadowColor = "rgba(0,0,0,1)";
   }
+  // Bound only explicitly constrained labels, after accessibility enlargement.
+  scale = Math.min(scale, maxWidth / Math.max(1, lineWidth(text.length, {font})));
   const cv = lineCanvas(text, font, scale, color);
   let dx = x;
   if (align === "center") dx = x - cv.width / 2;

@@ -9,6 +9,7 @@ import { loadFonts, drawText } from "./font.js";
 import { initAudio } from "./audio.js";
 import { endTick } from "./input.js";
 import { boot, update, render, setLastDt } from "./game.js";
+import { loadLoreHUD } from "./lore_hud.js";
 import { bakeBossSheets } from "./render.js";
 
 const canvas = document.getElementById("game");
@@ -119,6 +120,7 @@ async function bootAll() {
   loadSave();
   await loadFonts();
   await loadAll((p) => { progress = p * 0.9; });
+  await loadLoreHUD();
   phase = "ASSANDO PIXELS";
   await new Promise(r => requestAnimationFrame(r));
   // DINOPONERA: a colosso é a FORMIGA-BALA tingida de violeta profundo,

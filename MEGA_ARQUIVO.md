@@ -60,6 +60,160 @@ transformações visuais das Eras, biblioteca completa ou o chefe Pálida.
 Os 11 arquivos de arte existentes da Noite Branca continuam sendo 11 de 24;
 o fallback não deve ser contado como arte finalizada.
 
+## Registro técnico — fechamento da Fase 1 Lore-Total (2026-09-22)
+
+**Status: implementação da Fase 1 concluída e verificada no escopo abaixo.**
+Este registro substitui as pendências técnicas do registro de início imediatamente
+abaixo, que permanece como histórico. Não declara concluídas as Fases 2–8.
+Branch: `arena/01a0c98b-fumiga-goat`.
+
+### Checklist de fechamento
+
+| Item da Fase 1 | Resultado | Implementação |
+| --- | --- | --- |
+| Seis HUDs orgânicos: cor, textura, nome e respiração | ✅ | `lore_hud.js`, `game.js`, `config.js` |
+| Arte híbrida pixel art: seis 9-slices + spritesheets | ✅ | `game/assets/ui/`, pipeline `tools/make_lore_hud.py` |
+| Gaster com coroa fungo/seda, vida recortada, veias vermelhas pulsantes abaixo de 30% | ✅ | `drawGasterBar` |
+| Trevo, cogumelo, alga, semente, folha de outono e líquen | ✅ | `drawFoodIcon` e atlas de ícones |
+| Cristais âmbar/violeta e partículas de memória | ✅ | `drawEssenceCrystal` |
+| Trilha de onda com formigas animadas | ✅ | `drawTrailAnt`, HUD de ondas |
+| XP como anéis de crescimento da Árvore | ✅ | `drawTreeRings`, agora com três anéis irregulares e seiva de progresso |
+| Minimapa sensorial, não apenas imagem do terreno | ✅ | `drawScentMinimap`: campos reais da IA sob máscara de exploração |
+| Segurar/soltar H, verde comida, vermelho perigo, legenda lore | ✅ | `drawPheromoneOverlay`, `drawPheromoneLegend` |
+| Fonte grande, alto contraste e partículas reduzidas | ✅ | seis biomas auditados; rótulos com largura limitada |
+| Desempenho e preview | ✅ no ambiente medido | 59,47 FPS médios em 1.800 frames com H ativo; servidor em `0.0.0.0:8001` |
+
+### Correções finais
+
+- HUD expandido tinha dois textos na mesma linha. O teste antigo clicava em
+  x=293, fora do botão + em x=304..322: corrigido para realmente abrir o painel.
+- Mais espaço entre nome, coroa, vida e recursos. Textos principais usam escala
+  nativa da fonte bitmap para não perder traços ao reduzir. `maxWidth` limita
+  rótulos após a ampliação de acessibilidade, evitando invasão do campo vizinho.
+- Anéis de XP agora têm aparência de crescimento de madeira, com progresso âmbar.
+- Minimapa mostra comida/perigo reais, preserva marcadores, interação e fog of war;
+  o título agora fica dentro do painel, não no limite superior do canvas.
+- Névoa H preparada em meia resolução a 30 Hz e composta no loop normal. Pan,
+  zoom e shake invalidam imediatamente; não altera campos de IA, dano ou saves.
+- Minimapa sensorial usa uma grade 50×38 a 10 Hz em canvas reutilizado. Mudança de
+  mundo invalida o cache. Sem dependência nova, arquivo de imagem extra ou cache
+  ilimitado. Atlas existentes regenerados pelo pipeline sem diferenças binárias.
+- Botão Invocar ganhou rótulo curto e variante compacta de 44px em viewport
+  mobile, evitando o crescimento automático para cima do painel de ondas.
+
+### Evidências e limites da verificação
+
+Passaram `boot.mjs`, `assets.mjs`, `lorehud.mjs`, `layout.mjs`, `uitest.mjs`,
+`sim.mjs`, `attack.mjs`, `endless.mjs`, `stuck.mjs`, `tree.mjs`, `prophecy.mjs`
+e `docs.mjs`. O teste de layout inclui os seis biomas com fonte ampliada e H.
+
+Chromium real: menu → campanha → introdução → partida, troca controlada entre
+seis biomas, vida baixa, H pressionado/solto/perda de foco, zoom, HUD expandido,
+fonte grande/alto contraste/partículas reduzidas, viewports 844×390 e 390×844,
+entrada/saída do formigueiro e início de onda. Sem exceções JS ou respostas HTTP
+com erro nesse percurso. Capturas e relatório JSON ficam fora do Git.
+
+Na última execução de 1.800 frames (cerca de 30s) com H ligado: **59,47 FPS médios,
+33,4ms no frame mais lento**. A meta de média acima de 55 FPS passou neste ambiente;
+isso não promete ausência de frames lentos nem desempenho idêntico em todo celular.
+Os testes mobile verificam viewport/layout, não um aparelho físico nem toda a
+usabilidade touch. A inspeção dos seis biomas usa seleção controlada, não uma
+campanha inteira. A aprovação estética final cabe ao usuário no preview.
+
+Reprodução: `node game/test/lorehud-browser.mjs` com Playwright no ambiente de
+inspeção e servidor ativo. `BASE_URL`, `CHROMIUM_PATH`, `HUD_SHOTS` e
+`HUD_PERF_FRAMES` são configuráveis (1.800 frames por padrão). Pillow é necessário
+apenas para regenerar arte, não para executar o jogo.
+
+---
+
+## Registro técnico — início da Fase 1 Lore-Total (2026-09-22)
+
+**Branch:** `arena/01a0c98b-fumiga-goat`. **Direção confirmada nesta sessão:**
+híbrido, com sliceboxes 9-slice e spritesheet. Este registro novo não altera os
+blocos históricos nem declara a Fase 1 inteira como 100% concluída.
+
+### Implementado e integrado
+
+- Três atlas originais em `game/assets/ui/` (menos de 4 KiB juntos): seis
+  molduras 9-slice, seis alimentos distintos, cristais âmbar/violeta, quatro
+  passos de formiga e três estados do gaster (vazio, âmbar, ferido).
+- Pipeline reproduzível `tools/make_lore_hud.py`: master 4×, grade pixel art,
+  exportação nearest, transparência real, paleta baseada no sprite da rainha.
+  Fontes 4× podem ser exportadas fora do jogo via `--master`. Pillow é apenas
+  ferramenta de arte, não dependência do jogo.
+- `lore_hud.js`: painéis cacheados por bioma/tamanho (limite de 96), cantos
+  preservados, quitina/cera determinística e respiração discreta. Gaster da
+  rainha com coroa de fungo/seda, recorte de vida e veias vermelhas abaixo de 30%.
+- `game.js`: comida e cristal agora realmente desenhados; trilha com formigas
+  animadas abaixo do texto; separação entre painel da colônia e das ondas;
+  texto de vida baixa sem sobreposição e nomes de bioma com maior contraste.
+- Visão H usa os campos reais de comida/perigo e considera zoom e shake.
+  Névoa pré-rasterizada, sem criar gradientes por célula a cada frame. Legenda
+  bitmap dentro do painel e acima da loja; não disputa espaço com a dica inicial.
+- Carregamento dos atlas no boot, com erro visível se algum falhar. Efeitos
+  decorativos reduzidos pela opção de partículas reduzidas. Sem alterar dano,
+  custos, progressão, saves ou iniciar a Fase 2.
+
+### Verificação desta entrega
+
+- Passaram: `boot.mjs` (incluindo nova falha de atlas HUD), `lorehud.mjs`,
+  `uitest.mjs`, `assets.mjs`, `layout.mjs`, `sim.mjs`, `attack.mjs`, `endless.mjs`,
+  `stuck.mjs`, `tree.mjs`, `prophecy.mjs` e `docs.mjs`.
+- Chromium real: menu → campanha → introdução → partida; seis biomas por
+  seleção controlada no teste, vida a 20%, campos de comida/perigo, H com zoom,
+  entrada/saída do formigueiro e início de onda. Sem exceções JS ou HTTP 404
+  nesse percurso. Isto não é uma campanha completa jogada até o fim.
+- Teste reproduzível opcional `game/test/lorehud-browser.mjs`, requer Playwright
+  no ambiente de inspeção e servidor em :8000. Aceita `CHROMIUM_PATH`, `BASE_URL`
+  e `HUD_SHOTS`; capturas ficam fora do repositório. Sem dependência nova no jogo.
+- Com H ligado, duas amostras headless de 90 frames mediram **54,5 e 58,1 FPS**.
+  A meta de manter pelo menos 55 FPS ainda precisa de validação sustentada no
+  navegador/hardware do jogador; não é declarada garantida.
+
+### Pendências para fechar a fase
+
+- Aprovação visual do usuário e verificação prolongada de desempenho, inclusive
+  mobile e acessibilidade com fonte grande.
+- Anel de XP e minimapa existentes foram preservados; polimento adicional da
+  linguagem de anéis de árvore/trilhas permanece para a continuação da Fase 1.
+- As Fases 2–8 não foram ampliadas nesta entrega.
+
+**Referência pesquisada:** legibilidade do HUD e redução de partículas em
+*Dead Cells*: [2](https://www.gamedeveloper.com/design/dead-cells-devs-drop-surprise-accessibility-update).
+A referência orienta leitura e efeitos, não é fonte dos sprites.
+
+## Fechamento verificado — Fase 1 Lore-Total (2026-09-22)
+
+**Status:** implementação da Fundação Lore concluída e validada neste checkout.
+**Branch:** `arena/01a0c98b-fumiga-goat`. Não inicia nem declara concluída a Fase 2.
+Este registro é novo; os seis documentos históricos abaixo permanecem intactos.
+
+| Critério | Resultado / implementação |
+|---|---|
+| HUD dos seis biomas | Validado: molduras 9-slice, textura quitina/cera cacheada, cores e nomes em `lore_hud.js`, `game.js` e `config.js`. |
+| Vida da Silenciosa | Gaster em atlas, coroa de fungo/seda, alerta abaixo de 30%, veias vermelhas e pulsação do sprite inteiro; efeitos reduzidos desativam o movimento. |
+| Comida | Seis ícones próprios: trevo, cogumelo, alga, semente, folha de outono e líquen. |
+| Essência | Cristais geométricos âmbar/violeta e partículas ascendentes; redução de partículas respeitada. |
+| XP e onda | Anéis da Árvore e trilha de formigas animadas; efeitos reduzidos também param o deslocamento. Contador de onda separado da trilha para melhorar a leitura. |
+| Feromônio | Segurar H mostra campos reais verdes/vermelhos; soltar H ou perder foco desativa. Legenda visível, zoom/shake compensados, minimapa sensorial. Dica H com contraste reforçado. |
+| Arte | `game/assets/ui/lore_{panels,icons,gaster}.png`: três atlas originais, master 4×, exportação nearest; pipeline e recortes documentados em `game/assets/ui/README.md`. |
+| Regressão | Passaram `boot`, `docs`, `assets`, `sim`, `uitest`, `layout`, `tree`, `stuck`, `attack`, `endless`, `prophecy` e `lorehud`. |
+| Navegador | `lorehud-browser.mjs`: seis biomas, vida baixa, H/blur, zoom, acessibilidade, viewports retrato/paisagem, formigueiro e início de onda; nenhum erro JS/HTTP observado. |
+| Desempenho | Gate de **55 FPS médios** passou: **59,05 FPS**, 1.800 quadros com H ativo, maior intervalo 50 ms. Medição headless local, não garantia de mínimo instantâneo ou de desempenho em todos os dispositivos. |
+
+A troca de biomas na inspeção é controlada pelo teste; não representa uma campanha
+completa vencida. O teste de viewport mobile verifica a apresentação, não equivale
+a teste em aparelho físico. Capturas e relatórios ficam fora do Git. Preview servido
+em `0.0.0.0:8000`, rota `/game/`.
+
+Para reproduzir a inspeção (Playwright/Chromium somente no ambiente de teste):
+
+```bash
+HUD_MIN_FPS=55 node game/test/lorehud-browser.mjs
+# Opcional: BASE_URL, CHROMIUM_PATH, HUD_SHOTS e HUD_PERF_FRAMES.
+```
+
 ## Índice dos conteúdos integrais
 
 1. [Regras de trabalho](#fonte-regras-de-trabalho) — `REGRAS_DE_TRABALHO.md`

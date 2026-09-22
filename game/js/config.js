@@ -617,7 +617,7 @@ export const SKIP_BONUS = 15;      // essência por invocar onda cedo
 // expedição para um bioma novo — a colônia migra com você.
 export const MAPS = [
   {
-    id: "planicie", name: "PLANÍCIE DO AMANHECER",
+    id: "planicie", loreName: "VASO DA PLANÍCIE", name: "PLANÍCIE DO AMANHECER",
     sub: "Um gramado amplo onde a colônia fincou suas raízes.",
     boss: "hare",
     ground: {
@@ -647,7 +647,7 @@ export const MAPS = [
     ],
   },
   {
-    id: "floresta", name: "FLORESTA DE MUSGO",
+    id: "floresta", loreName: "CÂMARA DE MUSGO", name: "FLORESTA DE MUSGO",
     sub: "Árvores antigas guardam segredos — e predadores.",
     boss: "fox",
     ground: {
@@ -677,7 +677,7 @@ export const MAPS = [
     ],
   },
   {
-    id: "pantano", name: "PÂNTANO PÚTRIDO",
+    id: "pantano", loreName: "VENTRE PÚTRIDO", name: "PÂNTANO PÚTRIDO",
     sub: "Águas paradas, insetos gordos e fome velha.",
     boss: "grouse",
     ground: {
@@ -708,7 +708,7 @@ export const MAPS = [
     ],
   },
   {
-    id: "deserto", name: "DESERTO CALCINADO",
+    id: "deserto", loreName: "FORNALHA DE AREIA", name: "DESERTO CALCINADO",
     sub: "Areia, ossos e o zumbido de uma colônia rival.",
     boss: "matriarch",
     ground: {
@@ -739,7 +739,7 @@ export const MAPS = [
     ],
   },
   {
-    id: "outono", name: "BOSQUE DOURADO",
+    id: "outono", loreName: "CÂMARA DOURADA", name: "BOSQUE DOURADO",
     sub: "Um outono eterno. As folhas caem; a fome não.",
     boss: "deer",
     ground: {
@@ -770,7 +770,7 @@ export const MAPS = [
     ],
   },
   {
-    id: "gelo", name: "PICO CONGELADO",
+    id: "gelo", loreName: "GASTER CONGELADO", name: "PICO CONGELADO",
     sub: "O topo do mundo, onde só a fome sobrevive.",
     boss: "boar",
     ground: {
