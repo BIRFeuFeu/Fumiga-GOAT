@@ -3,6 +3,8 @@
 // ============================================================================
 
 const MANIFEST = {
+  // névoa — manto de fog branca dos inimigos (spritesheet 6x48x48)
+  fog_mantle: "sprites/fx/fog_mantle.png",
   // formigas
   worker: "sprites/ants/worker.png",
   soldier: "sprites/ants/soldier.png",
@@ -147,6 +149,39 @@ export const IMG = {};   // key -> HTMLImageElement (sprites crus)
 const ROT = {};          // key -> { frames:[canvas], w, h } (24 rotações)
 const WROT = {};         // silhuetas brancas rotacionadas (hit flash)
 
+// ---------------------------------------------------------------------------
+// Versão dos assets servidos. BUMP OBRIGATÓRIO toda vez que qualquer PNG em
+// game/assets/ for regenerado (pipeline, rework de arte etc.): o ?v= abaixo
+// invalida o cache do navegador/CDN. Sem isso o jogador continua vendo a arte
+// ANTIGA nos mesmos nomes de arquivo (foi assim que o rework dos inimigos da
+// Fase 2 "não apareceu" para quem já tinha jogado antes dele).
+// ---------------------------------------------------------------------------
+export const ASSET_V = "20260922";
+
+/**
+ * URL final de um asset do jogo: base certa para a página atual + anti-cache.
+ * O shell mobile (game/mobile/) mora um nível abaixo do PC: lá a base é
+ * ../assets/, no PC é assets/. `path` aceita com ou sem o prefixo "assets/".
+ */
+export function assetUrl(path) {
+  const rel = String(path).replace(/^(\.\.\/)*assets\//, "");
+  return assetBase() + rel + "?v=" + ASSET_V;
+}
+
+function assetBase() {
+  // 1) caminho da página (browser de verdade)
+  try {
+    if (typeof location !== "undefined" && location.pathname &&
+        location.pathname.indexOf("/mobile/") !== -1) return "../assets/";
+  } catch (e) { /* sem location (testes headless) */ }
+  // 2) marca do shell mobile (game/mobile/index.html define antes do motor)
+  try {
+    if (typeof globalThis !== "undefined" &&
+        globalThis.FUMIGA_SAVE_KEY === "fumiga_goat_mobile_save_v1") return "../assets/";
+  } catch (e) { /* ok */ }
+  return "assets/";
+}
+
 // -------------------------------------------------------------------- load --
 export function loadAll(onProgress) {
   const keys = Object.keys(MANIFEST);
@@ -155,7 +190,7 @@ export function loadAll(onProgress) {
     const img = new Image();
     img.onload = () => { IMG[k] = img; done++; onProgress && onProgress(done / keys.length); res(); };
     img.onerror = () => rej(new Error("Falha ao carregar " + MANIFEST[k]));
-    img.src = "assets/" + MANIFEST[k];
+    img.src = assetUrl(MANIFEST[k]);
   })));
 }
 
@@ -323,4 +358,34 @@ export function bakeSheet(key, cols, outFW = 96) {
   }));
   SHEETS[key] = sheet;
   return sheet;
+}
+
+// ------------------------------------------------------------------ névoa ---
+// MANTO DA NÉVOA: fatia a faixa horizontal (N frames lado a lado) em canvases.
+// Lazy + cacheado — o primeiro inimigo desenhado assa, o resto reutiliza.
+export const FOG_FRAMES = 6;
+const FOG = {}; // key -> { frames:[canvas] }
+export function bakeFog(key, n = FOG_FRAMES) {
+  if (FOG[key]) return FOG[key];
+  const img = IMG[key];
+  const frames = [];
+  if (img && img.width > 0) {
+    const fw = Math.round(img.width / n), fh = img.height;
+    for (let i = 0; i < n; i++) {
+      const cv = document.createElement("canvas");
+      cv.width = fw; cv.height = fh;
+      const c = cv.getContext("2d");
+      c.imageSmoothingEnabled = false;
+      c.drawImage(img, i * fw, 0, fw, fh, 0, 0, fw, fh);
+      frames.push(cv);
+    }
+  }
+  FOG[key] = { frames };
+  return FOG[key];
+}
+export function fogFrame(key, idx) {
+  const s = bakeFog(key);
+  if (!s.frames.length) return null;
+  const n = s.frames.length;
+  return s.frames[((idx % n) + n) % n];
 }

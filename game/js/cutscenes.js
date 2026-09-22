@@ -8,6 +8,7 @@ import { VIEW_W, VIEW_H, MAPS } from "./config.js";
 import { G, persistSave } from "./state.js";
 import { drawText, wrapText } from "./font.js";
 import { SFX } from "./audio.js";
+import { assetUrl } from "./assets.js";
 
 const CUTSCENE_DEFS = {
   noite_branca: {
@@ -171,7 +172,7 @@ function loadPanelLayers(def, pIdx) {
       images[i] = layer;
     };
     img.onerror = () => { images[i] = null; };
-    img.src = `assets/cutscenes/${def.id}/${panel.assetPanel || panel.id}/${i}_${names[i]}.png`;
+    img.src = assetUrl(`assets/cutscenes/${def.id}/${panel.assetPanel || panel.id}/${i}_${names[i]}.png`);
   }
 }
 

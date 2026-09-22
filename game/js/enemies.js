@@ -172,12 +172,7 @@ function updateEnemy(e, dt, allies) {
   }
   if (e.stunT > 0) return;
 
-  // FASE 2: FILHOS DA NÉVOA — rastro pálido (~2/s por inimigo, some no modo reduzido)
-  const reduced = !!G.save?.accessibility?.reducedParticles || G.save?.settings?.particles === false;
-  if (!reduced && Math.random() < dt * 2) {
-    spawnPart({ x: e.x + rand(-4, 4), y: e.y + rand(-2, 4), vx: rand(-8, 8), vy: rand(-14, -4), life: 0.6, size: 1.6, sizeEnd: 0.5, color: "#c9bce8", glow: true, drag: 1 });
-  }
-
+  // (rastro pálido removido — o Manto da Névoa em spritesheet o substitui)
   e.thinkT -= dt;
   if (e.thinkT <= 0) {
     e.thinkT = 0.18;

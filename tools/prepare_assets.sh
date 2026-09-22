@@ -71,6 +71,33 @@ species "$E/aranha.png"       e_matron.png    64 52   # MATRONA PÁLIDA (aranha 
 # Cores ORIGINAIS: nenhum -modulate nos sprites de formiga — as artes das
 # espécies (rework-*.png) entram exatamente como foram desenhadas.
 
+# ------------------------------------------------------------------ Névoa ----
+# MANTO DA NÉVOA (inimigos comuns + chefes): spritesheet 6 frames de 48x48
+# desenhada via plasma DETERMINÍSTICO (sementes fixas + 1 thread — a mesma
+# receita sempre gera bytes idênticos). Paleta da Névoa (Regra 6): osso
+# #e8f4ff, sombra #c9bce8. O movimento vem do jogo (ciclo 6fps + deriva +
+# balanço em 2 camadas).
+mkdir -p "$OUT/sprites/fx"
+FOGDIR=$(mktemp -d)
+for i in 0 1 2 3 4 5; do
+  seed=$((1100 + i * 77))
+  convert -limit thread 1 -size 16x16 radial-gradient:white-black -roll +0+1 \
+    \( -seed $seed -size 16x16 plasma:fractal -colorspace Gray -evaluate multiply 0.40 -evaluate add 60% \) \
+    -compose Multiply -composite -gamma 0.75 -level 6%,100% "$FOGDIR/mask_$i.png"
+  rx=$(( (i * 5) % 16 )); ry=$(( (i * 9 + 4) % 16 ))
+  convert -limit thread 1 -seed $((2200 + i * 131)) -size 16x16 plasma:fractal \
+    -colorspace Gray -roll +${rx}+${ry} -level 30%,72% -posterize 3 \
+    +level-colors "#c9bce8,#e8f4ff" \
+    \( "$FOGDIR/mask_$i.png" -alpha off \) -compose CopyOpacity -composite \
+    -channel A -evaluate multiply 0.62 +channel \
+    -sample 300% "$FOGDIR/frame_$i.png"
+done
+convert "$FOGDIR/frame_0.png" "$FOGDIR/frame_1.png" "$FOGDIR/frame_2.png" \
+        "$FOGDIR/frame_3.png" "$FOGDIR/frame_4.png" "$FOGDIR/frame_5.png" \
+        +append -strip "$OUT/sprites/fx/fog_mantle.png"
+echo "  névoa fog_mantle.png ($(identify -format '%wx%h' "$OUT/sprites/fx/fog_mantle.png"))"
+rm -rf "$FOGDIR"
+
 # ----------------------------------------------------------------- Animais ----
 # sheets 4 direções (linhas) x N frames (colunas) com células 32x32 -> sobe pra 64
 A="$ROOT/animais/animais/Without_shadow"
@@ -296,3 +323,4 @@ else
 fi
 
 echo "Concluído -> $OUT"
+echo "LEMBRETE: se algum PNG mudou, dê bump em ASSET_V (game/js/assets.js) — senão o cache do jogador esconde a arte nova."

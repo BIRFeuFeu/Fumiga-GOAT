@@ -498,6 +498,18 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - **Validação obrigatória:** rodar a suíte inteira antes de subir, incluindo `node game/test/mobile.mjs` (joga a versão mobile headless do boot até a expedição só com toque). Se uma mudança quebrar algo no mobile, os testes avisam antes do push.
 - As duas versões são **paralelas e sem conexão** (saves isolados por slot): progresso nunca é sincronizado entre elas.
 
+## Regra 10 — Sempre mostrar a arte gerada 🖼️
+
+> **Toda arte gerada (sprites, spritesheets, animações, ícones, cenários) deve ser mostrada ao usuário — nunca apenas descrita.**
+
+- Ao gerar qualquer arte, **abrir a imagem na frente do usuário** (viewer) para aprovação visual:
+  - spritesheets: mostrar a folha + mock aplicado em contexto de jogo;
+  - animações: mostrar os frames e, quando possível, o comportamento em jogo;
+  - sprites estáticos: mostrar a arte final no tamanho de uso e ampliada.
+- Descrição em texto não substitui o olhar do usuário: arte sem exibição não conta como entregue.
+- Se a arte for refeita ou ajustada, mostrar a nova versão também.
+- Manter os previews acessíveis e citar os caminhos para o usuário revisitar.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -505,10 +517,11 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
 4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6) + Regra 8 não-humanóide
-5. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
-6. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
-7. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
-8. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
+5. MOSTRAR    → exibir toda arte gerada para aprovação visual (Regra 10)
+6. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
+7. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
+8. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
+9. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,
@@ -1892,7 +1905,7 @@ parte dos blocos originais.
 
 | Arquivo original | Bytes preservados | SHA-256 |
 |---|---:|---|
-| `REGRAS_DE_TRABALHO.md` | 10718 | `31c453894502a6ae86e8749b49caa493316a2c9ac29eb9fb8b4cc2e484b26a31` |
+| `REGRAS_DE_TRABALHO.md` | 11570 | `e7c8021d6c9020ff8f11e278864095e9e5ba63cfb47e1031a2ff17bb2e5e55d2` |
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
@@ -1903,3 +1916,19 @@ parte dos blocos originais.
 O teste compara byte a byte cada bloco com seu arquivo original, confere os
 hashes e verifica que todas as seis fontes aparecem exatamente uma vez.
 Os READMEs da raiz e de `game/` não foram incorporados, conforme o escopo escolhido.
+
+---
+# REGISTRO — Manto da Névoa (2026-09-22, branch arena/01a0ca96)
+Pedido do usuário: retirar os olhos brilhosos dos inimigos; todo inimigo com
+fog branca animada em volta (spritesheet desenhada, um pouco transparente,
+adaptada ao tamanho). Lore base: Névoa "branca, doce e silenciosa" (Prólogo),
+PÁLIDA/ninho branco, Ascensão/NÉVOA PLENA.
+Decisões (ask_user): manto = fog densa embaixo + véu fino em cima; remover
+TODO o VFX pálido antigo; chefes também com fog (maior/densa); densidade média.
+Entregue: `game/assets/sprites/fx/fog_mantle.png` (6x48x48, plasma
+determinístico — sementes fixas + `-limit thread 1` + `-strip`, verificado com
+`cmp`), seção Névoa em `tools/prepare_assets.sh`, `fog_mantle` no MANIFEST,
+`bakeFog`/`fogFrame`/`FOG_FRAMES` em `game/js/assets.js`, manto em
+`drawAnt`/`drawBoss` (`game/js/render.js`), rastro pálido removido de
+`game/js/enemies.js`. Olhos/elipse pálida/aura removidos; orbes + coroa da
+fase 2 mantidos. Suíte 13/16 (3 falhas pré-existentes, iguais ao baseline).

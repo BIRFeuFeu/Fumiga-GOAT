@@ -1,6 +1,7 @@
 import { G } from "./state.js";
 import { drawText } from "./font.js";
 import { MAPS } from "./config.js";
+import { assetUrl } from "./assets.js";
 
 // ============================================================================
 // LORE HUD — Sistema Orgânico Total por Bioma
@@ -160,7 +161,7 @@ export function loadLoreHUD() {
     const img = new Image();
     img.onload = () => { art[key] = img; panelCache.clear(); resolve(); };
     img.onerror = () => reject(new Error("HUD não carregou: lore_" + key + ".png"));
-    img.src = "assets/ui/lore_" + key + ".png";
+    img.src = assetUrl("assets/ui/lore_" + key + ".png");
   })));
   return loading;
 }

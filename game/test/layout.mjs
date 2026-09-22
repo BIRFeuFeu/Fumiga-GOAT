@@ -14,6 +14,9 @@ const FONT_META = {
   "assets/font/font_big.png": { cw: 22, ch: 30, ink: 20, inkY: 5 },
   "assets/font/font_small.png": { cw: 13, ch: 16, ink: 11, inkY: 3 },
 };
+// As URLs reais levam base do shell (PC ou ../ no mobile) + ?v= anti-cache
+// (assetUrl em js/assets.js): normaliza antes de procurar no FONT_META.
+const fontKey = (u) => String(u || "").replace(/^(\.\.\/)+/, "").split("?")[0];
 
 // ------------------------------------------------------------------ canvas --
 let REC = null;            // coletor de operações do canvas principal
@@ -100,7 +103,7 @@ class MockCtx {
   drawImage(img, ...a) {
     // 0) atlas da fonte tingido num canvas auxiliar: marca de qual fonte é,
     //    para depois reconstruir o texto glifo a glifo
-    if (img && img._src && FONT_META[img._src]) this.cv._fontName = img._src;
+    if (img && img._src && FONT_META[fontKey(img._src)]) this.cv._fontName = fontKey(img._src);
     // 1) desenho de glifo numa linha (canvas de fonte tingida -> texto)
     if (img && img._fontName && a.length >= 8) {
       const meta = FONT_META[img._fontName];
@@ -161,7 +164,7 @@ globalThis.Image = class {
   constructor() { this.width = 64; this.height = 64; this._src = ""; }
   set src(v) {
     this._src = v;
-    const meta = FONT_META[v];
+    const meta = FONT_META[fontKey(v)];
     if (meta) { this.width = 264; this.height = 180; }
     if (this.onload) setTimeout(() => this.onload(), 0);
   }

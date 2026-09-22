@@ -3,6 +3,7 @@
 // Atlas: grade 12 colunas; ordem = FONT.CHARS
 // ============================================================================
 import { G } from "./state.js";
+import { assetUrl } from "./assets.js";
 
 // Ordem idêntica à do pipeline (tools/prepare_assets.sh, array CHS):
 // 12 colunas por linha. Os glifos extras ficam no fim para não deslocar índice
@@ -33,7 +34,7 @@ export function loadFonts() {
     const img = new Image();
     img.onload = () => { imgs[k] = img; res(); };
     img.onerror = () => rej(new Error("fonte não carregou: " + f.src));
-    img.src = f.src;
+    img.src = assetUrl(f.src);
   })));
 }
 

@@ -3,7 +3,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL } from "./config.js";
 import { G } from "./state.js";
-import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet, rotDrawSize } from "./assets.js";
+import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet, rotDrawSize, fogFrame, FOG_FRAMES } from "./assets.js";
 import { world } from "./world.js";
 import { cam, worldToScreen, visibleWorldRect, screenToWorld } from "./camera.js";
 import { allies, eggs } from "./units.js";
@@ -351,6 +351,22 @@ function drawAnt(ctx, u, w2s) {
   const w = size * z * squashX, h = size * sc;
   // FASE 2: aura da casta por baixo do sprite (1 elipse, sem gradiente)
   if (!u.dead && u.faction === "ally") drawAllyAura(ctx, dx, dy, z, u.type, u.bodyR, G.time);
+  // MANTO DA NÉVOA (camada de baixo): fog branca densa sob o corpo do inimigo.
+  // Tamanho adaptado ao bodyR; some junto na morte (alpha). Substitui aura/olhos.
+  if (!u.dead && u.faction !== "ally" && !u.isBoss) {
+    const fPh = (((u.id % 100) + 100) % 100) / 100;
+    const fIdx = Math.floor(G.time * 6 + fPh * FOG_FRAMES) % FOG_FRAMES;
+    const under = fogFrame("fog_mantle", fIdx);
+    if (under) {
+      const uw = size * 1.45 * z, uh = uw * 0.78;
+      ctx.save();
+      ctx.translate(dx + Math.sin(G.time * 0.7 + fPh * 6.28) * 4 * z, dy + 4 * z);
+      ctx.rotate(Math.sin(G.time * 0.5 + fPh * 6.28) * 0.25);
+      ctx.globalAlpha = 0.95 * alpha;
+      ctx.drawImage(under, -uw / 2, -uh / 2, uw, uh);
+      ctx.restore();
+    }
+  }
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(dx, dy);
@@ -361,38 +377,20 @@ function drawAnt(ctx, u, w2s) {
 
   if (u.dead) return;
 
-  // FASE 2: FILHOS DA NÉVOA — inimigos comuns pálidos (não-chefes).
-  // Tom pálido + olhos de névoa branca. Regra 8: nada humanoide, só fauna.
+  // MANTO DA NÉVOA (véu de cima): camada fina sobre o corpo, contrafase da
+  // de baixo — o inimigo respira dentro da fog. Sem olhos: a Névoa não tem rosto.
   if (u.faction !== "ally" && !u.isBoss) {
-    // aura pálida ao redor do corpo
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = "#e8f4ff";
-    ctx.beginPath();
-    ctx.ellipse(dx, dy, (u.bodyR + 6) * z, (u.bodyR + 6) * 0.6 * z, 0, 0, TAU);
-    ctx.fill();
-    ctx.restore();
-    // véu pálido sobre o corpo (screen, barato: 1 elipse)
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.28;
-    ctx.fillStyle = "#e8f4ff";
-    ctx.beginPath();
-    ctx.ellipse(dx, dy - 2 * z, u.bodyR * z, u.bodyR * 0.7 * z, 0, 0, TAU);
-    ctx.fill();
-    ctx.restore();
-    // olhos de névoa branca na frente (lighter)
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.fillStyle = "#fff";
-    const er = Math.max(1.5, 1.8 * z);
-    const fx = dx + Math.cos(u.angle) * u.bodyR * 0.45 * z;
-    const fy = dy + Math.sin(u.angle) * u.bodyR * 0.45 * z - 2 * z;
-    const px = Math.cos(u.angle + Math.PI / 2) * 3 * z;
-    const py = Math.sin(u.angle + Math.PI / 2) * 3 * z;
-    ctx.beginPath(); ctx.arc(fx + px, fy + py, er, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(fx - px, fy - py, er, 0, TAU); ctx.fill();
-    ctx.restore();
+    const fPh2 = (((u.id % 100) + 100) % 100) / 100;
+    const over = fogFrame("fog_mantle", Math.floor(G.time * 6 + fPh2 * FOG_FRAMES + 3) % FOG_FRAMES);
+    if (over) {
+      const ow = size * 1.08 * z, oh = ow * 0.9;
+      ctx.save();
+      ctx.translate(dx + Math.cos(G.time * 0.6 + fPh2 * 6.28) * 3 * z, dy - 2 * z);
+      ctx.rotate(-Math.sin(G.time * 0.5 + fPh2 * 6.28) * 0.2);
+      ctx.globalAlpha = 0.42 * alpha;
+      ctx.drawImage(over, -ow / 2, -oh / 2, ow, oh);
+      ctx.restore();
+    }
   }
 
   if (u.carry > 0 && u.carryKind) {
@@ -488,6 +486,23 @@ function drawBoss(ctx, b, w2s) {
   ctx.fillStyle = "rgba(10,7,16,0.6)";
   ctx.beginPath(); ctx.ellipse(s.x, s.y + 34 * z, shW * z, 16 * z, 0, 0, TAU); ctx.fill();
 
+  // MANTO DA NÉVOA (chefe, camada de baixo): maior e mais denso que o dos
+  // inimigos comuns. Some junto na morte.
+  {
+    const bfPh = (b.kind.charCodeAt(0) % 100) / 100;
+    const bUnder = fogFrame("fog_mantle", Math.floor(G.time * 4 + bfPh * FOG_FRAMES) % FOG_FRAMES);
+    if (bUnder) {
+      const buw = (b.bodyR * 2 * 2.2 + 40) * z, buh = buw * 0.75;
+      const bAlpha = b.dying ? clamp(b.dying / 1.2, 0, 1) : 1;
+      ctx.save();
+      ctx.translate(s.x + Math.sin(G.time * 0.5 + bfPh * 6.28) * 6 * z, s.y + 10 * z);
+      ctx.rotate(Math.sin(G.time * 0.4 + bfPh * 6.28) * 0.2);
+      ctx.globalAlpha = Math.min(1, (b.phase2 ? 1 : 0.95) * bAlpha);
+      ctx.drawImage(bUnder, -buw / 2, -buh / 2, buw, buh);
+      ctx.restore();
+    }
+  }
+
   if (b.def.rotMode) {
     const key = b.def.sprite;
     const frame = b.hitT > 0 ? whiteRotFrame(key, b.angle) : rotFrame(key, b.angle);
@@ -507,6 +522,20 @@ function drawBoss(ctx, b, w2s) {
       const hx = s.x + Math.cos(b.angle) * 40 * z, hy = s.y + Math.sin(b.angle) * 40 * z - 12 * z;
       ctx.beginPath(); ctx.arc(hx, hy, 12 * z, 0, TAU); ctx.fill();
       ctx.restore();
+    }
+    // MANTO DA NÉVOA (matriarca, véu de cima): contrafase da camada de baixo.
+    {
+      const bfPh = (b.kind.charCodeAt(0) % 100) / 100;
+      const bOver = fogFrame("fog_mantle", Math.floor(G.time * 4 + bfPh * FOG_FRAMES + 3) % FOG_FRAMES);
+      if (bOver) {
+        const bow = (b.bodyR * 2 * 1.5 + 20) * z, boh = bow * 0.85;
+        const bAlpha = b.dying ? clamp(b.dying / 1.2, 0, 1) : 1;
+        ctx.save();
+        ctx.translate(s.x + Math.cos(G.time * 0.6 + bfPh * 6.28) * 5 * z, s.y - 4 * z);
+        ctx.globalAlpha = (b.phase2 ? 0.55 : 0.45) * bAlpha;
+        ctx.drawImage(bOver, -bow / 2, -boh / 2, bow, boh);
+        ctx.restore();
+      }
     }
     return;
   }
@@ -542,6 +571,21 @@ function drawBoss(ctx, b, w2s) {
   }
   ctx.drawImage(wfr, s.x - fw / 2, s.y - fh + 40 * z - lift, fw, fh);
 
+  // MANTO DA NÉVOA (chefe, véu de cima): contrafase da camada de baixo.
+  {
+    const bfPh = (b.kind.charCodeAt(0) % 100) / 100;
+    const bOver = fogFrame("fog_mantle", Math.floor(G.time * 4 + bfPh * FOG_FRAMES + 3) % FOG_FRAMES);
+    if (bOver) {
+      const bow = (b.bodyR * 2 * 1.5 + 20) * z, boh = bow * 0.85;
+      const bAlpha = b.dying ? clamp(b.dying / 1.2, 0, 1) : 1;
+      ctx.save();
+      ctx.translate(s.x + Math.cos(G.time * 0.6 + bfPh * 6.28) * 5 * z, s.y - 4 * z);
+      ctx.globalAlpha = (b.phase2 ? 0.55 : 0.45) * bAlpha;
+      ctx.drawImage(bOver, -bow / 2, -boh / 2, bow, boh);
+      ctx.restore();
+    }
+  }
+
   if ((b.kind === "fox" || b.kind === "grouse") && b.sub === "aim") {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
@@ -549,15 +593,12 @@ function drawBoss(ctx, b, w2s) {
     ctx.beginPath(); ctx.arc(s.x, s.y - 20 * z, 42 * z, 0, TAU); ctx.fill();
     ctx.restore();
   }
-  // FASE2: aura névoa pálida + coroa fungo/seda nos bosses
+  // FASE2: manto adensado (as 2 camadas já sobem de alfa) + névoa subindo +
+  // coroa fungo/seda nos bosses. A elipse pálida antiga foi removida.
   if (b.phase2) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.22 + Math.sin(G.time*3)*0.1;
     ctx.fillStyle = "#e8f4ff";
-    ctx.beginPath();
-    ctx.ellipse(s.x, s.y+20*z, (b.bodyR+24)*z, (b.bodyR+12)*z*0.5, 0, 0, Math.PI*2);
-    ctx.fill();
     // névoa subindo
     ctx.globalAlpha = 0.35;
     for (let i=0;i<3;i++) {
