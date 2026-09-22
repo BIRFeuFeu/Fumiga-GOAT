@@ -296,3 +296,4 @@ else
 fi
 
 echo "Concluído -> $OUT"
+echo "LEMBRETE: se algum PNG mudou, dê bump em ASSET_V (game/js/assets.js) — senão o cache do jogador esconde a arte nova."

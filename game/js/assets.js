@@ -147,6 +147,39 @@ export const IMG = {};   // key -> HTMLImageElement (sprites crus)
 const ROT = {};          // key -> { frames:[canvas], w, h } (24 rotações)
 const WROT = {};         // silhuetas brancas rotacionadas (hit flash)
 
+// ---------------------------------------------------------------------------
+// Versão dos assets servidos. BUMP OBRIGATÓRIO toda vez que qualquer PNG em
+// game/assets/ for regenerado (pipeline, rework de arte etc.): o ?v= abaixo
+// invalida o cache do navegador/CDN. Sem isso o jogador continua vendo a arte
+// ANTIGA nos mesmos nomes de arquivo (foi assim que o rework dos inimigos da
+// Fase 2 "não apareceu" para quem já tinha jogado antes dele).
+// ---------------------------------------------------------------------------
+export const ASSET_V = "20260922";
+
+/**
+ * URL final de um asset do jogo: base certa para a página atual + anti-cache.
+ * O shell mobile (game/mobile/) mora um nível abaixo do PC: lá a base é
+ * ../assets/, no PC é assets/. `path` aceita com ou sem o prefixo "assets/".
+ */
+export function assetUrl(path) {
+  const rel = String(path).replace(/^(\.\.\/)*assets\//, "");
+  return assetBase() + rel + "?v=" + ASSET_V;
+}
+
+function assetBase() {
+  // 1) caminho da página (browser de verdade)
+  try {
+    if (typeof location !== "undefined" && location.pathname &&
+        location.pathname.indexOf("/mobile/") !== -1) return "../assets/";
+  } catch (e) { /* sem location (testes headless) */ }
+  // 2) marca do shell mobile (game/mobile/index.html define antes do motor)
+  try {
+    if (typeof globalThis !== "undefined" &&
+        globalThis.FUMIGA_SAVE_KEY === "fumiga_goat_mobile_save_v1") return "../assets/";
+  } catch (e) { /* ok */ }
+  return "assets/";
+}
+
 // -------------------------------------------------------------------- load --
 export function loadAll(onProgress) {
   const keys = Object.keys(MANIFEST);
@@ -155,7 +188,7 @@ export function loadAll(onProgress) {
     const img = new Image();
     img.onload = () => { IMG[k] = img; done++; onProgress && onProgress(done / keys.length); res(); };
     img.onerror = () => rej(new Error("Falha ao carregar " + MANIFEST[k]));
-    img.src = "assets/" + MANIFEST[k];
+    img.src = assetUrl(MANIFEST[k]);
   })));
 }
 
