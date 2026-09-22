@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover: respeita notch/safe-area · user-scalable=no: o
+     pinch do navegador não pode brigar com o pinch de zoom do jogo -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FUMIGA — Colônia Eterna (Mobile)</title>
+<meta name="description" content="Versão mobile de FUMIGA: roguelite de colônia de formigas em pixel art, com controles de toque. Paralela à versão PC, mesmo motor.">
+<meta name="theme-color" content="#0a0812">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="mobile.css">
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkaGj4DwAFhAJ/ylK4NQAAAABJRU5ErkJggg==">
+</head>
+<body>
+<!-- VERSÃO MOBILE — paralela à de PC, sem conexão entre elas:
+     • save próprio (slot separado abaixo) — progressos independentes;
+     • mesmo motor (../js/*.js) — qualquer atualização nas duas ao mesmo tempo;
+     • shell próprio: enquadramento 16:9 sem distorção + camada de toque. -->
+<script>
+  // Slot de save exclusivo da versão mobile (lido por js/state.js).
+  window.FUMIGA_SAVE_KEY = "fumiga_goat_mobile_save_v1";
+</script>
+<div id="frame">
+  <canvas id="game" width="960" height="540"></canvas>
+</div>
+<!-- HUD de toque (botões virtuais) e faixa de rotação, criados por touch.js -->
+<div id="touch-hud" hidden></div>
+<div id="touch-mode-btn" hidden></div>
+<div id="rotate-hint" hidden>
+  <span>↻ Gire o celular para jogar melhor</span>
+  <button id="rotate-hint-x" aria-label="Fechar aviso">✕</button>
+</div>
+<script type="module" src="../js/main.js"></script>
+<script type="module" src="touch.js"></script>
+</body>
+</html>

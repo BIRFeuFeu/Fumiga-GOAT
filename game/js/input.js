@@ -9,6 +9,24 @@ export const keys = Object.create(null);     // estado atual por código
 export const pressed = Object.create(null);  // true por 1 tick (keydown)
 export const released = Object.create(null); // true por 1 tick (keyup)
 
+// ============================================================================
+// VERSÃO MOBILE — estado do modo toque (shell game/mobile/).
+// A versão mobile é PARALELA à de PC: compartilha este motor, mas só ativa
+// estes flags quem carrega a camada de toque. No PC tudo segue false e o
+// comportamento é exatamente o mesmo de antes.
+//   on     = true quando a camada de toque está ativa (versão mobile)
+//   smart  = gestos inteligentes: toque na formiga seleciona, toque no
+//            chão/inimigo/comida dá ordem (padrão da versão mobile)
+//   mode   = "ordenar" | "selecionar" — modo explícito opcional
+//            (ligável nas OPÇÕES → CONTROLES); só usado quando smart=false
+// ============================================================================
+export const touchMode = { on: false, smart: false, mode: "ordenar" };
+export function enableTouchMode(smart) {
+  touchMode.on = true;
+  touchMode.smart = !!smart;
+  touchMode.mode = "ordenar";
+}
+
 export const mouse = {
   x: 0, y: 0,           // posição em coords virtuais
   down: false,          // botão esquerdo pressionado

@@ -822,6 +822,17 @@ export const HELP_CONTROLS = [
   ["1 A 0", "Chocar classes (0 = Tecelã). A Dinoponera é só no card"],
   ["ESC", "Pausar / voltar"],
 ];
+// Controles da VERSÃO MOBILE (camada de toque game/mobile/touch.js)
+export const HELP_CONTROLS_TOUCH = [
+  ["ARRASTAR (1 DEDO)", "Mover a câmera / explorar o mapa"],
+  ["TOQUE", "Ordenar formigas selecionadas"],
+  ["TOQUE NA FORMIGA", "Selecionar (modo gesto inteligente)"],
+  ["TOQUE DUPLO", "Selecionar o tipo visível na tela"],
+  ["ARRASTAR (2 DEDOS)", "Caixa de seleção"],
+  ["PINÇA", "Zoom"],
+  ["BOTÕES NA TELA", "Pausa • Ninho • Rali • Onda • Zoom • Centro"],
+  ["CARDS DA LOJA", "Toque no card para chocar a classe"],
+];
 export const HELP_TIPS = [
   "MATABELES curam o exército - feridas críticas em dobro.",
   "PRATA é veloz e barata: intercepta invasores e revela o mapa.",
