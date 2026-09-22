@@ -512,6 +512,39 @@ function drawBoss(ctx, b, w2s) {
     ctx.beginPath(); ctx.arc(s.x, s.y - 20 * z, 42 * z, 0, TAU); ctx.fill();
     ctx.restore();
   }
+  // FASE2: aura névoa pálida + coroa fungo/seda nos bosses
+  if (b.phase2) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.22 + Math.sin(G.time*3)*0.1;
+    ctx.fillStyle = "#e8f4ff";
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y+20*z, (b.bodyR+24)*z, (b.bodyR+12)*z*0.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    // névoa subindo
+    ctx.globalAlpha = 0.35;
+    for (let i=0;i<3;i++) {
+      ctx.beginPath();
+      ctx.arc(s.x + Math.sin(G.time*0.8+i)*12*z, s.y - (20+i*12)*z, (4+i*2)*z, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+    // coroa fungo/seda no boss (não humanoide)
+    ctx.fillStyle = "#ffd479";
+    ctx.globalAlpha = 0.85;
+    for (let i=-1;i<=1;i++) {
+      const cx = s.x + i*10*z;
+      const cy = s.y - (b.bodyR+18)*z + Math.abs(i)*2*z;
+      ctx.fillRect(cx-1*z, cy, 2*z, 5*z);
+      ctx.beginPath(); ctx.arc(cx, cy, 3.2*z, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // fox invisível
+  if (b.kind === "fox" && b.invisibleT > 0) {
+    ctx.fillStyle = "rgba(143,123,181,0.22)";
+    ctx.fillRect(s.x - 60*z, s.y - 60*z, 120*z, 80*z);
+  }
 }
 
 // ================================================================= TÍTULO ===

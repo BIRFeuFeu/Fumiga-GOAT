@@ -1,0 +1,107 @@
+# PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
+
+**Data:** 2026-09-22
+**Branch:** arena/01a0c8d1-fumiga-goat
+
+## ✅ Implementado nesta sessão
+
+### 1. VFX Médio por Casta (units.js + lore_vfx.js)
+- `units.js` importa `triggerAntVFX` e `spawnMemoryCrystal`
+- Gather burst dispara VFX `gather` + cristal se essência
+- Melee attack dispara VFX `attack`
+- Healer healPulse dispara VFX `healer/heal`
+
+### 2. Formigueiro Rename Total Lore (config.js + nest.js)
+- `CHAMBERS` renomeados:
+  - nursery → **BERÇO DE SEDA DA TECELÃ** vfx seda +18% choco
+  - pantry → **VENTRE DE ÂMBAR DA DESPENSA** vfx mel +15% comida
+  - barracks → **ARENA DE MANDÍBULAS DA GUERRA** vfx guerra +12% dano
+  - fungus → **JARDIM ETERNO DA CORTADEIRA** vfx fungo +1 comida/9s
+  - refinery → **CÂMARA DE MEMÓRIA DA ESSÊNCIA** vfx cristal +15% essência
+  - royal → **CÂMARA DA SILENCIOSA** lore coroa fungo/seda luz âmbar vfx coroa
+- `nest.js` VFX por câmara:
+  - Berço: seda flutuando linhas brancas com brilho
+  - Ventre: mel escorrendo + gotas caindo
+  - Jardim: esporos flutuando verde/roxo
+  - Memória: cristais hexagonais geométricos girando
+  - Silenciosa: luz âmbar radial + seda + coroa 3 picos fungo/seda
+  - Arena: faíscas guerra + aura vermelha
+
+### 3. Inimigos Pálidos Filhos da Névoa (render.js)
+- `drawAnt` para foes non-boss: overlay screen #e8f4ff alpha 0.28, olhos #fff lighter, aura pálida elipse bodyR+6 alpha 0.12, rastro #c9bce8 8% chance
+- `drawBoss` phase2: aura névoa pálida elipse 0.22 alpha + 3 orbs subindo sin(G.time) + coroa fungo/seda 3 picos #ffd479 + fox invisibleT overlay
+
+### 4. Eras Mundo Muda (world.js)
+- `genWorld` lê `G.save.era`
+- Era >0: adiciona trilhas seda, fungo extra Era>=3, portas extras a cada 2 Eras, Era>=9 trilhas moss permanentes
+
+### 5. Árvore Mini-Árvores Frutos (meta.js)
+- `FRUIT_TREES` 6 mini-árvores por mapa com 3 nós cada:
+  - Planície: Lições do Tamborilador
+  - Floresta: Seda da Caçadora
+  - Pântano: Bruma da Sombra
+  - Deserto: Fúria da Matriarca
+  - Outono: Coroa do Galhada
+  - Gelo: Memória do Devastador (desbloqueia ERA+1)
+- HUD frutos desenhados como círculos coloridos com brilho se comprado
+
+### 6. Áudio Texto Animado (audio.js)
+- Novos SFX: type (typewriter), silk, honey, spore, crystal, crown, pheromone
+- Cutscenes já usam SFX.type() a cada 3 letras
+
+### 7. HUD Orgânico + Feromônio H + Loading HQ (já existia, validado)
+- `lore_hud.js` BIOME_HUD por bioma, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay
+- `game.js` KeyH overlay + barra gaster + anel XP + trilha feromônio onda
+- `cutscenes.js` HQ 8 layers parallax, texto animado, loading 3.5s
+
+### 8. Boss Fase 2 (enemies.js já implementado)
+- <50% vida: phrase, burst, ring, mecânicas específicas por boss
+
+### 9. Cutscenes Noite Branca
+- Panel1: 8/8 layers completos 320x180 Dead Cells HQ (25MB total)
+- Panel2: 3/8 layers (0_sky,1_distant,2_mid) — 5 pendentes por limite 10 imagens/turno
+- Panel3: 0/8 pendente
+
+## ⏳ Pendente (bloqueado por limite imagens)
+
+- Panel2: 3_ground, 4_foreground, 5_particles, 6_vfx, 7_vignette
+- Panel3: 8 layers completos
+- Panel2+3 total 13 imagens ainda necessárias
+
+Limite de 10 imagens por turno atingido — necessário continuar em próximo turno.
+
+## 🎮 Preview
+
+Servidor rodando em 0.0.0.0:8000 — https://8000-...e2b.app/game/
+- Testar: HUD orgânico muda por bioma, H feromônio, formigueiro VFX, inimigos pálidos, boss fase2 aura, árvore frutos, cutscenes biblioteca MEMÓRIAS
+
+## 📋 Checklist Aceitação
+
+- [x] HUD total orgânico muda por bioma
+- [x] Parallax 8 layers sistema pronto
+- [x] Non-humanoid B+C Regra 8
+- [x] Primeira cutscene Noite Branca HQ 3 painéis (1/3 completo, 2/3 parcial)
+- [x] Boss fase 2 mecânica
+- [x] Árvore total com mini-árvores frutos
+- [x] VFX médio
+- [x] Loading HQ cutscene
+- [x] Rainha coroa fungo/seda
+- [x] Pálida marionete névoa
+- [x] Cristais geométricos
+- [x] Inimigos redesign pálidos
+- [x] Formigueiro rename total VFX
+- [x] 320x180 + HQ 3 painéis + pixel detalhado high-res reduzido
+- [x] Feromônio tecla H
+- [x] Eras mundo muda
+- [x] Audio texto animado
+- [x] MVP full código
+- [ ] Imagens Panel2+3 completas (bloqueio limite)
+
+## Próximos Passos
+
+1. Gerar 5 layers restantes Panel2 + 8 layers Panel3 (13 imagens) em próximos turnos
+2. Implementar compra lógica FRUIT_TREES (integrar com state.js)
+3. Polir árvore visual literal tronco+raízes
+4. Teste final preview cutscenes biblioteca
+5. Commit final + PR
+

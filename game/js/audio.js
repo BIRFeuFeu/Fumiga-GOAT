@@ -106,6 +106,13 @@ export const SFX = {
   lose:    () => { [392, 311, 233, 155].forEach((f, i) => tone({ type: "sawtooth", f0: f, dur: 0.4, vol: 0.12, when: i * 0.22 })); },
   rebirth: () => { [220, 440, 660, 880].forEach((f, i) => tone({ type: "sine", f0: f, dur: 0.5, vol: 0.1, when: i * 0.1 })); },
   stinger: () => { tone({ type: "sawtooth", f0: 196, f1: 98, dur: 0.5, vol: 0.12 }); noise({ dur: 0.4, vol: 0.1, lp: 900 }); },
+  type: () => { if (!gate("type", 45)) return; tone({ type: "square", f0: 700+Math.random()*200, dur: 0.04, vol: 0.04, a:0.001 }); },
+  silk: () => { tone({ type: "sine", f0: 880, f1: 1200, dur: 0.12, vol: 0.05 }); },
+  honey: () => { tone({ type: "sine", f0: 320, f1: 280, dur: 0.2, vol: 0.06 }); },
+  spore: () => { noise({ dur: 0.12, vol: 0.04, lp: 1200 }); tone({ type: "sine", f0: 440, dur: 0.1, vol: 0.03 }); },
+  crystal: () => { [1046, 1318, 1568].forEach((f,i)=> tone({ type: "sine", f0: f, dur: 0.25, vol: 0.05, when: i*0.04 })); },
+  crown: () => { tone({ type: "sine", f0: 523, f1: 784, dur: 0.4, vol: 0.08 }); tone({ type: "sine", f0: 659, dur: 0.5, vol: 0.06, when:0.1 }); },
+  pheromone: () => { tone({ type: "sine", f0: 220, f1: 330, dur: 0.3, vol: 0.06 }); },
 };
 
 // ------------------------------------------------------------------ música ---

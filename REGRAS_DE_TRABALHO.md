@@ -120,13 +120,23 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 
 ---
 
+## Regra 8 — Design não-humanóide obrigatório 🐜
+
+> **Nada no design dos personagens do jogo deve remeter a humanos, ou humanóides. A única exceção será quando o usuário pedir explicitamente.**
+
+- Todos os personagens jogáveis (formigas), inimigos, bosses e NPCs visuais devem ser **estritamente baseados em fauna real, insetos, aracnídeos, ou criaturas míticas não-humanóides** — nunca silhueta humana, rosto humano, mãos, roupas humanóides.
+- Exceções apenas com pedido explícito do usuário (ex.: “crie um NPC humanoide para a cutscene X”).
+- Mesmo quando a lore fala de “rainha” ou “matriarca”, a representação deve ser **formiga-rainha gigante**, não mulher-inseto. A PÁLIDA é uma marionete de névoa em forma de rainha-formiga, não humanoide.
+- Validação: antes de gerar qualquer asset de personagem, checar se há traços humanóides (olhos frontais humanos, boca humana, postura bípede humana). Se houver, refazer.
+- Inspirações válidas: *Hollow Knight*, *Rain World* [2](https://www.reddit.com/r/gamingsuggestions/comments/1ivfjbo/games_where_you_play_a_nonhumanoid_like_stray_or/), *Webbed* (aranha), *Shelter* (texugo), *Stray* mas com insetos — todos com protagonismo não-humano sem humanização.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
 1. PESQUISAR  → inspirações em jogos indies na Web (Regra 2)
 2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
-4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6)
+4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6) + Regra 8 não-humanóide
 5. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
 6. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
 7. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)

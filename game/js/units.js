@@ -7,6 +7,7 @@ import { mods, G } from "./state.js";
 import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
 import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
 import { spawnPart, burst, scent, floatText, ring, impact, critBurst, healPulse, bloodSplatter, dustPoof } from "./particles.js";
+import { triggerAntVFX, spawnMemoryCrystal } from "./lore_vfx.js";
 import { shake } from "./camera.js";
 import { SFX } from "./audio.js";
 import { spawnProj, dropOrb } from "./combat.js";
@@ -727,6 +728,9 @@ function updateWorker(a, dt, foes, think, m, run) {
         a.carryKind = isEssence ? "essence" : (tgt.kind === "amber" ? "amber" : "food");
         SFX.chomp();
         burst(a.x, a.y - 4, { n: 3, color: isEssence ? "#c77dff" : "#ffb347", spMin: 8, spMax: 40, life: 0.4, sizeMin: 1, sizeMax: 2, glow: isEssence });
+    // LORE VFX médio
+    triggerAntVFX(a.type, "gather", a);
+    if (isEssence) spawnMemoryCrystal(a.x, a.y, true);
         if (a.carry >= a.st.carry || tgt.amount <= 0) finishGather(a, m);
       }
       break;
