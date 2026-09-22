@@ -225,11 +225,17 @@ export function drawOrbs(ctx, w2s, time) {
     ctx.fillStyle = "#c77dff";
     ctx.globalAlpha = 0.25 * pulse;
     ctx.beginPath(); ctx.arc(s.x, s.y + wob, 8, 0, TAU); ctx.fill();
-    // núcleo
+    // FASE 2 (P11): núcleo hexagonal — cristal de memória, não orbe genérico
     ctx.globalAlpha = 0.9 * pulse;
     ctx.fillStyle = "#d8b4ff";
-    ctx.fillRect(s.x - 1.5, s.y - 3 + wob, 3, 6);
-    // brilho
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * TAU - Math.PI / 2;
+      const px = s.x + Math.cos(a) * 3.2, py = s.y + wob + Math.sin(a) * 3.2;
+      if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    // luz interna
     ctx.fillStyle = "#fff";
     ctx.globalAlpha = 0.7;
     ctx.fillRect(s.x - 0.5, s.y - 1 + wob, 1, 2);

@@ -439,6 +439,8 @@ function attackMelee(a, target, dt) {
   if (mm.muts.thorns && target.applyThorns) target.applyThorns(mm.muts.thorns);
   a.lunge = 0.22;
   SFX.bite();
+  // FASE 2 LORE-VFX: cada casta ataca com sua aura + partícula + som
+  triggerAntVFX(a.type, "attack", a, target);
   const reach = Math.max(10, a.bodyR * 0.8);
   const hx = a.x + Math.cos(a.angle) * reach;
   const hy = a.y + Math.sin(a.angle) * reach;
@@ -630,10 +632,15 @@ function updateScout(a, dt, foes, m) {
 
   if (a.state === "move" && a.tx != null) {
     if (moveToward(a, a.tx, a.ty, dt, 1.1)) { a.state = "idle"; a.tx = a.ty = null; }
+    // FASE 2 LORE-VFX: a Prata fareja o caminho enquanto explora
+    a.scoutVfxT = (a.scoutVfxT || 0) - dt;
+    if (a.scoutVfxT <= 0) { a.scoutVfxT = 2.5; triggerAntVFX("scout", "scout", a); }
     return;
   }
   // parada: o cérebro sugere o próximo ponto de batedura
   a.bob += dt * 2;
+  a.scoutVfxT = (a.scoutVfxT || 0) - dt;
+  if (a.scoutVfxT <= 0) { a.scoutVfxT = 4; triggerAntVFX("scout", "scout", a); }
 }
 
 // ------------------------------------------------------------- trabalhadora -
@@ -740,6 +747,11 @@ function updateWorker(a, dt, foes, think, m, run) {
       const arrived = dist2(a.x, a.y, A.x, A.y) < 118 * 118;
       if (!arrived) {
         moveToward(a, A.x, A.y, dt);
+        // FASE 2 LORE-VFX: quem volta carregado pinga a carga no caminho
+        if (a.carry > 0) {
+          a.carryVfxT = (a.carryVfxT || 0) - dt;
+          if (a.carryVfxT <= 0) { a.carryVfxT = 0.5; triggerAntVFX(a.type, "carry", a); }
+        }
       } else {
         deposit(a, m, run);
       }
@@ -818,6 +830,8 @@ function deposit(a, m, run) {
     tutEvent("essence");
   }
   SFX.pickup();
+  // FASE 2 LORE-VFX: a Tecelã costura seda a cada entrega no ninho
+  if (a.type === "weaver") triggerAntVFX("weaver", "weave", a);
   a.carry = 0; a.carryKind = null;
   // volta a coletar
   a.state = "idle";
@@ -881,6 +895,12 @@ function updateHealer(a, dt, foes, m) {
         });
         if (Math.random() < 0.1) SFX.healCast();
       }
+      // FASE 2 LORE-VFX: bálsamo da Matabele a cada ~0,7s (não a cada tick — orçamento)
+      a.healVfxT = (a.healVfxT || 0) - dt;
+      if (a.healVfxT <= 0) {
+        a.healVfxT = 0.66;
+        triggerAntVFX("healer", "heal", a, tgt);
+      }
     }
     return;
   }
@@ -943,6 +963,11 @@ function updateFighter(a, dt, foes, think, m) {
         // patrulhas lentas ao redor do posto
         if (Math.random() < 0.004 && gp) {
           gp.x += rand(-20, 20); gp.y += rand(-20, 20);
+        }
+        // FASE 2 LORE-VFX: a Cefalote mostra a porta-viva no posto
+        if (a.type === "tank") {
+          a.guardVfxT = (a.guardVfxT || 0) - dt;
+          if (a.guardVfxT <= 0) { a.guardVfxT = 3; triggerAntVFX("tank", "guard", a); }
         }
       }
       break;
@@ -1012,6 +1037,8 @@ function spitAt(a, tgt, m) {
     arc: isBomb,
   });
   if (isBomb) { SFX.whoosh(); } else { SFX.spit(); }
+  // FASE 2 LORE-VFX: acrobata cospe veneno, fogo cospe brasa
+  triggerAntVFX(a.type, "attack", a, tgt);
   a.lunge = 0.22;
 }
 
