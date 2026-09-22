@@ -5,9 +5,9 @@
 // Regra 8: Nada humanoide — rainha formiga coroa fungo/seda, Pálida marionete névoa formiga
 // ============================================================================
 import { VIEW_W, VIEW_H, MAPS } from "./config.js";
-import { G } from "./state.js";
+import { G, persistSave } from "./state.js";
 import { drawText, wrapText } from "./font.js";
-import { IMG } from "./assets.js";
+import { SFX } from "./audio.js";
 
 const CUTSCENE_DEFS = {
   noite_branca: {
@@ -17,12 +17,12 @@ const CUTSCENE_DEFS = {
     biome: "planicie",
     panels: [
       {
-        id: "panel1_intro",
+        id: "panel1_intro", assetPanel: "panel1", layerCount: 8,
         lore: "Era uma vez uma colônia que vivia sob a lua laranja. A Rainha Silenciosa cantava com feromônio.",
         tip: "DICA: Segure H para ver o mundo como as formigas veem — com cheiro.",
       },
       {
-        id: "panel2_conflito",
+        id: "panel2_conflito", layerCount: 3,
         lore: "Na Noite Branca, a névoa subiu do vale sem vento. Ela não queimava. Ela lembrava.",
         tip: "DICA: Cristais roxos guardam memória. Colete essência para a Árvore.",
       },
@@ -119,12 +119,7 @@ const CUTSCENE_DEFS = {
 };
 
 let active = null;
-let panelIdx = 0;
-let layerImgs = []; // 8 layers
-let textShown = 0;
-let textTimer = 0;
-let loading = false;
-let autoCloseT = 0;
+let layerImgs = []; // 8 layers; painéis ainda sem arte usam o fallback procedural
 
 export function getCutsceneDefs() { return CUTSCENE_DEFS; }
 
@@ -147,41 +142,36 @@ export function startCutscene(id, opts = {}) {
     fromLibrary: !!opts.fromLibrary,
     onEnd: opts.onEnd || null,
   };
-  panelIdx = 0;
-  textShown = 0;
-  textTimer = 0;
-  loading = !!opts.isLoading;
-  autoCloseT = active.autoCloseT;
   loadPanelLayers(def, 0);
   // marca como vista
   if (!G.save.cutscenes) G.save.cutscenes = {};
   G.save.cutscenes[id] = true;
+  persistSave();
   return true;
 }
 
 function loadPanelLayers(def, pIdx) {
   const panel = def.panels[pIdx];
   if (!panel) return;
-  layerImgs = [];
-  // tenta carregar assets reais, fallback para cor sólida se não existir
-  for (let i = 0; i < 8; i++) {
+  // Só pedir arquivos que já existem. Camadas pendentes não são falhas do boot.
+  // Cada carga escreve no próprio array: uma imagem lenta do painel anterior
+  // nunca pode substituir uma camada do painel que o jogador acabou de abrir.
+  const images = layerImgs = Array(8).fill(null);
+  const names = ["sky", "distant", "mid", "ground", "foreground", "particles", "vfx", "vignette"];
+  for (let i = 0; i < (panel.layerCount || 0); i++) {
     const img = new Image();
-    img.src = `assets/cutscenes/${def.id}/${panel.id}/${i}_${["sky","distant","mid","ground","foreground","particles","vfx","vignette"][i]}.png`;
-    // para noite_branca panel1_intro etc - mapeia id
-    // tenta também caminho alternativo noite_branca/panelX
-    img.onerror = () => {
-      // fallback: tenta noite_branca/panel1 se for noite_branca
-      if (def.id === "noite_branca") {
-        const alt = new Image();
-        alt.src = `assets/cutscenes/noite_branca/panel${pIdx+1}/${i}_${["sky","distant","mid","ground","foreground","particles","vfx","vignette"][i]}.png`;
-        alt.onload = () => { layerImgs[i] = alt; };
-        alt.onerror = () => { layerImgs[i] = null; };
-      } else {
-        layerImgs[i] = null;
-      }
+    img.onload = () => {
+      // Adequar a arte-fonte uma única vez à resolução do parallax, não
+      // redimensionar oito PNGs de alta resolução em todo frame da introdução.
+      const layer = document.createElement("canvas");
+      layer.width = 320; layer.height = 180;
+      const c = layer.getContext("2d");
+      c.imageSmoothingEnabled = false;
+      c.drawImage(img, 0, 0, layer.width, layer.height);
+      images[i] = layer;
     };
-    img.onload = () => { layerImgs[i] = img; };
-    layerImgs[i] = null; // placeholder até carregar
+    img.onerror = () => { images[i] = null; };
+    img.src = `assets/cutscenes/${def.id}/${panel.assetPanel || panel.id}/${i}_${names[i]}.png`;
   }
 }
 
@@ -192,11 +182,11 @@ export function updateCutscene(dt) {
   if (active.textTimer > 0.03) {
     active.textTimer = 0;
     const panel = active.def.panels[active.panelIdx];
-    const full = panel.lore + " " + panel.tip;
+    const full = panel.lore + "  " + panel.tip;
     if (active.textShown < full.length) {
       active.textShown++;
       // SFX typewriter sutil (se existir)
-      if (active.textShown % 3 === 0 && window.SFX && SFX.type) SFX.type();
+      if (active.textShown % 3 === 0) SFX.type();
     }
   }
   if (active.isLoading) {
@@ -217,6 +207,7 @@ export function drawCutscene(ctx, time) {
   const panel = def.panels[active.panelIdx];
   if (!panel) return false;
 
+  ctx.save();
   // fundo preto
   ctx.fillStyle = "#0a0812";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -228,7 +219,7 @@ export function drawCutscene(ctx, time) {
   const drawW = baseW * scale;
   const drawH = baseH * scale;
   const ox = (VIEW_W - drawW) / 2;
-  const oy = (VIEW_H - drawH) / 2 - 30;
+  const oy = (VIEW_H - drawH) / 2;
 
   ctx.imageSmoothingEnabled = false;
   for (let i = 0; i < 8; i++) {
@@ -239,7 +230,7 @@ export function drawCutscene(ctx, time) {
     if (i === 5) { // particles sway
       // partículas flutuam
     }
-    if (img && img.complete && img.naturalWidth > 0) {
+    if (img) {
       ctx.globalAlpha = i === 6 ? 0.85 : i === 7 ? 0.9 : 1;
       ctx.drawImage(img, ox + offX, oy + offY, drawW, drawH);
       ctx.globalAlpha = 1;
@@ -284,7 +275,6 @@ export function drawCutscene(ctx, time) {
       }
     }
   }
-  ctx.imageSmoothingEnabled = true;
 
   // vinheta gótica por cima se não tem layer 7
   if (!layerImgs[7]) {
@@ -295,58 +285,67 @@ export function drawCutscene(ctx, time) {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   }
 
-  // borda HQ Dead Cells grossa
+  // Moldura e legendas SOBRE a imagem: 960x540 já ocupa o canvas inteiro.
+  // Antes o cabeçalho ficava em y=-56 e as instruções abaixo de y=540.
+  const margin = 16, innerW = VIEW_W - margin * 2;
   ctx.strokeStyle = "#ffd479";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(ox-2, oy-2, drawW+4, drawH+4);
-  ctx.strokeStyle = "#4a3a6e";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(ox-6, oy-6, drawW+12, drawH+12);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(margin - 3, margin - 3, innerW + 6, VIEW_H - margin * 2 + 6);
 
-  // título
-  ctx.fillStyle = "rgba(10,8,16,0.85)";
-  ctx.fillRect(ox, oy - 32, drawW, 28);
-  drawText(ctx, def.title + " — PAINEL " + (active.panelIdx+1) + "/" + def.panels.length, ox + 12, oy - 26, { color: "#ffd479", font: "small" });
-  if (def.subtitle) {
-    drawText(ctx, def.subtitle, ox + drawW - 12, oy - 26, { color: "#8f7bb5", align: "right", scale: 0.8 });
-  }
+  const fontMult = G.save.accessibility.bigFont ? 1.3 : 1;
+  const title = def.title + " — PAINEL " + (active.panelIdx + 1) + "/" + def.panels.length;
+  const titleLines = wrapText(title, innerW - 24, { scale: fontMult });
+  const subtitleLines = wrapText(def.subtitle || "", innerW - 24, { scale: 0.8 * fontMult });
+  const titleH = 22 * fontMult, subtitleH = 17 * fontMult;
+  const headerH = 20 + titleLines.length * titleH + subtitleLines.length * subtitleH;
+  ctx.fillStyle = "rgba(10,8,16,0.92)";
+  ctx.fillRect(margin, margin, innerW, headerH);
+  titleLines.forEach((line, i) => drawText(ctx, line, margin + 12, margin + 8 + i * titleH, { color: "#ffd479" }));
+  subtitleLines.forEach((line, i) => drawText(ctx, line, margin + 12, margin + 8 + titleLines.length * titleH + i * subtitleH, { color: "#9a8fc0", scale: 0.8 }));
 
-  // texto lore animado letra por letra
   const fullText = panel.lore + "  " + panel.tip;
-  const shownText = fullText.slice(0, active.textShown);
-  const lines = wrapText(shownText, drawW - 24, {});
-  const boxH = 20 + lines.length * 18 + 12;
-  ctx.fillStyle = "rgba(10,8,16,0.88)";
-  ctx.fillRect(ox, oy + drawH + 8, drawW, boxH);
+  const textScale = 0.9, lineH = 18 * fontMult;
+  const fullLines = wrapText(fullText, innerW - 24, { scale: textScale * fontMult });
+  const lines = wrapText(fullText.slice(0, active.textShown), innerW - 24, { scale: textScale * fontMult });
+  const boxH = 20 + fullLines.length * lineH;
+  const boxY = VIEW_H - 72 - boxH;
+  ctx.fillStyle = "rgba(10,8,16,0.92)";
+  ctx.fillRect(margin, boxY, innerW, boxH);
   ctx.strokeStyle = "#4a3a6e";
-  ctx.strokeRect(ox, oy + drawH + 8, drawW, boxH);
-  lines.forEach((L, i) => {
-    const isTip = L.includes("DICA:");
-    drawText(ctx, L, ox + 12, oy + drawH + 16 + i*18, { color: isTip ? "#7fd6a0" : "#efe9ff", scale: 0.9 });
-  });
+  ctx.lineWidth = 1;
+  ctx.strokeRect(margin, boxY, innerW, boxH);
+  lines.forEach((line, i) => drawText(ctx, line, margin + 12, boxY + 8 + i * lineH, {
+    color: line.includes("DICA:") ? "#7fd6a0" : "#efe9ff", scale: textScale,
+  }));
 
-  // indicador progresso painéis
+  ctx.fillStyle = "rgba(10,8,16,0.92)";
+  ctx.fillRect(margin, VIEW_H - 68, innerW, 52);
   for (let i = 0; i < def.panels.length; i++) {
-    const dotX = ox + drawW/2 - def.panels.length*10 + i*20;
-    const dotY = oy + drawH + boxH + 12;
+    const dotX = VIEW_W / 2 + (i - (def.panels.length - 1) / 2) * 20;
     ctx.fillStyle = i === active.panelIdx ? "#ffd479" : "#4a3a6e";
     ctx.beginPath();
-    ctx.arc(dotX, dotY, i === active.panelIdx ? 5 : 3, 0, Math.PI*2);
+    ctx.arc(dotX, VIEW_H - 58, i === active.panelIdx ? 4 : 3, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  // botões
-  const btnY = oy + drawH + boxH + 24;
   const isLast = active.panelIdx === def.panels.length - 1;
-  // clique para próximo
-  drawText(ctx, active.isLoading ? "CARREGANDO... " + Math.ceil(active.autoCloseT) + "s" : isLast ? "[ENTER] FECHAR • [R] REVER • [B] BIBLIOTECA" : "[ENTER] PRÓXIMO PAINEL • [B] BIBLIOTECA", VIEW_W/2, btnY + 16, { color: "#6b5a8a", align: "center", scale: 0.8 });
-
+  const action = active.textShown < fullText.length ? "MOSTRAR TEXTO" : isLast ? "JOGAR" : "PRÓXIMO PAINEL";
+  const hint = active.isLoading
+    ? "CARREGANDO... " + Math.ceil(active.autoCloseT) + "s"
+    : "ENTER / ESPAÇO / CLIQUE: " + action + " • ESC: PULAR";
+  drawText(ctx, hint, VIEW_W / 2, VIEW_H - 40, { color: "#efe9ff", align: "center", scale: 0.8 });
+  ctx.restore();
   return true;
 }
 
 export function handleCutsceneInput(pressed, mouse) {
   if (!active) return false;
   if (active.isLoading) return true; // bloqueia input durante loading
+  if (pressed.Escape) {
+    const { id, onEnd } = active;
+    active = null;
+    if (onEnd) onEnd();
+    return "closed:" + id;
+  }
   if (pressed.Enter || pressed.Space || (mouse && mouse.justDown)) {
     const panel = active.def.panels[active.panelIdx];
     const full = panel.lore + "  " + panel.tip;

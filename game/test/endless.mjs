@@ -42,7 +42,7 @@ process.on("unhandledRejection", (e) => { console.error("UNHANDLED-REJ", e && e.
 process.on("uncaughtException", (e) => { console.error("UNCAUGHT", e && e.stack || e); process.exit(9); });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const BASE = "/home/user/Fumiga-GOAT/game/js";
+const BASE = new URL("../js", import.meta.url).pathname;
 await import(BASE + "/main.js");
 await wait(2500);
 const { mouse, pressed } = await import(BASE + "/input.js");
@@ -81,6 +81,14 @@ expect(G.screen === "MODE", "chegou na tela de modos");
 await click(366, 286); // card SOBREVIVÊNCIA (x 261..471, y 116..456)
 expect(G.screen === "RUN", "entrou no RUN via card SOBREVIVÊNCIA");
 expect(G.run && G.run.endless === true, "run.endless = true");
+
+// ESC pula a introdução sem pausar o gameplay que vem depois.
+const { isCutsceneActive } = await import(BASE + "/cutscenes.js");
+expect(isCutsceneActive(), "introdução presente no primeiro início");
+pressed.Escape = true;
+await wait(100);
+pressed.Escape = false;
+expect(!isCutsceneActive(), "ESC libera o gameplay da introdução");
 
 // exército para o chefão cair rápido
 for (let i = 0; i < 8; i++) units.spawnAnt("soldier", world.anthill.x + (i - 4) * 30, world.anthill.y + 60);

@@ -236,14 +236,12 @@ function newRun(mode = null) {
 
   if (!G.save.tutorial) startTutorial(); else stopTutorial(false);
 
-  // MEGA LORE: trigger Noite Branca na primeira expedição
-  if (!G.save.cutscenes || !G.save.cutscenes["noite_branca"]) {
-    setTimeout(() => startCutscene("noite_branca", { force: true }), 600);
-  } else if (mSel.mapIdx !== undefined) {
-    const mapId = MAPS[mSel.mapIdx] ? MAPS[mSel.mapIdx].id : null;
-    if (mapId && (!G.save.cutscenes[mapId])) {
-      setTimeout(() => startCutscene(mapId, { force: true }), 800);
-    }
+  // A introdução pertence a esta expedição: sem timer solto que possa abrir
+  // depois de o jogador sair, reiniciar ou entrar em outra tela.
+  if (!G.save.cutscenes || !G.save.cutscenes.noite_branca) {
+    startCutscene("noite_branca");
+  } else {
+    startCutscene(MAPS[startMap].id);
   }
 
   // transição de entrada
@@ -1370,7 +1368,7 @@ function drawHUD() {
 
   // --------------------------------------- painel orgânico da colônia (quitina/cera por bioma) ----
   const pw = 320;
-  const ph = run.modeDef ? 78 : 62;
+  const ph = run.modeDef ? 96 : 80;
   // fundo com textura biome
   drawBiomeTexture(ctx, 10, 8, pw, ph, biomeId, G.time);
   panel(ctx, 10, 8, pw, ph, { border: bh.border, accentLine: bh.accent, fill: "rgba(0,0,0,0)" });
@@ -1419,10 +1417,10 @@ function drawHUD() {
   // comida por bioma
   drawText(ctx, bh.foodLabel + " " + fmt(run.food), 88, yy, { color: bh.foodColor, scale: 0.85 });
   // essência cristal geométrico
-  drawText(ctx, bh.essenceLabel + " " + fmt(run.essencePool), 188, yy, { color: bh.essenceColor, scale: 0.85 });
+  drawText(ctx, bh.essenceLabel + " " + fmt(run.essencePool), 20, yy + 18, { color: bh.essenceColor, scale: 0.85 });
   {
     const used = popUsed(), cap = popCapTotal();
-    drawText(ctx, "IRMÃS " + used + "/" + cap, 278, yy, { color: used >= cap ? "#ff4d5a" : PAL.text, align: "right", scale: 0.85 });
+    drawText(ctx, "IRMÃS " + used + "/" + cap, 298, 14, { color: used >= cap ? "#ff4d5a" : PAL.text, align: "right", scale: 0.85 });
   }
 
   // ---- fileira de mutações como SEIVA Dourada (Vampire Survivors) ----
@@ -1696,9 +1694,9 @@ function drawHUD() {
     drawText(ctx, "ESQ: CÂMERA/ORDEM • DIR: SELECIONAR • Q: IRMÃS • B: " + ({"planicie":"VENTRE","floresta":"JARDIM","pantano":"CÂMARA","deserto":"FORNALHA","outono":"BERÇO","gelo":"GASTER"}[biomeId]||"NINHO") + " • H: FEROMÔNIO • ESC: PAUSA",
       VIEW_W / 2, VIEW_H - 120, { color: PAL.textDim, align: "center", alpha: clamp(14 - run.elapsed, 0, 4) / 4, scale: 0.85 });
   }
-  // dica H sempre visível pequena
-  if (!keys.KeyH && live) {
-    drawText(ctx, "[H] VISÃO FEROMÔNIO • A COLÔNIA VÊ COM CHEIRO", VIEW_W/2, VIEW_H - 6, { color: bh.texture, align: "center", scale: 0.7, alpha: 0.6 });
+  // Dica H no rodapé, sem encobrir os preços da fileira de formigas.
+  if (!keys.KeyH && live && !shopOpen) {
+    drawText(ctx, "[H] VISÃO FEROMÔNIO • A COLÔNIA VÊ COM CHEIRO", VIEW_W/2, VIEW_H - 18, { color: bh.texture, align: "center", scale: 0.7, alpha: 0.6 });
   }
 }
 
@@ -2284,7 +2282,6 @@ function renderMemoryScreen() {
 }
 
 // ---------------------------------------------------------------- exports ---
-export function gameHelpReturn() { return helpReturn; }// ---------------------------------------------------------------- exports ---
 export function gameHelpReturn() { return helpReturn; }
 export function setPaused(v) { paused = v; }
 export function boot() {

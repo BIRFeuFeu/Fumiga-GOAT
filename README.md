@@ -32,6 +32,10 @@ Por trás dos seis degraus espera o sétimo: **A PÁLIDA**, a Névoa-Mãe — a 
 completa, do prólogo (a Noite Branca) à derrota final, está em
 [`LORE.md`](LORE.md).
 
+📚 **Planejamento consolidado:** [`MEGA_ARQUIVO.md`](MEGA_ARQUIVO.md) reúne integralmente
+os quatro documentos de atualização, a lore e as regras de trabalho, com índice e
+verificação de integridade. Os seis arquivos originais foram mantidos intactos.
+
 **Depois do final** o jogo não acaba: cada vitória abre uma nova **ERA** do
 Formigueiro Eterno, destrava um nível da **ASCENSÃO DA NÉVOA** (até 20, estilo
 Hades/Slay the Spire — inimigos e chefes mais fortes, essência em dobro) e paga
@@ -65,6 +69,7 @@ A bateria headless do projeto roda sem navegador:
 
 ```bash
 cd game
+node test/boot.mjs && node test/docs.mjs && \
 node test/assets.mjs && node test/tree.mjs && node test/stuck.mjs && \
 node test/layout.mjs && node test/uitest.mjs && node test/attack.mjs && \
 node test/endless.mjs && node test/prophecy.mjs

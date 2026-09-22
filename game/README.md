@@ -214,7 +214,9 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   - `node test/sim.mjs` — roda uma expedição desde o começo
   - `FORCE=N node test/sim.mjs` — pula direto para o chefão do mapa `N` (1–6) com um exército
     coerente, validando o spawn e a IA de cada chefe
-- `test/uitest.mjs` — boot → título → expedição → câmaras → pausa → troca de mapa (DOM simulado)
+- `test/boot.mjs` — sintaxe ESM dos módulos, boot normal, save inválido e erros de carregamento de fontes/sprites (sem rejeições não tratadas)
+- `test/docs.mjs` — integridade do [`MEGA_ARQUIVO.md`](../MEGA_ARQUIVO.md): seis documentos originais preservados byte a byte, com SHA-256
+- `test/uitest.mjs` — boot → título → introdução → expedição → câmaras → pausa → troca de mapa (DOM simulado)
 - `test/assets.mjs` — integridade de sprites e de texto: todo nome de imagem usado pelo jogo
   (props de cada bioma, unidades, inimigos, chefes, ícones) precisa estar no `MANIFEST`, e todo
   caractere dos textos precisa existir no atlas da fonte (senão o jogo desenha `?`). Também
@@ -245,6 +247,7 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 Cheque tudo antes de subir (é o que o CI local usa):
 
 ```bash
+node test/boot.mjs && node test/docs.mjs && \
 node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
 node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
 node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs
