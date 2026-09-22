@@ -151,13 +151,14 @@ function chamfer(ctx, x, y, w, h, r) {
 export function button(ctx, opt) {
   let { x, y, w, h } = opt;
   // FASE 6: visual height 88->104 quando mobile
-  if (isTouchDevice() && h < 104 && opt.id !== "hudMore") {
+  if (isTouchDevice() && opt.compact) h = Math.max(h, 44);
+  if (isTouchDevice() && h < 104 && opt.id !== "hudMore" && !opt.compact) {
     // mantém x,y centralizado se aumentar
     const diff = 104 - h;
     y = y - diff/2;
     h = 104;
   }
-  const hr = hitRect(x, y, w, h);
+  const hr = opt.compact ? {x,y,w,h} : hitRect(x, y, w, h);
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const down = hot && mouse.down && !dis;
@@ -229,7 +230,7 @@ export function button(ctx, opt) {
   const scale = (opt.scale || 1) * (1 + 0.05 * hv - 0.02 * pr);
   drawText(ctx, opt.label, bx + w / 2 + (opt.icon ? 10 : 0),
     by + h / 2 - (opt.font === "big" ? 15 : 8) - 2,
-    { font: opt.font || "small", scale, color: col, align: "center", shadow: true });
+    { font: opt.font || "small", scale, color: col, align: "center", shadow: true, maxWidth: w - (opt.icon ? 40 : 20) });
 
   buttons.push({ x, y, w, h, id: opt.id, disabled: dis });
   if (clicked) SFX.uiClick();

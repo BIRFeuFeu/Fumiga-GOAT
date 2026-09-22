@@ -380,8 +380,20 @@ if (isCutsceneActive()) { console.error("introdução não fechou"); process.exi
 auditFrame("RUN hud", frame(), { uiStart: "auto" });
 
 // HUD expandido (botão "+" no canto superior direito do painel slim)
-clickAt(293, 20);
+clickAt(313, 20);
 auditFrame("RUN hud expandido", frame(), { uiStart: "auto" });
+// Os seis temas devem caber também com a fonte ampliada e com H pressionado.
+G.save.accessibility.bigFont = true;
+G.save.accessibility.highContrast = true;
+const {keys} = await import(BASE + "input.js");
+keys.KeyH = true;
+for (let i=0; i<6; i++) {
+  director.mapIdx=i; G.run.mapIdx=i;
+  auditFrame("HUD acessível bioma " + i, frame(), {uiStart:"auto"});
+}
+keys.KeyH=false; director.mapIdx=0; G.run.mapIdx=0;
+G.save.accessibility.bigFont=false; G.save.accessibility.highContrast=false;
+
 
 // botão FORMIGAS: abre a fileira das 9 classes no rodapé (recolhida por padrão)
 clickAt(56, 540 - 64 + 32);

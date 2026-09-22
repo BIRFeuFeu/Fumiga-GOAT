@@ -1,3 +1,6 @@
+import { G } from "./state.js";
+import { drawText } from "./font.js";
+
 // ============================================================================
 // LORE HUD — Sistema Orgânico Total por Bioma
 // Regra 8: Nada humanoide — Rainha com coroa fungo/seda, gaster vivo
@@ -124,49 +127,109 @@ export function getBiomeHUD(mapId) {
   return BIOME_HUD[mapId] || BIOME_HUD.planicie;
 }
 
-// Desenha textura quitina/cera orgânica por bioma
+// Atlas originais: master 4x, exportação nearest. Nenhum asset criado no loop.
+const BIOMES = Object.keys(BIOME_HUD);
+const art = {};
+const panelCache = new Map();
+const fogCache = [];
+let loading;
+export function loadLoreHUD() {
+  if (!loading) loading = Promise.all(["panels", "icons", "gaster"].map(key => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { art[key] = img; panelCache.clear(); resolve(); };
+    img.onerror = () => reject(new Error("HUD não carregou: lore_" + key + ".png"));
+    img.src = "assets/ui/lore_" + key + ".png";
+  })));
+  return loading;
+}
+
+// Os cantos não esticam; apenas as faixas e o centro. Cache limitado por tamanho.
 export function drawBiomeTexture(ctx, x, y, w, h, biome, time) {
+  w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
   const style = getBiomeHUD(biome);
-  // base
-  const grad = ctx.createLinearGradient(x, y, x, y + h);
-  grad.addColorStop(0, style.bg);
-  grad.addColorStop(1, style.bg2);
-  ctx.fillStyle = grad;
-  ctx.fillRect(x, y, w, h);
-  
-  // textura quitina - pontos orgânicos
-  ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.fillStyle = style.texture;
-  for (let i = 0; i < 40; i++) {
-    const px = x + (Math.sin(i * 1.7 + time * 0.1) * 0.5 + 0.5) * w;
-    const py = y + (Math.cos(i * 2.3) * 0.5 + 0.5) * h;
-    const r = 1 + (i % 3);
-    ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI * 2);
-    ctx.fill();
+  const key = style.id + ":" + w + ":" + h;
+  let tile = panelCache.get(key);
+  if (!tile) {
+    tile = document.createElement("canvas"); tile.width = w; tile.height = h;
+    const c = tile.getContext("2d"); c.imageSmoothingEnabled = false;
+    c.fillStyle = "#1a1427"; c.fillRect(0, 0, w, h);
+    if (art.panels) {
+      const sx = BIOMES.indexOf(style.id) * 32;
+      const edge = Math.min(8, Math.floor(w / 2), Math.floor(h / 2));
+      const src = [0, 8, 24], size = [8, 16, 8];
+      const dx = [0, edge, w-edge], dy = [0, edge, h-edge];
+      const dw = [edge, w-edge*2, edge], dh = [edge, h-edge*2, edge];
+      for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+        if (dw[col] > 0 && dh[row] > 0) c.drawImage(art.panels, sx+src[col], src[row], size[col], size[row], dx[col], dy[row], dw[col], dh[row]);
+      }
+    }
+    // Quitina/cera determinística, preparada uma vez, sem gradientes por frame.
+    c.globalAlpha = 0.12; c.fillStyle = style.border;
+    for (let i = 0; i < Math.floor(w*h/350); i++) {
+      const px = 8 + (i*37 % Math.max(1,w-16)), py = 8 + (i*17 % Math.max(1,h-16));
+      if (px < w-8 && py < h-8) c.fillRect(px,py,2,1);
+    }
+    if (panelCache.size >= 96) panelCache.delete(panelCache.keys().next().value);
+    panelCache.set(key,tile);
   }
-  // veias quitina
-  ctx.globalAlpha = 0.08;
-  ctx.strokeStyle = style.texture;
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath();
-    ctx.moveTo(x, y + h * (0.2 + i * 0.3));
-    ctx.bezierCurveTo(
-      x + w * 0.3, y + h * (0.15 + i * 0.3 + Math.sin(time * 0.5 + i) * 0.05),
-      x + w * 0.7, y + h * (0.25 + i * 0.3 + Math.cos(time * 0.3 + i) * 0.05),
-      x + w, y + h * (0.2 + i * 0.3)
-    );
-    ctx.stroke();
-  }
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tile,Math.round(x),Math.round(y));
+  // Respiração discreta sem movimentar texto ou hitboxes.
+  ctx.globalAlpha *= reducedFX() ? 0.12 : 0.16 + Math.sin(time*2)*0.06;
+  ctx.fillStyle = style.accent; ctx.fillRect(Math.round(x)+8,Math.round(y)+3,Math.max(0,w-16),1);
   ctx.restore();
+}
+
+function reducedFX() { return !!G.save?.accessibility?.reducedParticles || G.save?.settings?.particles === false; }
+
+export function drawLoreIcon(ctx, index, x, y, size = 16) {
+  if (!art.icons) return;
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(art.icons, index*16, 0, 16, 16, Math.round(x), Math.round(y), size, size);
+  ctx.restore();
+}
+export function drawFoodIcon(ctx, biome, x, y) {
+  drawLoreIcon(ctx, BIOMES.indexOf(getBiomeHUD(biome).id), x, y);
+}
+export function trailProgress(time, index, count = 7) {
+  return (index / count + (reducedFX() ? 0 : time * 0.035)) % 1;
+}
+
+export function drawTrailAnt(ctx, x, y, time) {
+  drawLoreIcon(ctx, 8 + (reducedFX() ? 0 : Math.floor(time*8)%4), x, y, 16);
 }
 
 // Desenha barra de vida como gaster da rainha com coroa fungo/seda
 export function drawGasterBar(ctx, x, y, w, h, frac, biome, low, time) {
   const style = getBiomeHUD(biome);
-  const pulse = low ? 1 + Math.sin(time * 6) * 0.15 : 1;
+  frac = Math.max(0, Math.min(1, Number.isFinite(frac) ? frac : 0));
+  if (art.gaster && w >= 80 && w <= 160 && h >= 10) {
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    // Respira em torno do próprio centro sem mover labels ou área de interação.
+    // Acessibilidade mantém a cor de alerta, mas elimina a pulsação.
+    if (low && !reducedFX()) {
+      const pulse = 1 + Math.sin(time * 6) * 0.04;
+      ctx.translate(x + w/2, y + h/2);
+      ctx.scale(pulse, pulse);
+      ctx.translate(-(x + w/2), -(y + h/2));
+    }
+    const py = Math.round(y - h*0.5), ph = Math.round(h*2);
+    ctx.drawImage(art.gaster, 0, 0, 64, 24, Math.round(x), py, Math.round(w), ph);
+    // Vida só recorta o abdômen; a coroa de fungo/seda permanece intacta.
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y+h/6, Math.round(w*frac), ph); ctx.clip();
+    ctx.drawImage(art.gaster, low ? 128 : 64, 0, 64, 24, Math.round(x), py, Math.round(w), ph);
+    ctx.restore();
+    if (low && !reducedFX()) {
+      ctx.globalAlpha *= 0.3 + (Math.sin(time*6)+1)*0.25;
+      ctx.strokeStyle = "#ff4d5a"; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x+w*0.12),Math.round(y+h*0.7));
+      for (let i=0;i<5;i++) ctx.lineTo(Math.round(x+w*(0.22+i*0.14)),Math.round(y+h*(i%2 ? 0.8 : 0.5)));
+      ctx.stroke();
+    }
+    ctx.restore(); return;
+  }
+  const pulse = low && !reducedFX() ? 1 + Math.sin(time * 6) * 0.06 : 1;
   
   ctx.save();
   // gaster shape - elipse orgânica
@@ -250,137 +313,112 @@ export function drawGasterBar(ctx, x, y, w, h, frac, biome, low, time) {
   ctx.restore();
 }
 
-// Desenha overlay feromônio quando segura H - verde comida, vermelho perigo
-export function drawPheromoneOverlay(ctx, cam, VIEW_W, VIEW_H, worldToScreen, foodTrailAt, dangerAt, time) {
-  const step = 28;
-  const cols = Math.ceil(VIEW_W / step) + 2;
-  const rows = Math.ceil(VIEW_H / step) + 2;
-  
-  // fundo escurecido leve
-  ctx.fillStyle = "rgba(10,8,16,0.35)";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  
-  ctx.save();
-  ctx.globalAlpha = 0.75;
-  
-  for (let ix = -1; ix < cols; ix++) {
-    for (let iy = -1; iy < rows; iy++) {
-      const sx = ix * step + (time * 10 % step);
-      const sy = iy * step;
-      // converter para mundo
-      // precisamos importar screenToWorld mas passamos cam aqui - aproximar
-      const wx = cam.x + (sx - VIEW_W/2) / cam.zoom;
-      const wy = cam.y + (sy - VIEW_H/2) / cam.zoom;
-      
-      const food = foodTrailAt(wx, wy);
-      const danger = dangerAt(wx, wy);
-      
-      if (food > 0.08) {
-        const a = Math.min(0.65, food * 1.2);
-        ctx.globalAlpha = a;
-        // névoa verde comida - orgânica
-        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, step*0.6);
-        grad.addColorStop(0, "rgba(127,214,160,0.9)");
-        grad.addColorStop(0.5, "rgba(127,214,160,0.4)");
-        grad.addColorStop(1, "rgba(127,214,160,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(sx, sy, step*0.55, 0, Math.PI*2);
-        ctx.fill();
-        
-        // partícula subindo
-        if (Math.random() < 0.03) {
-          ctx.fillStyle = "#bfffa8";
-          ctx.globalAlpha = a * 0.8;
-          ctx.fillRect(sx + Math.sin(time*2+ix)*3, sy - 4, 2, 2);
-        }
-      }
-      
-      if (danger > 0.08) {
-        const a = Math.min(0.7, danger * 1.3);
-        ctx.globalAlpha = a;
-        const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, step*0.65);
-        grad.addColorStop(0, "rgba(255,77,90,0.9)");
-        grad.addColorStop(0.5, "rgba(255,77,90,0.35)");
-        grad.addColorStop(1, "rgba(255,77,90,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(sx, sy, step*0.6, 0, Math.PI*2);
-        ctx.fill();
-      }
-    }
-  }
-  
-  ctx.restore();
-  
-  // legenda feromônio
-  ctx.fillStyle = "rgba(10,8,16,0.85)";
-  ctx.fillRect(VIEW_W/2 - 180, VIEW_H - 38, 360, 28);
-  ctx.strokeStyle = "#4a3a6e";
-  ctx.strokeRect(VIEW_W/2 - 180, VIEW_H - 38, 360, 28);
-  
-  // verde = comida
-  ctx.fillStyle = "#7fd6a0";
-  ctx.beginPath(); ctx.arc(VIEW_W/2 - 120, VIEW_H - 24, 6, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#efe9ff";
-  ctx.font = "12px monospace";
-  ctx.fillText("COMIDA", VIEW_W/2 - 108, VIEW_H - 20);
-  
-  // vermelho = perigo
-  ctx.fillStyle = "#ff4d5a";
-  ctx.beginPath(); ctx.arc(VIEW_W/2 + 10, VIEW_H - 24, 6, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#efe9ff";
-  ctx.fillText("PERIGO", VIEW_W/2 + 22, VIEW_H - 20);
-  
-  ctx.fillStyle = "#8f7bb5";
-  ctx.fillText("H = VISÃO FEROMÔNIO • A COLÔNIA VÊ COM CHEIRO", VIEW_W/2 + 80, VIEW_H - 20);
+// Névoa pré-rasterizada uma vez: sem centenas de gradientes por frame.
+function fogStamp(index) {
+  if (fogCache[index]) return fogCache[index];
+  const cv = document.createElement("canvas"); cv.width = cv.height = 32;
+  const c = cv.getContext("2d"), rgb = index ? "255,77,90" : "127,214,160";
+  const g = c.createRadialGradient(16,16,0,16,16,16);
+  g.addColorStop(0,`rgba(${rgb},0.9)`); g.addColorStop(0.5,`rgba(${rgb},0.4)`); g.addColorStop(1,`rgba(${rgb},0)`);
+  c.fillStyle = g; c.fillRect(0,0,32,32); fogCache[index] = cv; return cv;
 }
 
-// Desenha cristal geométrico com luz interna (essência)
-export function drawEssenceCrystal(ctx, x, y, size, color, time) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(Math.sin(time * 0.8) * 0.15);
-  
-  // sombra
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath();
-  ctx.moveTo(0, size*0.6);
-  ctx.lineTo(-size*0.3, size*0.2);
-  ctx.lineTo(0, -size*0.5);
-  ctx.lineTo(size*0.3, size*0.2);
-  ctx.closePath();
-  ctx.fill();
-  
-  // cristal geométrico - hexágono
-  const grad = ctx.createLinearGradient(-size*0.3, -size*0.5, size*0.3, size*0.6);
-  grad.addColorStop(0, "#fff");
-  grad.addColorStop(0.2, color);
-  grad.addColorStop(1, "#1a1430");
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(0, -size*0.6);
-  ctx.lineTo(size*0.35, -size*0.2);
-  ctx.lineTo(size*0.25, size*0.4);
-  ctx.lineTo(-size*0.25, size*0.4);
-  ctx.lineTo(-size*0.35, -size*0.2);
-  ctx.closePath();
-  ctx.fill();
-  
-  // luz interna pulsando
-  ctx.globalAlpha = 0.6 + Math.sin(time*3)*0.3;
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.arc(0, -size*0.1, size*0.12, 0, Math.PI*2);
-  ctx.fill();
-  
-  // partículas subindo
-  ctx.globalAlpha = 0.8;
-  for (let i = 0; i < 2; i++) {
-    const py = -size*0.3 - (time*20 + i*15) % (size*1.2);
-    ctx.fillStyle = color;
-    ctx.fillRect(-1 + i*2, py, 1.5, 1.5);
+let fogLayer, fogTime = -Infinity, fogX, fogY, fogZoom, fogOX, fogOY;
+export function drawPheromoneOverlay(ctx, cam, VIEW_W, VIEW_H, worldToScreen, foodTrailAt, dangerAt, time) {
+  const step = 32, foodStamp = fogStamp(0), dangerStamp = fogStamp(1);
+  if (!fogLayer) fogLayer = document.createElement("canvas");
+  if (fogLayer.width !== VIEW_W/2 || fogLayer.height !== VIEW_H/2) {
+    fogLayer.width=VIEW_W/2; fogLayer.height=VIEW_H/2; fogTime=-Infinity;
   }
-  
+  // 30 Hz sensorial, 60 Hz de composição. Pan/zoom/shake invalidam de imediato.
+  if (time < fogTime || time-fogTime >= 1/30 || cam.x!==fogX || cam.y!==fogY || cam.zoom!==fogZoom || cam.offsetX!==fogOX || cam.offsetY!==fogOY) {
+    const c=fogLayer.getContext("2d"); c.clearRect(0,0,fogLayer.width,fogLayer.height);
+    for (let sx=0; sx<VIEW_W+step; sx+=step) for (let sy=0; sy<VIEW_H+step; sy+=step) {
+      const wx=cam.x+(sx-VIEW_W/2-(cam.offsetX||0))/cam.zoom;
+      const wy=cam.y+(sy-VIEW_H/2-(cam.offsetY||0))/cam.zoom;
+      const food=foodTrailAt(wx,wy), danger=dangerAt(wx,wy);
+      if (food>0.08) {
+        c.globalAlpha=Math.min(0.65,food*1.2); c.drawImage(foodStamp,sx/2-16,sy/2-16,32,32);
+        if (!reducedFX() && (sx+sy)%96===0) {
+          c.fillStyle="#bfffa8"; c.fillRect(sx/2,(sy-Math.floor(time*8)%16)/2,1,1);
+        }
+      }
+      if (danger>0.08) {
+        c.globalAlpha=Math.min(0.7,danger*1.3); c.drawImage(dangerStamp,sx/2-16,sy/2-16,32,32);
+      }
+    }
+    fogTime=time; fogX=cam.x; fogY=cam.y; fogZoom=cam.zoom; fogOX=cam.offsetX; fogOY=cam.offsetY;
+  }
+  ctx.save();
+  ctx.fillStyle="rgba(10,8,16,0.35)"; ctx.fillRect(0,0,VIEW_W,VIEW_H);
+  ctx.imageSmoothingEnabled=false; ctx.drawImage(fogLayer,0,0,VIEW_W,VIEW_H);
   ctx.restore();
+}
+
+// Desenhada por último no HUD, acima da loja (não escondida atrás dos cards).
+export function drawPheromoneLegend(ctx, width, y) {
+  const w = 420, x = Math.round((width-w)/2);
+  ctx.save();
+  ctx.fillStyle = "#100c1c"; ctx.fillRect(x,y,w,36);
+  ctx.strokeStyle = "#7fd6a0"; ctx.strokeRect(x+0.5,y+0.5,w-1,35);
+  drawText(ctx,"A COLÔNIA VÊ COM CHEIRO",width/2,y+3,{align:"center",scale:0.8,color:"#efe9ff"});
+  drawText(ctx,"COMIDA +",x+18,y+19,{scale:0.75,color:"#7fd6a0"});
+  drawText(ctx,"PERIGO !",x+154,y+19,{scale:0.75,color:"#ff4d5a"});
+  drawText(ctx,"SOLTE H: VOLTAR",x+w-12,y+19,{align:"right",scale:0.7,color:"#efe9ff"});
+  ctx.restore();
+}
+
+// Cristais âmbar/violeta com memória ascendente, sem voz/figura humana.
+export function drawEssenceCrystal(ctx, x, y, size, color, time) {
+  drawLoreIcon(ctx,color === "#c77dff" ? 7 : 6,x-size/2,y-size/2,size);
+  if (reducedFX()) return;
+  ctx.save(); ctx.fillStyle = color;
+  for (let i=0;i<2;i++) {
+    const rise=(time*8+i*7)%12;
+    ctx.globalAlpha *= 0.8;
+    ctx.fillRect(Math.round(x-3+i*6),Math.round(y-size/2-rise),1,2);
+  }
+  ctx.restore();
+}
+
+// Anéis de crescimento irregulares: memória da Árvore, não medidor tecnológico.
+export function drawTreeRings(ctx, x, y, frac, biome) {
+  const style = getBiomeHUD(biome);
+  frac = Math.max(0, Math.min(1, Number.isFinite(frac) ? frac : 0));
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (let ring=0; ring<3; ring++) {
+    ctx.strokeStyle = ring===2 ? style.border : "#79593f";
+    ctx.beginPath();
+    for (let i=0;i<=24;i++) {
+      const a=i/24*Math.PI*2-Math.PI/2;
+      const r=3+ring*3+Math.sin(a*3+ring)*0.65;
+      const px=Math.round(x+Math.cos(a)*r), py=Math.round(y+Math.sin(a)*r);
+      if (!i) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#ffd479"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x,y,9,-Math.PI/2,-Math.PI/2+frac*Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+
+// Mapa sensorial: campos reais da IA, atualizado a 10 Hz, mascarado pela
+// exploração em game.js. Cache único e limitado; nenhuma alteração nos campos.
+let scentMap, scentTime = -Infinity, scentWorld;
+export function drawScentMinimap(ctx, x, y, w, h, world, worldW, worldH, foodAt, dangerAt, time) {
+  if (!scentMap) { scentMap=document.createElement("canvas"); scentMap.width=50; scentMap.height=38; }
+  if (time < scentTime || time-scentTime >= 0.1 || scentWorld !== world) {
+    const c=scentMap.getContext("2d"); c.clearRect(0,0,50,38);
+    for (let iy=0;iy<38;iy++) for(let ix=0;ix<50;ix++) {
+      const wx=(ix+0.5)*worldW/50, wy=(iy+0.5)*worldH/38;
+      const food=foodAt(wx,wy), danger=dangerAt(wx,wy);
+      if (food<=0.08 && danger<=0.08) continue;
+      c.fillStyle=danger>food ? "#ff4d5a" : "#7fd6a0";
+      c.globalAlpha=Math.min(0.85,Math.max(food,danger)); c.fillRect(ix,iy,1,1);
+    }
+    scentTime=time; scentWorld=world;
+  }
+  ctx.save(); ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(scentMap,x,y,w,h); ctx.restore();
 }

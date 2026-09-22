@@ -247,7 +247,7 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 Cheque tudo antes de subir (é o que o CI local usa):
 
 ```bash
-node test/boot.mjs && node test/docs.mjs && \
+node test/boot.mjs && node test/docs.mjs && node test/lorehud.mjs && \
 node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
 node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
 node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs
@@ -261,3 +261,14 @@ node test/treemap.mjs    # -> /home/user/arvore-layout.png (49 nós, 4 grupos, r
 ```
 
 Chegue na porta, defenda a Rainha. A colônia é eterna.
+
+## Validação da Fase 1 Lore-Total
+
+`node test/lorehud.mjs` cobre atlas/recortes, caches, vida limitada, coordenadas
+sensoriais, nomes dos seis mapas e redução de movimento do gaster/trilha.
+Com o servidor local na porta 8000 e Playwright/Chromium disponíveis apenas no
+ambiente de teste: `HUD_MIN_FPS=55 node test/lorehud-browser.mjs`.
+O gate mede FPS médios por 1.800 quadros com H ativo; não exige 55 em cada quadro.
+`CHROMIUM_PATH` seleciona um executável existente e `HUD_SHOTS` escolhe um diretório
+**fora do repositório** para capturas e `resultado.json`. Não há dependência nova
+no jogo. Registro de aceite: seção “Fechamento verificado” do `../MEGA_ARQUIVO.md`.
