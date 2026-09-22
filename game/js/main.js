@@ -90,12 +90,12 @@ function drawLoading() {
   ctx.textAlign = "center";
   ctx.fillText(loadError ? ("ERRO: " + loadError.message) : (phase + "... " + Math.floor(progress * 100) + "%"), cx, by + bh + 22);
 
-  // dica
-  if (!loadError) {
-    ctx.fillStyle = "rgba(154,143,192,0.5)";
-    ctx.font = "10px 'Courier New', monospace";
-    ctx.fillText("Inspirado em Dead Cells • Colônia Eterna", cx, VIEW_H - 20);
-  }
+  // A tela de erro usa fonte nativa: funciona mesmo se o atlas não carregar.
+  ctx.fillStyle = loadError ? "#efe9ff" : "rgba(154,143,192,0.5)";
+  ctx.font = "10px 'Courier New', monospace";
+  ctx.fillText(loadError
+    ? "Verifique a conexão e recarregue a página para tentar novamente."
+    : "Inspirado em Dead Cells • Colônia Eterna", cx, VIEW_H - 20);
 }
 
 // --------------------------------------------------------------- loop -------
@@ -117,7 +117,7 @@ function loop(t) {
 
 async function bootAll() {
   loadSave();
-  await loadFonts().catch(e => { loadError = e; });
+  await loadFonts();
   await loadAll((p) => { progress = p * 0.9; });
   phase = "ASSANDO PIXELS";
   await new Promise(r => requestAnimationFrame(r));
@@ -140,5 +140,11 @@ async function bootAll() {
 window.addEventListener("pointerdown", () => initAudio(), { once: true });
 window.addEventListener("keydown", () => initAudio(), { once: true });
 
-bootAll();
+bootAll().catch((error) => {
+  // Não continuar com sprites/fontes ausentes nem deixar uma rejeição solta
+  // e a barra de carregamento parada para sempre.
+  ready = false;
+  loadError = error instanceof Error ? error : new Error(String(error));
+  console.error("Falha ao iniciar FUMIGA:", loadError);
+});
 requestAnimationFrame(loop);

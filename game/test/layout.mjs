@@ -367,6 +367,16 @@ auditFrame("MODE", frame());
 clickAt(114, 282);
 flushTransition();
 if (G.screen !== "RUN") { console.error("não entrou na RUN após modo (screen=" + G.screen + ")"); process.exit(3); }
+// Audita a introdução explicitamente e a termina antes de medir o HUD.
+const { isCutsceneActive } = await import(BASE + "cutscenes.js");
+if (!isCutsceneActive()) { console.error("introdução não abriu"); process.exit(3); }
+for (let i = 0; i < 3; i++) {
+  pressed.Enter = true; // revelar a legenda inteira
+  auditFrame("INTRO painel " + (i + 1), frame());
+  pressed.Enter = true; // avançar painel / jogar
+  frame();
+}
+if (isCutsceneActive()) { console.error("introdução não fechou"); process.exit(3); }
 auditFrame("RUN hud", frame(), { uiStart: "auto" });
 
 // HUD expandido (botão "+" no canto superior direito do painel slim)

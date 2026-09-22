@@ -35,7 +35,7 @@ process.on("unhandledRejection", (e) => { console.error("UNHANDLED-REJ", e && e.
 process.on("uncaughtException", (e) => { console.error("UNCAUGHT", e && e.stack || e); process.exit(9); });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const BASE = "/home/user/Fumiga-GOAT/game/js";
+const BASE = new URL("../js", import.meta.url).pathname;
 await import(BASE + "/main.js");
 await wait(2500);
 const { mouse, pressed } = await import(BASE + "/input.js");
@@ -82,6 +82,23 @@ expect(units.allies.filter(a => a.type === "worker").length >= 2, "pelo menos 2 
 expect(units.allies.filter(a => a.type === "gatherer").length >= 2, "pelo menos 2 coletoras");
 expect(units.allies.filter(a => a.type === "scout").length >= 1, "pelo menos 1 exploradora");
 expect(!!G.run.chambers && G.run.xpNext > 0, "campos chambers/xp inicializados");
+
+// A introdução é parte do início real: primeiro lê/avança os três painéis.
+// Não testar gameplay enquanto a cutscene está pausando a expedição.
+const { isCutsceneActive } = await import(BASE + "/cutscenes.js");
+expect(isCutsceneActive(), "Noite Branca abriu na primeira expedição");
+const elapsedBeforeIntro = G.run.elapsed;
+await wait(120);
+expect(G.run.elapsed === elapsedBeforeIntro, "introdução pausa a simulação");
+for (let i = 0; i < 6 && isCutsceneActive(); i++) {
+  pressed.Enter = true;
+  await wait(60);
+  pressed.Enter = false;
+  await wait(40);
+}
+expect(!isCutsceneActive(), "ENTER mostra o texto e avança os três painéis até jogar");
+await wait(120);
+expect(G.run.elapsed > elapsedBeforeIntro, "expedição começou após a introdução");
 
 // ---- onda + chefe
 waves.skipPeace();
