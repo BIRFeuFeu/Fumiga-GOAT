@@ -1,0 +1,132 @@
+/* ============================================================================
+   FUMIGA — shell da VERSÃO MOBILE
+   Enquadramento correto: o canvas 960x540 é escalado mantendo a proporção
+   (letterbox), nunca esticado. É isso que corrigia o "mal enquadrado":
+   no PC a media query de <900px força 100vw x 100vh e distorce a imagem.
+   ============================================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* o atributo [hidden] precisa vencer os display:flex abaixo */
+[hidden] { display: none !important; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #05040a;
+  overflow: hidden;
+  overscroll-behavior: none;          /* sem pull-to-refresh / elástico */
+  font-family: "Courier New", monospace;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;        /* iOS: sem balão de seleção ao segurar */
+}
+
+body {
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(140% 100% at 50% 0%, #1a1430 0%, #0e0a1e 30%, #080510 60%, #02020a 100%),
+    linear-gradient(180deg, #0a0812 0%, #05040a 100%);
+  position: fixed; inset: 0;          /* trava o body (iOS rubber-band) */
+}
+
+#frame {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1;
+}
+
+#game {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #0e0a1a;
+  box-shadow: 0 0 0 2px #2b2340, 0 0 60px rgba(0,0,0,.85);
+  border-radius: 2px;
+  touch-action: none;                 /* o jogo dono de todos os gestos */
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- HUD ----- */
+/* Botões virtuais da expedição. Ficam por cima do canvas, nas bordas,
+   respeitando safe-area (notch). Tamanhos >= 48px = alvo de toque bom. */
+#touch-hud {
+  position: fixed;
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 8px;
+  z-index: 10;
+  pointer-events: none;               /* cada botão reativa o próprio toque */
+}
+#touch-hud .hud-row {
+  display: flex; gap: 8px;
+}
+#touch-hud button {
+  pointer-events: auto;
+  min-width: 52px; height: 52px;
+  padding: 0 12px;
+  border: 2px solid #4a3a6e;
+  border-radius: 8px;
+  background: rgba(29, 23, 48, 0.82);
+  color: #efe9ff;
+  font-family: "Courier New", monospace;
+  font-weight: bold; font-size: 13px; letter-spacing: .04em;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  touch-action: manipulation;         /* sem double-tap-zoom do navegador */
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 0 #120e20;
+}
+#touch-hud button:active {
+  background: rgba(55, 230, 200, 0.25);
+  border-color: #37e6c8;
+  transform: translateY(1px);
+}
+#touch-hud button .ico { font-size: 17px; line-height: 1; }
+#touch-hud button .lbl { font-size: 10px; color: #9a8fc0; }
+#touch-hud button.zoom { min-width: 46px; height: 46px; }
+
+/* Botão flutuante de modo (ORDENAR ↔ SELECIONAR) — só quando ativado nas
+   OPÇÕES. Fica acima da barra de rodapé do jogo (loja, canto inferior
+   esquerdo do canvas) para não tapá-la. */
+#touch-mode-btn {
+  position: fixed;
+  left: calc(8px + env(safe-area-inset-left));
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 10;
+  min-width: 56px; height: 56px;
+  padding: 0 14px;
+  border: 2px solid #ffb347;
+  border-radius: 10px;
+  background: rgba(48, 36, 20, 0.88);
+  color: #ffd479;
+  font-family: "Courier New", monospace;
+  font-weight: bold; font-size: 12px; letter-spacing: .05em;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 0 #120e20;
+}
+#touch-mode-btn:active { background: rgba(255, 179, 71, 0.3); }
+#touch-mode-btn.select { border-color: #37e6c8; color: #dffcf5; background: rgba(20, 44, 40, 0.9); }
+
+/* Faixa "gire o celular" — não bloqueia o jogo, só recomenda paisagem */
+#rotate-hint {
+  position: fixed;
+  top: calc(6px + env(safe-area-inset-top));
+  left: 50%; transform: translateX(-50%);
+  z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border: 2px solid #8f6fd6;
+  border-radius: 8px;
+  background: rgba(26, 20, 48, 0.92);
+  color: #efe9ff;
+  font-family: "Courier New", monospace;
+  font-size: 12px; letter-spacing: .06em;
+  white-space: nowrap;
+  animation: rotatePulse 2.2s ease-in-out infinite;
+}
+#rotate-hint button {
+  border: none; background: transparent; color: #9a8fc0;
+  font-size: 14px; padding: 2px 4px; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+@keyframes rotatePulse { 50% { box-shadow: 0 0 18px rgba(143,111,214,.55); } }

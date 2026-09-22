@@ -7,8 +7,13 @@ import { drawText, wrapText } from "./font.js";
 import { clamp, TAU } from "./utils.js";
 import { panel, pointInRect } from "./ui.js";
 import { uiButtons } from "./ui.js";
-import { mouse } from "./input.js";
+import { mouse, touchMode } from "./input.js";
 import { SFX } from "./audio.js";
+
+// MOBILE: com a camada de toque ativa, os cartões falam a língua dos gestos
+function stepDesc(st) {
+  return touchMode.on && st.descTouch ? st.descTouch : st.desc;
+}
 
 let events = Object.create(null);
 
@@ -32,26 +37,31 @@ const STEP_DEFS = [
   {
     id: "cam", title: "EXPLORE O MAPA", icon: "i_bolt",
     desc: "Arraste com o BOTÃO ESQUERDO para mover a câmera. WASD também funciona.",
+    descTouch: "ARRASTE com 1 dedo para mover a câmera. Faça PINÇA para dar zoom.",
     on() {},
   },
   {
     id: "select", title: "SELECIONE FORMIGAS", icon: "i_spider",
     desc: "Arraste com o BOTÃO DIREITO ao redor das operárias para selecioná-las.",
+    descTouch: "TOQUE numa operária para selecioná-la. Arraste com 2 DEDOS para selecionar várias.",
     on(name) { if (name === "selected") TUT._done = true; },
   },
   {
     id: "gather", title: "ORDENE A COLETA", icon: "i_food",
     desc: "Com unidades selecionadas, clique com o BOTÃO ESQUERDO na comida.",
+    descTouch: "Com formigas selecionadas, TOQUE na comida para ordenar a coleta.",
     on(name) { if (name === "gatherOrder" || name === "deposit") TUT._done = true; },
   },
   {
     id: "hatch", title: "CHOQUE NOVAS FORMIGAS", icon: "i_egg",
     desc: "Aperte 6 para chocar uma CORTADEIRA. Ela nasce no formigueiro.",
+    descTouch: "Abra a LOJA (botão do carrinho) e TOQUE no card da CORTADEIRA para chocá-la.",
     on(name) { if (name === "buy") TUT._done = true; },
   },
   {
     id: "army", title: "FORME A GUARDA", icon: "i_shield",
     desc: "Choque uma FORMIGA-BALA (tecla 1) e aperte F para convocar a guarda.",
+    descTouch: "Choque uma FORMIGA-BALA na loja e toque no botão RALI para convocar a guarda.",
     on(name, data) {
       if (name === "rally") { TUT._done = true; return; }
       if (name === "buy" && data && data !== "worker") TUT._done = true;
@@ -121,7 +131,7 @@ export function updateTutorial(dt, run) {
 const CARD_W = 420;
 const CARD_Y = 72;
 function cardMetrics(st) {
-  return { w: CARD_W, h: 44 + wrapText(st.desc, CARD_W - 40, {}).length * 17 + 22 };
+  return { w: CARD_W, h: 44 + wrapText(stepDesc(st), CARD_W - 40, {}).length * 17 + 22 };
 }
 
 export function tutorialCardRect(VIEW_W) {
@@ -136,7 +146,7 @@ export function drawTutorial(ctx, VIEW_W) {
   const st = TUT.steps[TUT.idx];
   if (!TUT.active || !st) return;
   const { x, w, h, y: yRest } = tutorialCardRect(VIEW_W);
-  const descLines = wrapText(st.desc, w - 40, {});
+  const descLines = wrapText(stepDesc(st), w - 40, {});
   const yIn = clamp((TUT.t) / 0.5, 0, 1);
   const yStart = -h - 12;
   const y = yStart + (yRest - yStart) * (1 - Math.pow(1 - yIn, 3));

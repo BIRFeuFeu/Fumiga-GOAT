@@ -130,6 +130,19 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - Validação: antes de gerar qualquer asset de personagem, checar se há traços humanóides (olhos frontais humanos, boca humana, postura bípede humana). Se houver, refazer.
 - Inspirações válidas: *Hollow Knight*, *Rain World* [2](https://www.reddit.com/r/gamingsuggestions/comments/1ivfjbo/games_where_you_play_a_nonhumanoid_like_stray_or/), *Webbed* (aranha), *Shelter* (texugo), *Stray* mas com insetos — todos com protagonismo não-humano sem humanização.
 
+## Regra 9 — Adaptar toda mudança para a versão mobile 📱
+
+> **Toda alteração no jogo precisa chegar adaptada à versão mobile (`game/mobile/`). O que já é automático não se duplica; o que não é automático se adapta na camada de toque (`touch.js`).**
+
+- **Regra de ouro: nunca duplicar jogabilidade** dentro de `game/mobile/`. As duas versões (PC e mobile) importam os **mesmos módulos** (`game/js/`), então balanceamento, unidades, inimigos, ondas, chefes, mutações, árvore, telas desenhadas em canvas e arte caem nas duas automaticamente — uma atualização de conteúdo ou gameplay vale para as duas ao mesmo tempo, nas alterações em conjunto.
+- **O único lugar em que é preciso lembrar do mobile é a entrada de dados.** A camada `game/mobile/touch.js` é o único arquivo que não se atualiza sozinho nesses casos:
+  - **Novo atalho de teclado / mecânica nova de input** → mapear um gesto equivalente ou adicionar um botão virtual correspondente no HUD da expedição (array de botões em `touch.js`). Se a ação ficar só no teclado/mouse, ela deixa de existir no celular.
+  - **Tela nova com zoom/pan customizado** → a pinça já cobre a expedição (câmera do RUN) e a ÁRVORE (passos de roda); telas novas herdam o padrão, mas uma mecânica de gesto própria pede ajuste explícito na camada.
+  - **Texto com carácter fora do atlas da fonte** → não quebra nada, mas o `test/assets.mjs` acusa na hora (rede de proteção): trocar o símbolo por um suportado ou regerar o atlas pela pipeline.
+- **Tutorial e comunicação:** texto novo que ensina controles (cartões do tutorial, ajuda, opções) precisa de equivalente de toque (`descTouch`, `HELP_CONTROLS_TOUCH` etc.) — no celular o jogador não tem teclado nem mouse.
+- **Validação obrigatória:** rodar a suíte inteira antes de subir, incluindo `node game/test/mobile.mjs` (joga a versão mobile headless do boot até a expedição só com toque). Se uma mudança quebrar algo no mobile, os testes avisam antes do push.
+- As duas versões são **paralelas e sem conexão** (saves isolados por slot): progresso nunca é sincronizado entre elas.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -137,9 +150,10 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
 4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6) + Regra 8 não-humanóide
-5. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
-6. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
-7. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
+5. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
+6. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
+7. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
+8. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,

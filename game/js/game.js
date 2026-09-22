@@ -3,7 +3,7 @@
 // ============================================================================
 import {
   VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL, UNITS, START, MAPS, CHAMBERS,
-  MUTATIONS, RARITY, HELP_GOAL, HELP_CONTROLS, HELP_TIPS, CALM_START, MAX_MUTS, xpForLevel,
+  MUTATIONS, RARITY, HELP_GOAL, HELP_CONTROLS, HELP_CONTROLS_TOUCH, HELP_TIPS, CALM_START, MAX_MUTS, xpForLevel,
   ASC_MAX, ascMods, ascLabel, PROPHECIES, ERA_LINES,
 } from "./config.js";
 import { fogReset, fogUpdate, fogDraw, fogVisible, fogExplored, fogDrawMini } from "./fog.js";
@@ -12,7 +12,7 @@ import {
 } from "./state.js";
 import { IMG, rotFrame } from "./assets.js";
 import { drawText, textWidth, wrapText, FONT } from "./font.js";
-import { keys, pressed, mouse, initInput } from "./input.js";
+import { keys, pressed, mouse, initInput, touchMode } from "./input.js";
 import { cam, camReset, updateCam, panCam, zoomCam, shake, screenToWorld, worldToScreen, visibleWorldRect } from "./camera.js";
 import {
   spawnPart, burst, ring, floatText, clearParticles, updateParticles,
@@ -355,6 +355,7 @@ function advanceMap() {
 // -------------------------------------------------------------- seleção -----
 const sel = { active: false, x0: 0, y0: 0, x1: 0, y1: 0, moved: false };
 const pan = { active: false, moved: false };
+let touchHintT = -99; // MOBILE: relógio da dica "toque numa formiga"
 const SIGHT = { worker: 210, fighter: 280, ranged: 320, healer: 260 };
 let fogT = 0;
 
@@ -788,7 +789,24 @@ function runMouseWorld(dt) {
   if (pan.active && mouse.justUp) {
     pan.active = false;
     if (!pan.moved) {
-      if (selectedCount() > 0) {
+      let consumed = false;
+      // MOBILE (gesto inteligente): toque em cima de uma formiga a seleciona;
+      // toque longe com nada selecionado dá uma dica rápida. Fora do modo
+      // toque (touchMode.smart = false) nada disso roda — PC intacto.
+      if (touchMode.smart) {
+        const ally = allyAt(w.x, w.y);
+        if (ally) {
+          clearSelection();
+          ally.selected = true;
+          SFX.select();
+          tutEvent("selected", 1);
+          consumed = true;
+        } else if (selectedCount() === 0 && G.time - touchHintT > 6) {
+          touchHintT = G.time;
+          floatText(w.x, w.y - 16, "TOQUE NUMA FORMIGA PARA SELECIONAR", { color: "#9a8fc0", life: 1.4 });
+        }
+      }
+      if (!consumed && selectedCount() > 0) {
         const foe = enemyAt(w.x, w.y);
         if (foe) {
           if (orderAttackSelected(foe) > 0) {
@@ -1134,18 +1152,37 @@ function renderOptions() {
     drawText(ctx, "PARALLAX 4 CAMADAS ALTA RESOLUÇÃO:", colX, cy, { color: "#ffd479", scale: 0.9 }); cy += 18;
     drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.75 }); cy += 20;
     drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.75 });
-  } else if (optionsTab === 2) { // CONTROLES - WASD+toque spec
-    drawText(ctx, "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
-    for (const [k, d] of HELP_CONTROLS) {
+  } else if (optionsTab === 2) { // CONTROLES - PC WASD / Mobile gestos de toque
+    drawText(ctx, touchMode.on ? "CONTROLES - Mobile Toque" : "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
+    const optControls = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
+    for (const [k, d] of optControls) {
       drawText(ctx, k, colX, cy, { color: "#37e6c8", scale: 0.9 });
       drawText(ctx, d, colX + 160, cy, { color: PAL.text, scale: 0.85 }); cy += 20;
     }
     cy += 12;
+    // MOBILE: modo explícito ORDENAR ↔ SELECIONAR (alternativa aos gestos inteligentes)
+    if (touchMode.on) {
+      const s = G.save.settings;
+      const on = !!s.touchSelect;
+      drawText(ctx, (on ? "✓ " : "○ ") + "BOTÃO DE MODO ORDENAR / SELECIONAR", colX, cy, { color: on ? "#ffd479" : "#5a4f78", scale: 0.9 });
+      if (button(ctx, { x: colX + 400, y: cy - 4, w: 100, h: isMobile ? 30 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "ctl_touchSelect", accent: "#ffd479" })) {
+        s.touchSelect = !on; persistSave(); SFX.uiClick();
+        touchMode.smart = !s.touchSelect;
+        touchMode.mode = "ordenar";
+      }
+      cy += 18;
+      drawText(ctx, on ? "Botão flutuante na expedição alterna entre dar ordens e selecionar" : "Desligado: gestos inteligentes (toque na formiga seleciona)", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
+    }
     panel(ctx, colX, cy, PW - 64, 56, { fill: "rgba(255,179,71,0.08)", border: "#ffb347", r: 4 });
-    drawText(ctx, "MOBILE: Toque = clique, Arrastar = mover câmera, 2 dedos = zoom • botões 104px", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
-    drawText(ctx, "SWIPE nos cards de modo: arraste horizontal para navegar • swipe nas abas", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
+    if (touchMode.on) {
+      drawText(ctx, "GESTOS: toque = ordem • arrastar = câmera • pinça = zoom • 2 dedos = caixa", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
+      drawText(ctx, "TOQUE DUPLO seleciona o tipo • versão mobile: save próprio, independente do PC", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
+    } else {
+      drawText(ctx, "MOBILE: existe uma versão paralela para celular em /game/mobile/ (save próprio)", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
+      drawText(ctx, "SWIPE nos cards de modo: arraste horizontal para navegar • swipe nas abas", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
+    }
     cy += 64;
-    drawText(ctx, "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
+    drawText(ctx, touchMode.on ? "Botões na tela: pausa • ninho • rali • onda • zoom • centro" : "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
   } else if (optionsTab === 3) { // ACESSIBILIDADE - Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade
     drawText(ctx, "♿ ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
     drawText(ctx, "Spec: Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
@@ -1215,9 +1252,14 @@ function renderOptions() {
   }
 
   const mobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W / 2 - 110, y: VIEW_H - 44, w: mobile ? 240 : 220, h: mobile ? 104 : 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
+  if (button(ctx, { x: VIEW_W / 2 - 250, y: VIEW_H - 44, w: mobile ? 240 : 220, h: mobile ? 104 : 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
+  }
+  // MOBILE: troca entre as duas versões paralelas (PC ↔ mobile), mesma engine
+  if (button(ctx, { x: VIEW_W / 2 + 30, y: VIEW_H - 44, w: 220, h: mobile ? 104 : 36, label: touchMode.on ? "VERSÃO PC" : "VERSÃO MOBILE", id: "switchVersion", accent: "#37e6c8", scale: 0.85 })) {
+    notePointer(mouse.x, mouse.y);
+    location.href = touchMode.on ? "../" : "mobile/";
   }
   if (pressed.Escape) {
     notePointer(VIEW_W/2, VIEW_H/2);
@@ -1264,9 +1306,11 @@ function renderHelp() {
   y += 14;
 
   let yl = y;
-  drawText(ctx, "CONTROLES", colX[0], yl, { font: "big", color: "#c77dff" });
+  // MOBILE: a versão de toque mostra a tabela de gestos no lugar do teclado
+  const controlsTable = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
+  drawText(ctx, touchMode.on ? "CONTROLES (TOQUE)" : "CONTROLES", colX[0], yl, { font: "big", color: "#c77dff" });
   yl += 26;
-  for (const [k, d] of HELP_CONTROLS) {
+  for (const [k, d] of controlsTable) {
     drawText(ctx, k, colX[0], yl, { color: "#37e6c8" });
     const lines = wrapText(d, colW - descX, {});
     lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 16, { color: PAL.text }));
@@ -2285,6 +2329,8 @@ function renderMemoryScreen() {
 // ---------------------------------------------------------------- exports ---
 export function gameHelpReturn() { return helpReturn; }
 export function setPaused(v) { paused = v; }
+// MOBILE: a camada de toque usa para rotular o botão de pausa (⏸/▶)
+export function isPaused() { return paused; }
 export function boot() {
   initInput(canvas);
 }

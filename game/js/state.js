@@ -3,7 +3,12 @@
 // ============================================================================
 import { META_NODES, PROPHECIES } from "./config.js";
 
-const SAVE_KEY = "fumiga_goat_save_v1";
+// A versão MOBILE define globalThis.FUMIGA_SAVE_KEY antes de carregar o motor,
+// mantendo um slot de save PRÓPRIO: as versões PC e mobile são paralelas e
+// independentes (progressos não se misturam), atualizadas em conjunto.
+const SAVE_KEY =
+  (typeof globalThis !== "undefined" && typeof globalThis.FUMIGA_SAVE_KEY === "string" && globalThis.FUMIGA_SAVE_KEY) ||
+  "fumiga_goat_save_v1";
 
 // G: singleton mutável compartilhado por todos os módulos ---------------------
 export const G = {

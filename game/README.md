@@ -17,6 +17,25 @@ python3 -m http.server 8080
 # abra http://localhost:8080
 ```
 
+## 📱 Versão mobile (paralela)
+
+O site detecta o aparelho: **celular cai na versão mobile**, PC na versão PC. Também dá para
+trocar à mão: o link na página inicial e o botão **VERSÃO MOBILE / VERSÃO PC** nas OPÇÕES do jogo.
+
+- **Endereço:** `/game/mobile/` (serve a mesma pasta; ao testar localmente abra
+  <http://localhost:8080/mobile/>).
+- **Paralela, mesma engine:** a versão mobile é só um shell (`game/mobile/index.html`,
+  `mobile.css`, `touch.js`) que importa **os mesmos módulos** do PC — qualquer atualização na
+  lógica cai nas duas versões ao mesmo tempo. As duas **não se conectam**: slot de save próprio
+  (`fumiga_goat_mobile_save_v1`), progresso independente.
+- **Enquadramento:** o canvas 960×540 é escalado mantendo a proporção 16:9 (letterbox), sem
+  distorcer; em pé aparece a faixa "gire o celular" (paisagem é a experiência recomendada).
+- **Controles de toque:** arrastar 1 dedo move a câmera · toque dá ordem às selecionadas ·
+  toque numa formiga a seleciona · toque duplo seleciona o tipo · arrastar 2 dedos faz a caixa
+  de seleção · pinça dá zoom · botões virtuais cobrem pausa, ninho, rali, onda, zoom e centro.
+  Nas OPÇÕES → CONTROLES dá para ativar o botão de modo **ORDENAR/SELECIONAR** como alternativa
+  aos gestos inteligentes.
+
 > 📜 **História**: a saga canônica — *A Travessia da Colônia Eterna*, da Noite Branca
 > à derrota de **A PÁLIDA** no Topo do Mundo — está em [`../LORE.md`](../LORE.md).
 > As tips das ondas, a tela de título e a vitória sussurram pedaços dela.
@@ -215,6 +234,7 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   - `FORCE=N node test/sim.mjs` — pula direto para o chefão do mapa `N` (1–6) com um exército
     coerente, validando o spawn e a IA de cada chefe
 - `test/boot.mjs` — sintaxe ESM dos módulos, boot normal, save inválido e erros de carregamento de fontes/sprites (sem rejeições não tratadas)
+- `test/mobile.mjs` — a versão mobile headless: a camada de toque (`mobile/touch.js`) traduz tap/arraste/pinça/toque-duplo/caixa nos mesmos estados de entrada do PC, o HUD virtual pressiona as teclas certas, e o slot de save fica isolado (`FUMIGA_SAVE_KEY`). Rode depois de mexer em `mobile/*` ou em `js/input.js`/`js/camera.js`.
 - `test/docs.mjs` — integridade do [`MEGA_ARQUIVO.md`](../MEGA_ARQUIVO.md): seis documentos originais preservados byte a byte, com SHA-256
 - `test/uitest.mjs` — boot → título → introdução → expedição → câmaras → pausa → troca de mapa (DOM simulado)
 - `test/assets.mjs` — integridade de sprites e de texto: todo nome de imagem usado pelo jogo
@@ -250,7 +270,8 @@ Cheque tudo antes de subir (é o que o CI local usa):
 node test/boot.mjs && node test/docs.mjs && node test/lorehud.mjs && \
 node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
 node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs
+node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs && \
+node test/mobile.mjs
 ```
 
 Para inspeção visual do layout das telas internas (gera PNG fora do repo):

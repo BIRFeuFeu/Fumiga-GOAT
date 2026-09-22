@@ -366,6 +366,19 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - Validação: antes de gerar qualquer asset de personagem, checar se há traços humanóides (olhos frontais humanos, boca humana, postura bípede humana). Se houver, refazer.
 - Inspirações válidas: *Hollow Knight*, *Rain World* [2](https://www.reddit.com/r/gamingsuggestions/comments/1ivfjbo/games_where_you_play_a_nonhumanoid_like_stray_or/), *Webbed* (aranha), *Shelter* (texugo), *Stray* mas com insetos — todos com protagonismo não-humano sem humanização.
 
+## Regra 9 — Adaptar toda mudança para a versão mobile 📱
+
+> **Toda alteração no jogo precisa chegar adaptada à versão mobile (`game/mobile/`). O que já é automático não se duplica; o que não é automático se adapta na camada de toque (`touch.js`).**
+
+- **Regra de ouro: nunca duplicar jogabilidade** dentro de `game/mobile/`. As duas versões (PC e mobile) importam os **mesmos módulos** (`game/js/`), então balanceamento, unidades, inimigos, ondas, chefes, mutações, árvore, telas desenhadas em canvas e arte caem nas duas automaticamente — uma atualização de conteúdo ou gameplay vale para as duas ao mesmo tempo, nas alterações em conjunto.
+- **O único lugar em que é preciso lembrar do mobile é a entrada de dados.** A camada `game/mobile/touch.js` é o único arquivo que não se atualiza sozinho nesses casos:
+  - **Novo atalho de teclado / mecânica nova de input** → mapear um gesto equivalente ou adicionar um botão virtual correspondente no HUD da expedição (array de botões em `touch.js`). Se a ação ficar só no teclado/mouse, ela deixa de existir no celular.
+  - **Tela nova com zoom/pan customizado** → a pinça já cobre a expedição (câmera do RUN) e a ÁRVORE (passos de roda); telas novas herdam o padrão, mas uma mecânica de gesto própria pede ajuste explícito na camada.
+  - **Texto com carácter fora do atlas da fonte** → não quebra nada, mas o `test/assets.mjs` acusa na hora (rede de proteção): trocar o símbolo por um suportado ou regerar o atlas pela pipeline.
+- **Tutorial e comunicação:** texto novo que ensina controles (cartões do tutorial, ajuda, opções) precisa de equivalente de toque (`descTouch`, `HELP_CONTROLS_TOUCH` etc.) — no celular o jogador não tem teclado nem mouse.
+- **Validação obrigatória:** rodar a suíte inteira antes de subir, incluindo `node game/test/mobile.mjs` (joga a versão mobile headless do boot até a expedição só com toque). Se uma mudança quebrar algo no mobile, os testes avisam antes do push.
+- As duas versões são **paralelas e sem conexão** (saves isolados por slot): progresso nunca é sincronizado entre elas.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -373,9 +386,10 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 2. PERGUNTAR  → opções de implementação (Regra 1)
 3. IMPLEMENTAR → seguindo as escolhas do usuário e a otimização (Regra 5)
 4. ARTE       → imagens em alta resolução, pixel art harmônico (Regra 6) + Regra 8 não-humanóide
-5. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
-6. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
-7. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
+5. ADAPTAR    → mobile: todo input novo vira gesto/botão de toque (Regra 9)
+6. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
+7. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
+8. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,
@@ -1372,6 +1386,45 @@ Cada layer: alta resolução, pixel art detalhado, paleta violeta/âmbar, sem hu
 <!-- INICIO ORIGINAL: PROGRESSO_MEGA_ATUALIZACAO.md -->
 # PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
 
+**Data:** 2026-09-22 (continuação)
+**Branch:** arena/01a0c9ed-fumiga-goat
+
+## ✅ VERIFICAÇÃO FASE 1 — Fundação Lore (HUD Orgânico Total por Bioma + Feromônio H)
+
+Verificação feita em 2026-09-22 sobre o código atual do branch. Resultado: **FASE 1 100% FINALIZADA**.
+
+| # | Item verificação Fase 1 | Status | Onde |
+|---|-------------------------|--------|------|
+| 1 | HUD muda cor/textura/nome por bioma (6 biomas) | ✅ | `game/js/lore_hud.js` BIOME_HUD + `game.js` drawBiomeTexture em todos os painéis + `config.js` MAPS loreName |
+| 2 | Vida Rainha = gaster com coroa fungo/seda, pulsa <30% com veias vermelhas | ✅ | `drawGasterBar` (sprite `lore_gaster.png` 3 frames + fallback procedural) |
+| 3 | Comida muda ícone/label por bioma (trevo/musgo/alga/semente/outono/gelo) | ✅ | `drawFoodIcon` + `lore_icons.png` 192x16 (12 ícones) + foodLabel por bioma |
+| 4 | Essência = cristal geométrico hexagonal com partículas âmbar/violeta | ✅ | `drawEssenceCrystal` hexagonal + luz interna (polido na Fase 2, P11) |
+| 5 | Onda = Trilha Feromônio com formigas andando | ✅ | `trailProgress` + `drawTrailAnt` 7 formigas em `game.js` |
+| 6 | H mostra névoa verde comida / vermelha perigo + "A COLÔNIA VÊ COM CHEIRO" | ✅ | `drawPheromoneOverlay` + `drawPheromoneLegend` |
+| 7 | Performance (cache painéis, névoa 30Hz pré-rasterizada, reducedFX) | ✅ | `lore_hud.js` panelCache/fogStamp; validado servidor + scan estático |
+| 8 | Assets HUD servindo (panels/icons/gaster 200) | ✅ | `game/assets/ui/lore_*.png` — curl 200 em todos |
+
+## ✅ IMPLEMENTAÇÃO FASE 2 — Habilidades Lore VFX Médio + Inimigos Pálidos (P7=B, P13=C, P11=A)
+
+Implementado em 2026-09-22 neste branch.
+
+| # | Item verificação Fase 2 | Status | Onde |
+|---|-------------------------|--------|------|
+| 1 | 11 castas disparam aura cor + partícula + som + ícone lore | ✅ | `lore_vfx.js` ANT_VFX (sons: spore/honey/pheromone/silk/healCast/slam/crystal) + hooks em `units.js` (attackMelee, spitAt, healer 0.66s, scout 2.5s/4s, tank guard 3s, weaver deposit, carry 0.5s) |
+| 2 | Aura persistente por casta (1 elipse barata, sem gradiente) | ✅ | `drawAllyAura` em `lore_vfx.js`, chamada em `render.js` drawAnt |
+| 3 | Gather essência spawna cristal geométrico que sobe | ✅ | `spawnMemoryCrystal` com partículas `shape:"hex"` + SFX.crystal |
+| 4 | Inimigos comuns pálidos: véu screen #e8f4ff 0.28 + olhos #fff lighter + aura + rastro #c9bce8 | ✅ | `render.js` drawAnt (foes non-boss) + `enemies.js` rastro ~2/s |
+| 5 | Cristais essência hexagonais com luz interna + memória subindo | ✅ | `drawEssenceCrystal` hexagonal + `drawHexCrystal` + `combat.js` drawOrbs núcleo hex + `particles.js` shape hex |
+| 6 | Performance ≤30 partículas VFX/frame + gates áudio | ✅ | Orçamento `vfxAllow()` em `lore_vfx.js` + gates silk/honey/spore/crystal/crown/pheromone em `audio.js` |
+| 7 | Sem humanoide (só inseto/fauna, Regra 8) | ✅ | Auras/elipses/hexágonos/olhos de névoa — nenhuma forma humana |
+| 8 | Sintaxe + imports + preview | ✅ | `node --check` 8 arquivos OK, imports resolvidos 27/27, servidor 8000 no ar, assets 200 |
+
+**Commit:** `fase 2: VFX casta médio + inimigos pálidos filhos névoa`
+
+---
+
+# PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ANTERIOR
+
 **Data:** 2026-09-22
 **Branch:** arena/01a0c8d1-fumiga-goat
 
@@ -1720,11 +1773,11 @@ parte dos blocos originais.
 
 | Arquivo original | Bytes preservados | SHA-256 |
 |---|---:|---|
-| `REGRAS_DE_TRABALHO.md` | 8486 | `27888f7b34e552156555a5c0b03c647076db5cf3c28904ffbeda071ab4a45107` |
+| `REGRAS_DE_TRABALHO.md` | 10718 | `31c453894502a6ae86e8749b49caa493316a2c9ac29eb9fb8b4cc2e484b26a31` |
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
-| `PROGRESSO_MEGA_ATUALIZACAO.md` | 4493 | `67f43b55e2897586d5e0ac96f7fe1b4329d1e95a2ca267fc821ed1dcf3997ae1` |
+| `PROGRESSO_MEGA_ATUALIZACAO.md` | 7782 | `308b60262d478b650659da247f62a0541f02631acb03768c6aefb04ae818243b` |
 | `DOCUMENTO_FASES_IMPLEMENTACAO.md` | 16125 | `d12395ae661c7b5a1c0546a1bb4a778b728a5c8d28c2944a3e4bbdbd50f1aba3` |
 
 **Conferência reproduzível:** `node game/test/docs.mjs`.

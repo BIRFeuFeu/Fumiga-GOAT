@@ -7,7 +7,9 @@ sem build e sem dependências — todo o texto do jogo está em português.
 
 ### **https://feufeup.github.io/Fumiga-GOAT/**
 
-O endereço acima cai direto no jogo (a página inicial só leva você para [`game/`](game/)).
+O endereço acima detecta o aparelho: **PC cai na versão de teclado+mouse** ([`game/`](game/)) e
+**celular cai na versão mobile de toque** ([`game/mobile/`](game/mobile/)) — duas versões
+paralelas sobre o mesmo motor, atualizadas juntas, cada uma com seu save independente.
 Para jogar no seu computador, veja [Rodar localmente](#-rodar-localmente) abaixo.
 
 ## 🐜 O jogo

@@ -6,8 +6,12 @@
 <title>FUMIGA — Colônia Eterna</title>
 <meta name="description" content="Roguelite de colônia de formigas em pixel art. Clique para jogar.">
 <!-- O jogo em si mora em game/: este arquivo só leva você até lá.
-     Assim o endereço do repositório no GitHub Pages já abre o jogo. -->
-<meta http-equiv="refresh" content="0; url=./game/">
+     Duas versões PARALELAS, mesmo motor, atualizadas juntas:
+       • PC/teclado+mouse ......... ./game/
+       • Mobile/toque ............. ./game/mobile/ (save próprio, sem conexão)
+     A detecção abaixo abre a versão certa para o aparelho; os links ficam
+     disponíveis para quem quiser trocar. -->
+<meta http-equiv="refresh" content="2; url=./game/">
 <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkaGj4DwAFhAJ/ylK4NQAAAABJRU5ErkJggg==">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -31,6 +35,11 @@
     animation: pulsa 1.9s ease-in-out infinite;
   }
   a.jogar:hover { background: rgba(55,230,200,.28); }
+  a.outra {
+    color: #8f6fd6; text-decoration: none; letter-spacing: .08em;
+    font-size: clamp(11px, 2.4vw, 13px); border-bottom: 1px dotted #8f6fd6;
+  }
+  a.outra:hover { color: #c77dff; border-color: #c77dff; }
   @keyframes pulsa { 50% { transform: scale(1.045); box-shadow: 0 0 40px rgba(55,230,200,.6); } }
   small { color: #6f6490; letter-spacing: .06em; }
 </style>
@@ -38,8 +47,31 @@
 <body>
   <h1>FUMIGA</h1>
   <p>Colônia Eterna — roguelite de colônia de formigas em pixel art</p>
-  <a class="jogar" href="./game/">▶ JOGAR</a>
-  <small>levando você para o jogo…</small>
-  <script>location.replace("./game/");</script>
+  <a id="jogar" class="jogar" href="./game/">▶ JOGAR</a>
+  <a id="outra" class="outra" href="./game/mobile/">📱 ou abrir a versão mobile</a>
+  <small id="aviso">levando você para a versão do seu aparelho…</small>
+  <script>
+    // Detecção do aparelho: toca na versão mobile, teclado/mouse na versão PC.
+    // As duas versões são paralelas (saves separados) e usam o MESMO motor —
+    // qualquer atualização no jogo vale para as duas ao mesmo tempo.
+    (function () {
+      var mobile =
+        (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0;
+      var alvo = mobile ? "./game/mobile/" : "./game/";
+      var jogar = document.getElementById("jogar");
+      var outra = document.getElementById("outra");
+      var aviso = document.getElementById("aviso");
+      jogar.href = alvo;
+      jogar.textContent = mobile ? "▶ JOGAR (MOBILE)" : "▶ JOGAR (PC)";
+      outra.href = mobile ? "./game/" : "./game/mobile/";
+      outra.textContent = mobile
+        ? "🖥 ou abrir a versão PC (teclado e mouse)"
+        : "📱 ou abrir a versão mobile (toque)";
+      aviso.textContent = "levando você para a versão " + (mobile ? "MOBILE" : "PC") + "…";
+      location.replace(alvo);
+    })();
+  </script>
 </body>
 </html>
