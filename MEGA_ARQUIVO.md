@@ -1903,3 +1903,19 @@ parte dos blocos originais.
 O teste compara byte a byte cada bloco com seu arquivo original, confere os
 hashes e verifica que todas as seis fontes aparecem exatamente uma vez.
 Os READMEs da raiz e de `game/` não foram incorporados, conforme o escopo escolhido.
+
+---
+# REGISTRO — Manto da Névoa (2026-09-22, branch arena/01a0ca96)
+Pedido do usuário: retirar os olhos brilhosos dos inimigos; todo inimigo com
+fog branca animada em volta (spritesheet desenhada, um pouco transparente,
+adaptada ao tamanho). Lore base: Névoa "branca, doce e silenciosa" (Prólogo),
+PÁLIDA/ninho branco, Ascensão/NÉVOA PLENA.
+Decisões (ask_user): manto = fog densa embaixo + véu fino em cima; remover
+TODO o VFX pálido antigo; chefes também com fog (maior/densa); densidade média.
+Entregue: `game/assets/sprites/fx/fog_mantle.png` (6x48x48, plasma
+determinístico — sementes fixas + `-limit thread 1` + `-strip`, verificado com
+`cmp`), seção Névoa em `tools/prepare_assets.sh`, `fog_mantle` no MANIFEST,
+`bakeFog`/`fogFrame`/`FOG_FRAMES` em `game/js/assets.js`, manto em
+`drawAnt`/`drawBoss` (`game/js/render.js`), rastro pálido removido de
+`game/js/enemies.js`. Olhos/elipse pálida/aura removidos; orbes + coroa da
+fase 2 mantidos. Suíte 13/16 (3 falhas pré-existentes, iguais ao baseline).

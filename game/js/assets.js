@@ -3,6 +3,8 @@
 // ============================================================================
 
 const MANIFEST = {
+  // névoa — manto de fog branca dos inimigos (spritesheet 6x48x48)
+  fog_mantle: "sprites/fx/fog_mantle.png",
   // formigas
   worker: "sprites/ants/worker.png",
   soldier: "sprites/ants/soldier.png",
@@ -356,4 +358,34 @@ export function bakeSheet(key, cols, outFW = 96) {
   }));
   SHEETS[key] = sheet;
   return sheet;
+}
+
+// ------------------------------------------------------------------ névoa ---
+// MANTO DA NÉVOA: fatia a faixa horizontal (N frames lado a lado) em canvases.
+// Lazy + cacheado — o primeiro inimigo desenhado assa, o resto reutiliza.
+export const FOG_FRAMES = 6;
+const FOG = {}; // key -> { frames:[canvas] }
+export function bakeFog(key, n = FOG_FRAMES) {
+  if (FOG[key]) return FOG[key];
+  const img = IMG[key];
+  const frames = [];
+  if (img && img.width > 0) {
+    const fw = Math.round(img.width / n), fh = img.height;
+    for (let i = 0; i < n; i++) {
+      const cv = document.createElement("canvas");
+      cv.width = fw; cv.height = fh;
+      const c = cv.getContext("2d");
+      c.imageSmoothingEnabled = false;
+      c.drawImage(img, i * fw, 0, fw, fh, 0, 0, fw, fh);
+      frames.push(cv);
+    }
+  }
+  FOG[key] = { frames };
+  return FOG[key];
+}
+export function fogFrame(key, idx) {
+  const s = bakeFog(key);
+  if (!s.frames.length) return null;
+  const n = s.frames.length;
+  return s.frames[((idx % n) + n) % n];
 }
