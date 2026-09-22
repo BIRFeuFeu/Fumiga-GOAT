@@ -100,6 +100,7 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 | [`game/js/brain.js`](game/js/brain.js) | **Cérebro da colônia**: cada formiga decide sozinha (IA de utilidade) sob necessidades da colônia, cotas por tarefa e feromônio (estigmergia) |
 | [`game/test/`](game/test/) | Auditorias de assets, layout, árvore, travamentos e simulação |
 | [`tools/prepare_assets.sh`](tools/prepare_assets.sh) | Regenera os sprites a partir das artes-fonte |
+| [`tools/fix_title_parallax.py`](tools/fix_title_parallax.py) | Repara as 4 camadas de parallax do TITLE (matte do recorte, paleta) e as deixa no tamanho exato de desenho |
 | `animais/`, `arvores/`, `arbustos/`, `pedras/`, `cristais/`, `cenarios/`, `icones/` | Artes-fonte |
 
 ## 💻 Rodar localmente
