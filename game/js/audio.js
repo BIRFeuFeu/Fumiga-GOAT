@@ -107,12 +107,13 @@ export const SFX = {
   rebirth: () => { [220, 440, 660, 880].forEach((f, i) => tone({ type: "sine", f0: f, dur: 0.5, vol: 0.1, when: i * 0.1 })); },
   stinger: () => { tone({ type: "sawtooth", f0: 196, f1: 98, dur: 0.5, vol: 0.12 }); noise({ dur: 0.4, vol: 0.1, lp: 900 }); },
   type: () => { if (!gate("type", 45)) return; tone({ type: "square", f0: 700+Math.random()*200, dur: 0.04, vol: 0.04, a:0.001 }); },
-  silk: () => { tone({ type: "sine", f0: 880, f1: 1200, dur: 0.12, vol: 0.05 }); },
-  honey: () => { tone({ type: "sine", f0: 320, f1: 280, dur: 0.2, vol: 0.06 }); },
-  spore: () => { noise({ dur: 0.12, vol: 0.04, lp: 1200 }); tone({ type: "sine", f0: 440, dur: 0.1, vol: 0.03 }); },
-  crystal: () => { [1046, 1318, 1568].forEach((f,i)=> tone({ type: "sine", f0: f, dur: 0.25, vol: 0.05, when: i*0.04 })); },
-  crown: () => { tone({ type: "sine", f0: 523, f1: 784, dur: 0.4, vol: 0.08 }); tone({ type: "sine", f0: 659, dur: 0.5, vol: 0.06, when:0.1 }); },
-  pheromone: () => { tone({ type: "sine", f0: 220, f1: 330, dur: 0.3, vol: 0.06 }); },
+  // FASE 2 LORE-VFX: cada casta tem sua voz (gates evitam spam quando 10+ formigas agem no mesmo frame)
+  silk: () => { if (!gate("silk", 120)) return; tone({ type: "sine", f0: 880, f1: 1200, dur: 0.12, vol: 0.05 }); },
+  honey: () => { if (!gate("honey", 140)) return; tone({ type: "sine", f0: 320, f1: 280, dur: 0.2, vol: 0.06 }); },
+  spore: () => { if (!gate("spore", 130)) return; noise({ dur: 0.12, vol: 0.04, lp: 1200 }); tone({ type: "sine", f0: 440, dur: 0.1, vol: 0.03 }); },
+  crystal: () => { if (!gate("crystal", 160)) return; [1046, 1318, 1568].forEach((f,i)=> tone({ type: "sine", f0: f, dur: 0.25, vol: 0.05, when: i*0.04 })); },
+  crown: () => { if (!gate("crown", 400)) return; tone({ type: "sine", f0: 523, f1: 784, dur: 0.4, vol: 0.08 }); tone({ type: "sine", f0: 659, dur: 0.5, vol: 0.06, when:0.1 }); },
+  pheromone: () => { if (!gate("pheromone", 200)) return; tone({ type: "sine", f0: 220, f1: 330, dur: 0.3, vol: 0.06 }); },
 };
 
 // ------------------------------------------------------------------ música ---

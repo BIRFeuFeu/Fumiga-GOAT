@@ -368,15 +368,42 @@ export function drawPheromoneLegend(ctx, width, y) {
   ctx.restore();
 }
 
-// Cristais âmbar/violeta com memória ascendente, sem voz/figura humana.
+// FASE 2 (P11): cristal geométrico hexagonal com luz interna + memória ascendente.
+// Âmbar = memória da Colônia · violeta = Névoa. Sem voz/figura humana.
 export function drawEssenceCrystal(ctx, x, y, size, color, time) {
-  drawLoreIcon(ctx,color === "#c77dff" ? 7 : 6,x-size/2,y-size/2,size);
+  const r = size / 2;
+  const pulse = reducedFX() ? 0 : Math.sin(time * 3) * 0.08;
+  ctx.save();
+  // halo
+  ctx.globalAlpha = 0.22 + pulse;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(Math.round(x), Math.round(y), r * 1.5, 0, Math.PI * 2); ctx.fill();
+  // corpo hexagonal
+  ctx.globalAlpha = 0.95;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2 - Math.PI / 2;
+    const px = Math.round(x + Math.cos(a) * r), py = Math.round(y + Math.sin(a) * r);
+    if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#1a1427"; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+  // luz interna
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x - 1), Math.round(y - r * 0.55), 2, Math.round(r * 1.1));
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(Math.round(x - 1), Math.round(y - 2), 2, 2);
+  ctx.restore();
   if (reducedFX()) return;
+  // partículas de memória subindo
   ctx.save(); ctx.fillStyle = color;
-  for (let i=0;i<2;i++) {
-    const rise=(time*8+i*7)%12;
-    ctx.globalAlpha *= 0.8;
-    ctx.fillRect(Math.round(x-3+i*6),Math.round(y-size/2-rise),1,2);
+  for (let i = 0; i < 2; i++) {
+    const rise = (time * 8 + i * 7) % 12;
+    ctx.globalAlpha = 0.8 * (1 - rise / 12);
+    ctx.fillRect(Math.round(x - 3 + i * 6), Math.round(y - size / 2 - rise), 1, 2);
   }
   ctx.restore();
 }

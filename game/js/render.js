@@ -15,6 +15,7 @@ import { clamp, TAU, lerp } from "./utils.js";
 import { fogDraw, fogVisible } from "./fog.js";
 import { SFX } from "./audio.js";
 import { mouse } from "./input.js";
+import { drawAllyAura } from "./lore_vfx.js";
 
 let vignette = null;
 
@@ -348,6 +349,8 @@ function drawAnt(ctx, u, w2s) {
 
   const sc = z * squashY;
   const w = size * z * squashX, h = size * sc;
+  // FASE 2: aura da casta por baixo do sprite (1 elipse, sem gradiente)
+  if (!u.dead && u.faction === "ally") drawAllyAura(ctx, dx, dy, z, u.type, u.bodyR, G.time);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(dx, dy);
@@ -357,6 +360,40 @@ function drawAnt(ctx, u, w2s) {
   ctx.globalAlpha = 1;
 
   if (u.dead) return;
+
+  // FASE 2: FILHOS DA NÉVOA — inimigos comuns pálidos (não-chefes).
+  // Tom pálido + olhos de névoa branca. Regra 8: nada humanoide, só fauna.
+  if (u.faction !== "ally" && !u.isBoss) {
+    // aura pálida ao redor do corpo
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = "#e8f4ff";
+    ctx.beginPath();
+    ctx.ellipse(dx, dy, (u.bodyR + 6) * z, (u.bodyR + 6) * 0.6 * z, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+    // véu pálido sobre o corpo (screen, barato: 1 elipse)
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#e8f4ff";
+    ctx.beginPath();
+    ctx.ellipse(dx, dy - 2 * z, u.bodyR * z, u.bodyR * 0.7 * z, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+    // olhos de névoa branca na frente (lighter)
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "#fff";
+    const er = Math.max(1.5, 1.8 * z);
+    const fx = dx + Math.cos(u.angle) * u.bodyR * 0.45 * z;
+    const fy = dy + Math.sin(u.angle) * u.bodyR * 0.45 * z - 2 * z;
+    const px = Math.cos(u.angle + Math.PI / 2) * 3 * z;
+    const py = Math.sin(u.angle + Math.PI / 2) * 3 * z;
+    ctx.beginPath(); ctx.arc(fx + px, fy + py, er, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx - px, fy - py, er, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
 
   if (u.carry > 0 && u.carryKind) {
     ctx.fillStyle = u.carryKind === "essence" ? "#c77dff" : u.carryKind === "amber" ? "#ffd479" : "#ffb347";

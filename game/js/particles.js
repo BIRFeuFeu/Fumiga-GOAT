@@ -29,7 +29,7 @@ export function spawnPart(o) {
     drag: o.drag !== undefined ? o.drag : 0.94,
     rot: o.rot || 0,
     vr: o.vr || 0,
-    shape: o.shape || "square", // square, circle, diamond, spark
+    shape: o.shape || "square", // square, circle, diamond, spark, hex (cristal memória FASE 2)
   });
 }
 
@@ -288,6 +288,15 @@ export function drawParts(ctx, w2s) {
       ctx.fillRect(-sz*0.3, -sz*0.3, sz*0.6, sz*0.6);
     } else if (p.shape === "circle") {
       ctx.beginPath(); ctx.arc(0,0,sz/2,0,TAU); ctx.fill();
+    } else if (p.shape === "hex") {
+      // FASE 2: cristal de memória geométrico (âmbar = Colônia, violeta = Névoa)
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * TAU - Math.PI / 2;
+        const px = Math.cos(a) * sz / 2, py = Math.sin(a) * sz / 2;
+        if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
     } else {
       ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
     }
@@ -322,6 +331,18 @@ export function drawGlows(ctx, w2s) {
     } else if (p.shape === "diamond") {
       ctx.rotate(Math.PI/4);
       ctx.fillRect(-sz/2, -sz/2, sz, sz);
+    } else if (p.shape === "hex") {
+      // FASE 2: cristal geométrico com luz interna (núcleo branco no centro)
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * TAU - Math.PI / 2;
+        const px = Math.cos(a) * sz / 2, py = Math.sin(a) * sz / 2;
+        if (!i) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha *= 0.8;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(-1, -1, 2, 2);
     } else {
       ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
     }
