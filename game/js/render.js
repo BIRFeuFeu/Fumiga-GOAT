@@ -718,8 +718,8 @@ function ensureMotes() {
   // FASE 1 FINAL - partículas essência subindo do formigueiro central (escolha particulas)
   for (let i = 0; i < 12; i++) {
     titleEssence.push({
-      x: VIEW_W * 0.72 + (Math.random() - 0.5) * 30,
-      y: VIEW_H * 0.62 + Math.random() * 20,
+      x: VIEW_W * 0.71 + (Math.random() - 0.5) * 30,
+      y: VIEW_H * 0.67 + Math.random() * 20,
       vx: (Math.random() - 0.5) * 8,
       vy: - (12 + Math.random() * 18),
       size: 0.8 + Math.random() * 1.6,
@@ -810,8 +810,8 @@ export function drawTitleMotes(ctx, time) {
     e.y += e.vy * 0.016;
     e.life += 0.016 * 0.3;
     if (e.y < VIEW_H * 0.35 || e.life > 1) {
-      e.x = VIEW_W * 0.72 + (Math.random() - 0.5) * 30;
-      e.y = VIEW_H * 0.62 + Math.random() * 20;
+      e.x = VIEW_W * 0.71 + (Math.random() - 0.5) * 30;
+      e.y = VIEW_H * 0.67 + Math.random() * 20;
       e.vx = (Math.random() - 0.5) * 8;
       e.vy = - (12 + Math.random() * 18);
       e.life = 0;
@@ -902,8 +902,8 @@ export function drawTitleBg(ctx) {
     ctx.globalCompositeOperation = "lighter";
     // luz pulsante amarela quente na entrada do formigueiro
     const pulse = 0.75 + Math.sin(time * 1.6) * 0.22;
-    const anthillFx = VIEW_W * 0.72 + mainOffX * 0.3;
-    const anthillFy = VIEW_H * 0.62 + mainOffY * 0.2;
+    const anthillFx = VIEW_W * 0.71 + mainOffX * 0.3;
+    const anthillFy = VIEW_H * 0.67 + mainOffY * 0.2;
     const rg = ctx.createRadialGradient(anthillFx, anthillFy, 2, anthillFx, anthillFy, 52);
     rg.addColorStop(0, `rgba(255,212,121,${0.22 * pulse})`);
     rg.addColorStop(0.4, `rgba(255,160,60,${0.12 * pulse})`);

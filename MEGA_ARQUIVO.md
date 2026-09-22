@@ -491,6 +491,10 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
   FUMIGA (paleta escura violeta/âmbar, contorno limpo, leitura clara em tamanho pequeno).
 - Antes de gerar, observar os sprites/atlas existentes (`game/assets/`) para **combinar paleta,
   escala de pixel, sombreamento e silhueta** — a arte nova não pode parecer "colada de fora".
+- **Sempre mostrar 2 ou mais opções da mesma imagem para o usuário escolher** (ex.:
+  `offer_options` do `generate_image`): nenhuma arte entra no jogo por decisão só do agente —
+  o usuário aprova comparando alternativas lado a lado. Vale para geração nova, recriação
+  ("recrie 100%") e edição de arte existente; a escolhida ainda passa pela Regra 10.
 - Imagens entram otimizadas (Regra 5): tamanho certo para o uso, sem peso desnecessário.
 
 ---
@@ -1937,7 +1941,7 @@ parte dos blocos originais.
 
 | Arquivo original | Bytes preservados | SHA-256 |
 |---|---:|---|
-| `REGRAS_DE_TRABALHO.md` | 11570 | `e7c8021d6c9020ff8f11e278864095e9e5ba63cfb47e1031a2ff17bb2e5e55d2` |
+| `REGRAS_DE_TRABALHO.md` | 11937 | `8c2849ccb9c0ed3d0450cfd980c74cae834bfca5273c1643bdd050af09e39b25` |
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |

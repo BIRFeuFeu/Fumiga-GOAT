@@ -104,6 +104,10 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
   FUMIGA (paleta escura violeta/âmbar, contorno limpo, leitura clara em tamanho pequeno).
 - Antes de gerar, observar os sprites/atlas existentes (`game/assets/`) para **combinar paleta,
   escala de pixel, sombreamento e silhueta** — a arte nova não pode parecer "colada de fora".
+- **Sempre mostrar 2 ou mais opções da mesma imagem para o usuário escolher** (ex.:
+  `offer_options` do `generate_image`): nenhuma arte entra no jogo por decisão só do agente —
+  o usuário aprova comparando alternativas lado a lado. Vale para geração nova, recriação
+  ("recrie 100%") e edição de arte existente; a escolhida ainda passa pela Regra 10.
 - Imagens entram otimizadas (Regra 5): tamanho certo para o uso, sem peso desnecessário.
 
 ---
