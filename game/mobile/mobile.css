@@ -44,6 +44,23 @@ body {
   cursor: default;
 }
 
+/* Scanlines retrô (OPÇÕES → VÍDEO): div real sobre o canvas, dimensionada
+   pelo fit() do main.js. [hidden] já a esconde pela regra do topo. */
+#scan {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.22) 0px,
+    rgba(0,0,0,0.22) 1px,
+    rgba(0,0,0,0) 1px,
+    rgba(0,0,0,0) 3px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
 /* ---------------------------------------------------------------- HUD ----- */
 /* Botões virtuais da expedição. Ficam por cima do canvas, nas bordas,
    respeitando safe-area (notch). Tamanhos >= 48px = alvo de toque bom. */

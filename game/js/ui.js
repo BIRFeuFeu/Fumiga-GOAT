@@ -193,11 +193,27 @@ function chamfer(ctx, x, y, w, h, r) {
  *  cresce é só a área sensível ao dedo (hitRect), que nunca sai do canvas. */
 export function button(ctx, opt) {
   const { x, y, w, h } = clampToView(opt);
-  const hr = opt.compact ? { x, y, w, h } : hitRect(x, y, w, h);
+  let hr = opt.compact ? { x, y, w, h } : hitRect(x, y, w, h);
+  // opt.clip: botão dentro de uma área ROLÁVEL. A parte fora do recorte não é
+  // clicável nem publicada (senão o botão escondido atrás do cabeçalho ou do
+  // rodapé roubaria o clique das abas e do VOLTAR).
+  if (opt.clip) {
+    const c = opt.clip;
+    const x0 = Math.max(hr.x, c.x), y0 = Math.max(hr.y, c.y);
+    const x1 = Math.min(hr.x + hr.w, c.x + c.w), y1 = Math.min(hr.y + hr.h, c.y + c.h);
+    hr = (x1 > x0 && y1 > y0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+    if (!hr) hr = { x: -9999, y: -9999, w: 0, h: 0, hidden: true };
+  }
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const down = hot && mouse.down && !dis;
-  const clicked = hot && mouse.justDown && !dis;
+  // opt.tap: botão dentro de área rolável — dispara ao SOLTAR sem ter
+  // arrastado (mouse.clickX/Y guardam onde o gesto começou), então rolar a
+  // lista por cima do botão não o aciona por acidente. Botão normal dispara
+  // ao pressionar, como sempre.
+  const tapped = hot && mouse.justUp && !dis &&
+    Math.hypot(mouse.x - mouse.clickX, mouse.y - mouse.clickY) <= (opt.tapSlop || 14);
+  const clicked = opt.tap ? tapped : (hot && mouse.justDown && !dis);
   const A = animOf(opt.id || (opt.label + x + y), hot && !dis, down);
   const hv = dis ? 0 : A.hover;
   const pr = dis ? 0 : A.press;
@@ -270,7 +286,7 @@ export function button(ctx, opt) {
   // o retângulo publicado é o da HITBOX: é ele que decide se o toque é da UI
   // (uiCapture) — publicar o desenho deixaria o dedo "atravessar" a borda do
   // botão no mobile (acionava o botão E a ordem no mundo ao mesmo tempo)
-  buttons.push({ x: hr.x, y: hr.y, w: hr.w, h: hr.h, id: opt.id, disabled: dis });
+  if (!hr.hidden) buttons.push({ x: hr.x, y: hr.y, w: hr.w, h: hr.h, id: opt.id, disabled: dis });
   if (clicked) SFX.uiClick();
   return clicked;
 }

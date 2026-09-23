@@ -380,6 +380,31 @@ G.screen = "HELP";
 auditFrame("COMO JOGAR", frame());
 G.screen = "TITLE"; frame();
 
+// OPÇÕES: as 5 abas, no topo e roladas até o fim, sem e com fonte grande.
+// A troca de aba é por clique de verdade (como o jogador faz); a rolagem até
+// o fim usa o gancho de teste. Tudo na mesma régua: sem texto fora do canvas,
+// sem sobreposição e sem botão ambíguo.
+const { __optScrollToEnd } = await import(BASE + "game.js");
+async function auditOptions(label) {
+  for (const big of [false, true]) {
+    G.save.accessibility.bigFont = big;
+    for (let t = 0; t < 5; t++) {
+      G.screen = "OPTIONS";
+      frame();
+      const tab = uiButtons().find((b) => b.id === "tab" + t);
+      if (!tab) { console.error("aba tab" + t + " não achada (" + label + ")"); process.exit(3); }
+      clickAt(tab.x + tab.w / 2, tab.y + tab.h / 2);
+      auditFrame("OPÇÕES " + label + " aba" + t + (big ? " fonte-grande" : ""), frame());
+      __optScrollToEnd();
+      auditFrame("OPÇÕES " + label + " aba" + t + (big ? " fonte-grande" : "") + " fim", frame());
+    }
+  }
+  G.save.accessibility.bigFont = false;
+}
+
+await auditOptions("pc");
+G.screen = "TITLE"; frame();
+
 // ÁRVORE DA EVOLUÇÃO (com progresso, para desenhar preços/MAX)
 G.screen = "TREE"; enterTree();
 G.save.essence = 75;
@@ -533,8 +558,7 @@ G.screen = "TITLE"; frame();
 auditFrame("TÍTULO toque", frame());
 G.screen = "HELP";
 auditFrame("COMO JOGAR toque", frame());
-G.screen = "OPTIONS";
-auditFrame("OPÇÕES toque", frame());
+await auditOptions("toque");
 G.screen = "MODE";
 auditFrame("MODO toque", frame());
 G.screen = "TREE"; enterTree();
