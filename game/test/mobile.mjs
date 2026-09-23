@@ -176,6 +176,14 @@ if (scenario === "boot-mobile") {
   assert.equal(isPaused(), false, "botão PAUSA retomou");
   console.log("ok    HUD virtual pausa e retoma o jogo");
 
+  // Um draft pode roubar o foco; limpe-o ANTES do botão CENTRO. Depois do
+  // teste de arrasto a câmera pode estar longe da colônia: centralizar pelo
+  // HUD de toque garante uma formiga visível sem depender do mapa sorteado.
+  for (let i = 0; i < 20 && G.run.draft; i++) { G.run.draft = null; await wait(100); }
+  assert.equal(!!G.run.draft, false, "nenhum draft aberto no momento do toque");
+  hud.children[0].children[2].fire("pointerdown"); // CENTRO (Space)
+  await wait(100);
+
   // Irmã fora da HUD: toque em cima de botão é da UI (uiCapture) e não
   // seleciona — era isso que tornava este passo instável (a formiga sorteada
   // às vezes estava sobre a barra da loja, no rodapé).
@@ -192,9 +200,6 @@ if (scenario === "boot-mobile") {
     return null;
   })();
   assert.ok(a, "havia formiga viva fora da HUD para tocar");
-  // um draft aberto rouba o foco de entrada; descarta antes do toque seletivo
-  for (let i = 0; i < 20 && G.run.draft; i++) { G.run.draft = null; await wait(100); }
-  assert.equal(!!G.run.draft, false, "nenhum draft aberto no momento do toque");
   // a formiga continua andando: mira na posição ATUAL e repete se o frame
   // adiantou entre a leitura e o toque
   let sel = 0;

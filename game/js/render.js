@@ -736,9 +736,54 @@ let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formig
 let torchFlicker = 0;
 let dayPhase = 0;
 
-// Arte TITLE com laterais pintadas (+128 px por lado), desenhada em 1:1.
-// Principal e frente: +16 px de solo abaixo para cobrir o movimento vertical.
+// Os PNGs do TITLE têm +128 px pintados por lado e são desenhados em 1:1.
+// Com o movimento 3x, a frente precisa de mais 72 px nas laterais e 24 px
+// abaixo; o solo, de mais 12 px. As montanhas precisam continuar atrás do
+// gramado, sem a linha reta onde termina o PNG. Estendemos essas bordas uma
+// vez no primeiro desenho: arte central intacta, sem resize por frame.
 const TITLE_SIDE_PAD = 128;
+const TITLE_PARALLAX_GAIN = 3;
+const TITLE_MTN_BOTTOM_GUARD = 208;
+const TITLE_MAIN_BOTTOM_GUARD = 12;
+const TITLE_FRONT_SIDE_GUARD = 72;
+const TITLE_FRONT_BOTTOM_GUARD = 24;
+const titleLayerGuards = { mountains: null, main: null, foreground: null };
+let titleMainOffsetX = 0, titleMainOffsetY = 0;
+
+function guardedTitleLayer(key, source, side, bottom) {
+  const cached = titleLayerGuards[key];
+  if (cached && cached.source === source) return cached.canvas;
+  const cv = document.createElement("canvas");
+  cv.width = source.width + side * 2;
+  cv.height = source.height + bottom;
+  const c = cv.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.drawImage(source, side, 0);
+  if (side) {
+    c.save();
+    c.translate(side, 0); c.scale(-1, 1);
+    c.drawImage(source, 0, 0, side, source.height, 0, 0, side, source.height);
+    c.restore();
+    c.save();
+    c.translate(source.width + side, 0); c.scale(-1, 1);
+    c.drawImage(source, source.width - side, 0, side, source.height, -side, 0, side, source.height);
+    c.restore();
+  }
+  if (key === "mountains") {
+    // A última linha do PNG é quase toda transparente. A anterior é solo
+    // escuro e opaco: prolongá-la até atrás do gramado elimina o corte reto.
+    c.drawImage(source, 0, source.height - 2, source.width, 1,
+      side, source.height - 2, source.width, bottom + 2);
+  } else if (bottom) {
+    c.save();
+    c.translate(0, source.height); c.scale(1, -1);
+    c.drawImage(cv, 0, source.height - bottom, cv.width, bottom,
+      0, -bottom, cv.width, bottom);
+    c.restore();
+  }
+  titleLayerGuards[key] = { source, canvas: cv };
+  return cv;
+}
 
 function ensureMotes() {
   if (titleMotes.length) return;
@@ -832,6 +877,11 @@ export function drawTitleMotes(ctx, time) {
   ensureMotes();
   torchFlicker = Math.sin(time * 7) * 0.15 + Math.sin(time * 3.2) * 0.1;
   dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: ciclo dia/noite 60s exatos (escolha tint_forte)
+  // Criaturas sobre o chão e essência nascem na camada do formigueiro; clima
+  // (motes, pólen, neve) continua em coordenadas de tela. Outros menus não
+  // herdam o deslocamento do último frame do TITLE.
+  const groundX = G.screen === "TITLE" ? titleMainOffsetX : 0;
+  const groundY = G.screen === "TITLE" ? titleMainOffsetY : 0;
 
   // motes subindo
   for (const m of titleMotes) {
@@ -890,14 +940,15 @@ export function drawTitleMotes(ctx, time) {
     if (f.x > VIEW_W - 60) { f.x = VIEW_W - 60; f.vx = -Math.abs(f.vx); }
     const blink = 0.4 + 0.6 * Math.abs(Math.sin(time * f.blinkSpeed + f.phase));
     const a = f.alpha * blink;
+    const fx = f.x + groundX, fy = f.y + groundY;
     ctx.globalAlpha = a;
     ctx.fillStyle = f.col;
-    ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx, fy, f.size, 0, TAU); ctx.fill();
     // glow
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = a * 0.35;
-    ctx.beginPath(); ctx.arc(f.x, f.y, f.size * 3.5, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx, fy, f.size * 3.5, 0, TAU); ctx.fill();
     ctx.restore();
   }
   // FASE 1 FINAL - partículas essência subindo do formigueiro (escolha particulas) - luz pulsando
@@ -913,13 +964,14 @@ export function drawTitleMotes(ctx, time) {
       e.life = 0;
     }
     const a = e.alpha * (1 - e.life) * (0.6 + 0.4 * Math.sin(time * 2 + e.phase));
+    const ex = e.x + groundX, ey = e.y + groundY;
     ctx.globalAlpha = a;
     ctx.fillStyle = e.col;
-    ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex, ey, e.size, 0, TAU); ctx.fill();
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = a * 0.4;
-    ctx.beginPath(); ctx.arc(e.x, e.y, e.size * 2.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex, ey, e.size * 2.2, 0, TAU); ctx.fill();
     ctx.restore();
   }
   // formigas andando no chão do menu
@@ -928,22 +980,23 @@ export function drawTitleMotes(ctx, time) {
     ant.bob += 0.016 * 5;
     if (ant.x < -20 && ant.vx < 0) { ant.x = VIEW_W + 20; ant.vx = Math.abs(ant.vx); }
     if (ant.x > VIEW_W + 20 && ant.vx > 0) { ant.x = -20; ant.vx = -Math.abs(ant.vx); }
+    const ax = ant.x + groundX, ay = ant.y + groundY;
     const bobY = Math.sin(ant.bob) * 1.5;
     ctx.globalAlpha = 0.7;
     // sombra
     ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath(); ctx.ellipse(ant.x, ant.y + 4, 6, 2.5, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ax, ay + 4, 6, 2.5, 0, 0, TAU); ctx.fill();
     // corpo simplificado
     const col = ant.type === "worker" ? "#37e6c8" : ant.type === "soldier" ? "#8fd3ff" : "#ffd479";
     ctx.fillStyle = col;
-    ctx.fillRect(ant.x - 3, ant.y + bobY - 2, 6, 3);
+    ctx.fillRect(ax - 3, ay + bobY - 2, 6, 3);
     ctx.fillStyle = "#efe9ff";
-    ctx.fillRect(ant.x + (ant.vx > 0 ? 2 : -3), ant.y + bobY - 1, 2, 2);
+    ctx.fillRect(ax + (ant.vx > 0 ? 2 : -3), ay + bobY - 1, 2, 2);
     // rastro de feromônio
     if (Math.floor(time * 10 + ant.x) % 20 === 0) {
       ctx.globalAlpha = 0.15;
       ctx.fillStyle = "#37e6c8";
-      ctx.fillRect(ant.x, ant.y + 2, 2, 1);
+      ctx.fillRect(ax, ay + 2, 2, 1);
     }
   }
   ctx.globalAlpha = 1;
@@ -951,44 +1004,46 @@ export function drawTitleMotes(ctx, time) {
 
 // =========================================================================
 // FUNDO TÍTULO - PARALLAX 4 CAMADAS EXCLUSIVO NO MENU INICIAL (TITLE)
-// Correção: as 4 imagens geradas ficam SOBREPOSTAS no menu inicial para gerar parallax
-// layer4 céu (fundo, 0.01x), layer3 montanhas (0.03x), layer2 gramado+ruínas+formigueiro (0.08x), layer1 vinhas foreground (0.15x)
-// mouse.x/y + time para movimento real
+// Céu 0.03x, montanhas 0.09x, cenário 0.24x, vinhas 0.45x (3x o
+// deslocamento anterior). A oscilação ociosa também tem amplitude 3x;
+// tempos, ciclo dia/noite, escala dos PNGs e UI permanecem inalterados.
 export function drawTitleBg(ctx) {
   const time = G.time;
   dayPhase = (time * 0.016666) % 1; // FASE 1 FINAL: 60s exatos (escolha tint_forte + 4 camadas)
   ensureMotes();
+  titleMainOffsetX = titleMainOffsetY = 0;
 
   const hasParallax = IMG.parallax_sky && IMG.parallax_main && IMG.parallax_mountains && IMG.parallax_foreground;
   
   if (hasParallax) {
-    // parallax real com mouse direto - 4 CAMADAS (não 5)
+    // Mouse limitado à tela; o ganho incide sobre a posição E sobre a oscilação.
     const mx = Math.max(0, Math.min(VIEW_W, mouse?.x ?? VIEW_W/2));
     const my = Math.max(0, Math.min(VIEW_H, mouse?.y ?? VIEW_H/2));
-    const offsetX = (mx - VIEW_W/2);
-    const offsetY = (my - VIEW_H/2);
+    const offsetX = mx - VIEW_W/2;
+    const offsetY = my - VIEW_H/2;
     
     ctx.imageSmoothingEnabled = false;
 
-    // ----- CAMADA 4: Céu laranja pôr-do-sol + lua minguante + nuvens (FUNDO, 0.01x) -----
+    // ----- CAMADA 4: Céu laranja pôr-do-sol + lua minguante + nuvens -----
     const skyImg = IMG.parallax_sky;
-    const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
-    const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
+    const skyOffX = TITLE_PARALLAX_GAIN * (offsetX * 0.01 + Math.sin(time * 0.008) * 6);
+    const skyOffY = TITLE_PARALLAX_GAIN * (offsetY * 0.005 + Math.sin(time * 0.005) * 2);
     ctx.drawImage(skyImg, skyOffX - 40 - TITLE_SIDE_PAD, skyOffY - 20);
 
-    // ----- CAMADA 3: Montanhas silhueta (meio-fundo, 0.03x) -----
-    // Altura nativa de 335 px, sem reamostragem da crista.
-    const mtnImg = IMG.parallax_mountains;
-    const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
-    const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
+    // ----- CAMADA 3: Montanhas (crista nativa 335 px, base prolongada) -----
+    const mtnImg = guardedTitleLayer("mountains", IMG.parallax_mountains, 0, TITLE_MTN_BOTTOM_GUARD);
+    const mtnOffX = TITLE_PARALLAX_GAIN * (offsetX * 0.03 + Math.sin(time * 0.012) * 8);
+    const mtnOffY = 20 + TITLE_PARALLAX_GAIN * (offsetY * 0.01 + Math.sin(time * 0.01) * 3);
     ctx.globalAlpha = 0.96;
     ctx.drawImage(mtnImg, mtnOffX - 50 - TITLE_SIDE_PAD, mtnOffY);
     ctx.globalAlpha = 1;
 
-    // ----- CAMADA 2: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
-    const mainImg = IMG.parallax_main;
-    const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
-    const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;
+    // ----- CAMADA 2: Gramado, ruínas e formigueiro -----
+    const mainImg = guardedTitleLayer("main", IMG.parallax_main, 0, TITLE_MAIN_BOTTOM_GUARD);
+    const mainOffX = TITLE_PARALLAX_GAIN * (offsetX * 0.08 + Math.sin(time * 0.015) * 6);
+    const mainOffY = 10 + TITLE_PARALLAX_GAIN * (offsetY * 0.025 + Math.cos(time * 0.012) * 2);
+    titleMainOffsetX = mainOffX;
+    titleMainOffsetY = mainOffY - 10;
     ctx.drawImage(mainImg, mainOffX - 30 - TITLE_SIDE_PAD, mainOffY);
 
     // FASE 1 FINAL - luz formigueiro pulsante com partículas (escolha particulas) - sem tochas, só cristais
@@ -996,8 +1051,9 @@ export function drawTitleBg(ctx) {
     ctx.globalCompositeOperation = "lighter";
     // luz pulsante amarela quente na entrada do formigueiro
     const pulse = 0.75 + Math.sin(time * 1.6) * 0.22;
-    const anthillFx = VIEW_W * 0.71 + mainOffX * 0.3;
-    const anthillFy = VIEW_H * 0.67 + mainOffY * 0.2;
+    // A luz fica presa à boca do formigueiro, sem atrasar 70% atrás da arte.
+    const anthillFx = VIEW_W * 0.71 + titleMainOffsetX;
+    const anthillFy = VIEW_H * 0.67 + titleMainOffsetY;
     const rg = ctx.createRadialGradient(anthillFx, anthillFy, 2, anthillFx, anthillFy, 52);
     rg.addColorStop(0, `rgba(255,212,121,${0.22 * pulse})`);
     rg.addColorStop(0.4, `rgba(255,160,60,${0.12 * pulse})`);
@@ -1012,11 +1068,12 @@ export function drawTitleBg(ctx) {
     ctx.beginPath(); ctx.arc(anthillFx, anthillFy, 90, 0, TAU); ctx.fill();
     ctx.restore();
 
-    // ----- CAMADA 1: Vinhas no inferior, resto transparente (FRENTE, 0.15x) -----
-    const fgImg = IMG.parallax_foreground;
-    const fgOffX = offsetX * 0.15 + Math.sin(time * 0.02) * 4;
-    const fgOffY = offsetY * 0.04;
-    ctx.drawImage(fgImg, fgOffX - 40 - TITLE_SIDE_PAD, fgOffY);
+    // ----- CAMADA 1: Vinhas transparentes, na frente de todo o cenário -----
+    const fgImg = guardedTitleLayer("foreground", IMG.parallax_foreground,
+      TITLE_FRONT_SIDE_GUARD, TITLE_FRONT_BOTTOM_GUARD);
+    const fgOffX = TITLE_PARALLAX_GAIN * (offsetX * 0.15 + Math.sin(time * 0.02) * 4);
+    const fgOffY = TITLE_PARALLAX_GAIN * offsetY * 0.04;
+    ctx.drawImage(fgImg, fgOffX - 40 - TITLE_SIDE_PAD - TITLE_FRONT_SIDE_GUARD, fgOffY);
 
     // FASE 1 FINAL - ciclo dia/noite 60s tint FORTE (escolha tint_forte): dia laranja quente / noite azul escuro 0.75 + estrelas
     const dp = (time * 0.016666) % 1; // 60s exatos
