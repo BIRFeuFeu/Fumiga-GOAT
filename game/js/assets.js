@@ -157,7 +157,7 @@ const WROT = {};         // silhuetas brancas rotacionadas (hit flash)
 // ANTIGA nos mesmos nomes de arquivo (foi assim que o rework dos inimigos da
 // Fase 2 "não apareceu" para quem já tinha jogado antes dele).
 // ---------------------------------------------------------------------------
-export const ASSET_V = "20260924";
+export const ASSET_V = "20260925";
 
 /**
  * URL final de um asset do jogo: base certa para a página atual + anti-cache.

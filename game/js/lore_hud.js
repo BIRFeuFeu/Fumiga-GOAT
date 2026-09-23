@@ -505,9 +505,9 @@ export function drawPheromoneLegend(ctx, width, y) {
   ctx.fillStyle = "#100c1c"; ctx.fillRect(x,y,w,36);
   ctx.strokeStyle = "#7fd6a0"; ctx.strokeRect(x+0.5,y+0.5,w-1,35);
   drawText(ctx,"A COLÔNIA VÊ COM CHEIRO",width/2,y+3,{align:"center",scale:0.8,color:"#efe9ff"});
-  drawText(ctx,"COMIDA +",x+18,y+19,{scale:0.8,color:"#7fd6a0"});
-  drawText(ctx,"PERIGO !",x+154,y+19,{scale:0.8,color:"#ff4d5a"});
-  drawText(ctx,"SOLTE H: VOLTAR",x+w-12,y+19,{align:"right",scale:0.8,color:"#efe9ff"});
+  drawText(ctx,"COMIDA +",x+18,y+19,{scale:0.75,color:"#7fd6a0"});
+  drawText(ctx,"PERIGO !",x+154,y+19,{scale:0.75,color:"#ff4d5a"});
+  drawText(ctx,"SOLTE H: VOLTAR",x+w-12,y+19,{align:"right",scale:0.7,color:"#efe9ff"});
   ctx.restore();
 }
 

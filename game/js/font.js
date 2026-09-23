@@ -57,9 +57,7 @@ function tinted(img, color) {
   cv.width = img.width; cv.height = img.height;
   const c = cv.getContext("2d");
   c.drawImage(img, 0, 0);
-  // multiply (não source-in): a tinta branca vira a cor do texto e o contorno
-  // preto do atlas chunky continua preto — com source-in o contorno sumia.
-  c.globalCompositeOperation = "multiply";
+  c.globalCompositeOperation = "source-in";
   c.fillStyle = color;
   c.fillRect(0, 0, cv.width, cv.height);
   return cv;
