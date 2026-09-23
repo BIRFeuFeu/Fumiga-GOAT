@@ -244,8 +244,13 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
 - TITLE: quatro PNGs com +128 px pintados por lado, desenhados em escala 1:1.
   Céu e cenário principal preservam o centro original; vegetação frontal e
   montanhas foram refeitas com aprovação visual. Principal e frente possuem
-  +16 px de cobertura inferior. `test/title-parallax.mjs` valida cobertura nos
-  cantos, oscilação, coordenadas zero e ausência de redimensionamento no render.
+  +16 px de cobertura inferior **nos arquivos originais**. No render, o movimento
+  do mouse e a oscilação das quatro camadas têm amplitude 3×, sem mudar a duração
+  do ciclo dia/noite nem o tamanho dos PNGs. Para não abrir bordas nos extremos,
+  `render.js` prolonga as montanhas, o solo e as vinhas uma única vez em canvases
+  de proteção; a luz, os vaga-lumes, a essência e as formigas seguem a camada do
+  formigueiro. `test/title-parallax.mjs` verifica o fator 3× em X/Y, oscilação,
+  cobertura dos cantos/rodapé, alinhamento dos FX e ausência de resize por frame.
 - `tools/fix_title_parallax.py` é o reparador **legado**: `--report` segue
   disponível; escrita/restauração são bloqueadas nos PNGs expandidos, para não
   destruir as novas margens com o processamento antigo.
@@ -288,10 +293,10 @@ Cheque tudo antes de subir (é o que o CI local usa):
 
 ```bash
 node test/boot.mjs && node test/docs.mjs && node test/lorehud.mjs && \
-node test/assets.mjs && node test/sim.mjs && node test/uitest.mjs && \
-node test/layout.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/attack.mjs && node test/endless.mjs && node test/prophecy.mjs && \
-node test/mobile.mjs
+node test/assets.mjs && node test/title-parallax.mjs && node test/sim.mjs && \
+node test/uitest.mjs && node test/layout.mjs && node test/tree.mjs && \
+node test/stuck.mjs && node test/attack.mjs && node test/endless.mjs && \
+node test/prophecy.mjs && node test/mobile.mjs
 ```
 
 Para inspeção visual do layout das telas internas (gera PNG fora do repo):
