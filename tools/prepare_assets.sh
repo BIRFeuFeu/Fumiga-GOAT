@@ -283,9 +283,11 @@ convert $(for r in $(seq 0 $((rows-1))); do echo "$FDIR/row$r.png"; done) -appen
 echo "  font font_big.png ($(identify -format '%wx%h' "$OUT/font/font_big.png"))"
 rm -rf "$FDIR"
 
-# Versão pequena (HUD / corpo de texto): pointsize 11, célula 13x16
+# Versão pequena (HUD / corpo de texto): pointsize 16, célula 18x16 —
+# ~1,8× mais pixels de tinta que a antiga 13x16, mesma altura de célula
+# (não empurra o rodapé do HUD).
 FDIR=$(mktemp -d)
-convert -size 13x16 xc:none "$FDIR/blank.png"
+convert -size 18x16 xc:none "$FDIR/blank.png"
 i=0
 while [ $i -lt ${#CHS[@]} ]; do
   ch="${CHS[$i]}"
@@ -294,7 +296,7 @@ while [ $i -lt ${#CHS[@]} ]; do
     cp "$FDIR/blank.png" "$f"
   else
     convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
-      -pointsize 11 +antialias "label:$ch" -gravity north -extent 13x16 "$f"
+      -pointsize 16 +antialias "label:$ch" -gravity north -extent 18x16 "$f"
   fi
   i=$((i+1))
 done

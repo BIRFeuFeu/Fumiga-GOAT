@@ -992,9 +992,9 @@ function drawNestHud(ctx) {
     return "in";
   }
   drawText(ctx, "CLIQUE NUMA CÂMARA PARA ESCAVAR  —  CLIQUE NA ENTRADA PARA ABRIR A BOCA",
-    VIEW_W / 2, BOTTOM + 54, { color: PAL.textDim, align: "center" });
+    VIEW_W / 2, BOTTOM + 50, { color: PAL.textDim, align: "center" });
   drawText(ctx, "O MUNDO LÁ FORA CONTINUA VIVO AGORA MESMO — É O QUE MOSTRA O OLHO LÁ FORA",
-    VIEW_W / 2, BOTTOM + 72, { color: "#8a7a5e", align: "center" });
+    VIEW_W / 2, BOTTOM + 64, { color: "#8a7a5e", align: "center" });
 
   // tooltip da câmara sob o mouse
   if (nest.hover && nest.hover !== "royal" && nest.hover !== "entrance") {

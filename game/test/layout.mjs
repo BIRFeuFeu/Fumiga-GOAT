@@ -12,7 +12,7 @@ const FONT_META = {
   // cw/ch = célula do atlas; ink = altura real da tinta e o recuo do topo
   // (medidos no atlas: a célula tem folga, o texto não encosta no rodapé)
   "assets/font/font_big.png": { cw: 22, ch: 30, ink: 20, inkY: 5 },
-  "assets/font/font_small.png": { cw: 13, ch: 16, ink: 11, inkY: 3 },
+  "assets/font/font_small.png": { cw: 18, ch: 16, ink: 13, inkY: 3 },
 };
 // As URLs reais levam base do shell (PC ou ../ no mobile) + ?v= anti-cache
 // (assetUrl em js/assets.js): normaliza antes de procurar no FONT_META.

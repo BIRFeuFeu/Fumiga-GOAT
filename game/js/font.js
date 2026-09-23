@@ -21,7 +21,7 @@ export const FONT_CHARS = CHARS;
 
 export const FONT = {
   big:   { src: "assets/font/font_big.png",   cw: 22, ch: 30, adv: 13, lh: 36 },
-  small: { src: "assets/font/font_small.png", cw: 13, ch: 16, adv: 8,  lh: 20 },
+  small: { src: "assets/font/font_small.png", cw: 18, ch: 16, adv: 10, lh: 20 },
 };
 
 const imgs = {};

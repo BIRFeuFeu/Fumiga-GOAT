@@ -1348,8 +1348,8 @@ function renderHelp() {
   y += 26;
   for (const t of HELP_GOAL) {
     for (const L of wrapText(t, PW - 48, {})) {
-      drawText(ctx, L, colX[0], y, { color: PAL.text });
-      y += 18;
+      drawText(ctx, L, colX[0], y, { color: PAL.text, scale: 0.9 });
+      y += 17;
     }
   }
   y += 14;
@@ -1360,21 +1360,21 @@ function renderHelp() {
   drawText(ctx, touchMode.on ? "CONTROLES (TOQUE)" : "CONTROLES", colX[0], yl, { font: "big", color: "#c77dff" });
   yl += 26;
   for (const [k, d] of controlsTable) {
-    drawText(ctx, k, colX[0], yl, { color: "#37e6c8" });
-    const lines = wrapText(d, colW - descX, {});
-    lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 16, { color: PAL.text }));
-    yl += Math.max(20, lines.length * 16 + 4);
+    drawText(ctx, k, colX[0], yl, { color: "#37e6c8", scale: 0.85 });
+    const lines = wrapText(d, colW - descX, { scale: 0.85 });
+    lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 14, { color: PAL.text, scale: 0.85 }));
+    yl += Math.max(17, lines.length * 14 + 3);
   }
 
   let yr = y;
   drawText(ctx, "DICAS", colX[1], yr, { font: "big", color: "#c77dff" });
   yr += 26;
   for (const t of HELP_TIPS) {
-    for (const L of wrapText(t, colW, {})) {
-      drawText(ctx, L, colX[1], yr, { color: PAL.text });
-      yr += 17;
+    for (const L of wrapText(t, colW, { scale: 0.9 })) {
+      drawText(ctx, L, colX[1], yr, { color: PAL.text, scale: 0.9 });
+      yr += 16;
     }
-    yr += 6;
+    yr += 5;
   }
 
   const helpMobile = isMobileLayout();
@@ -1647,8 +1647,8 @@ function drawHUD() {
   const shopSprite = rotFrame("worker", Math.PI / 2);
   const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? bh.accent : bh.border, selected: shopOpen, maxPadX: 12 });
   ctx.drawImage(shopSprite, 56 - shopSprite.width * 0.17, footY + 3, shopSprite.width * 0.34, shopSprite.height * 0.34);
-  drawText(ctx, "IRMÃS", 56, footY + 35, { color: PAL.text, align: "center" });
-  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 48, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85 });
+  drawText(ctx, "IRMÃS", 56, footY + 26, { color: PAL.text, align: "center" });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 40, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85 });
 
   if (live && rShop.clicked) { shopOpen = !shopOpen; }
 
@@ -1674,7 +1674,7 @@ function drawHUD() {
       ctx.globalAlpha = canBuy ? 1 : 0.35;
       ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 5, frame.width * sc2, frame.height * sc2);
       ctx.globalAlpha = 1;
-      drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? bh.accent : "#a32e46", align: "center" });
+      drawText(ctx, cost, x + SHOP_W / 2, footY + 40, { color: canBuy ? bh.accent : "#a32e46", align: "center" });
       const hot = i < 9 ? String(i + 1) : i === 9 ? "0" : "";
       if (hot) drawText(ctx, hot, x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right", scale: 0.8 });
       if (r.hot) shopTooltip = sp;
@@ -1728,8 +1728,8 @@ function drawHUD() {
     outono: "BERÇO DOURADO",
     gelo: "GASTER DE GELO"
   };
-  drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 33, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw-16 });
-  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 46, { color: bh.accent, align: "center", scale: 0.85 });
+  drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 24, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw-16 });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 40, { color: bh.accent, align: "center", scale: 0.85 });
   if (live && rNest.clicked) {
     openNest(run);
     return;
