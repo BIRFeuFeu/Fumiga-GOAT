@@ -482,7 +482,7 @@ function drawTreeHUD(ctx) {
     ctx.globalAlpha = 1;
     fx += 28;
   }
-  drawText(ctx, "FRUTOS = MINI-ÁRVORES POR MAPA", 320, 54, { color: "#6b5a8a", scale: 0.7 });
+  drawText(ctx, "FRUTOS = MINI-ÁRVORES POR MAPA", 320, 54, { color: "#6b5a8a", scale: 0.85 });
   drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 20, { font: "big", scale: 1, color: "#ffd479" });
   drawText(ctx, "Evolua a colônia para sempre", 28, 44, { color: PAL.textDim });
   // progresso circular

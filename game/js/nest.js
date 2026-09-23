@@ -22,7 +22,7 @@ import { world } from "./world.js";
 import { SFX } from "./audio.js";
 import {
   allies, spawnAnt, popUsed, popCapTotal, recomputeAllies,
-  antExitNest, antEnterNest, insideCount,
+  antExitNest, antEnterNest, insideCount, requestNestExit,
 } from "./units.js";
 import { colony } from "./brain.js";
 import { clamp, rand, lerp, TAU } from "./utils.js";
@@ -183,7 +183,8 @@ function setRoute(n, toId, point) {
 
 function advance(n, dt) {
   if (!n.route) return true;
-  const speed = n.speed * (n.carry ? 0.8 : 1);
+  // Quem vai para a boca anda com pressa (+25%): a fila não pode arrastar.
+  const speed = n.speed * (n.carry ? 0.8 : 1) * (n.leaving ? 1.25 : 1);
   let move = speed * dt;
   while (move > 0 && n.leg < n.route.length) {
     const p = n.route[n.leg];
@@ -204,6 +205,49 @@ function advance(n, dt) {
   return false;
 }
 
+// ------------------------------------------------- fila da boca (saída) ---
+// SAIR É ANDAR (2026): quem vai para fora atravessa os túneis de verdade, ao
+// contrário da entrada. requestNestExit (units.js) marca o pedido no roster;
+// aqui o corpo larga o trabalho, corre até a ENTRADA e só então antExitNest
+// a põe no mundo — brotando junto à porta, não longe dela.
+function pickupExitQueue() {
+  const roster = allies.inside || [];
+  for (const a of roster) {
+    if (!a.exitRequested || a.dead || a.dying || a.doorT > 0) continue;
+    let n = nest.ants.find((v) => v.id === a.id);
+    if (!n) {
+      if (nest.ants.length >= 26) continue;   // sem corpo visível: espera vaga
+      n = makeNestAnt(a);
+      nest.ants.push(n);
+    }
+    if (!n.leaving) {
+      n.leaving = true;
+      n.leaveT = 0;
+      n.carry = null;                          // larga a carga: quem sai não entrega
+      n.route = null;                          // larga a rota: o destino é a boca
+    }
+  }
+}
+
+// Um passo de quem está na fila (corpo sem rota: ou chegou, ou parte).
+function stepLeaving(n) {
+  if (n.room === "entrance") {
+    const a = (allies.inside || []).find((r) => r.id === n.id);
+    n.leaving = false;
+    if (a && !a.dead && !a.dying) {
+      dustOut(n);
+      antExitNest(a);
+      float(center(roomOf("entrance")).x, center(roomOf("entrance")).y - 26,
+        "PELA BOCA!", "#ffd479", 1.4);
+    } else {
+      const i = nest.ants.indexOf(n);
+      if (i >= 0) nest.ants.splice(i, 1);
+    }
+    return;
+  }
+  setRoute(n, "entrance");
+}
+
 // ------------------------------------------------------------------ update ---
 /**
  * Update da cena de dentro. Ela roda SEMPRE — mesmo com o jogador lá fora —
@@ -214,12 +258,14 @@ function advance(n, dt) {
 export function nestUpdate(dt, visible = true) {
   nest.t += dt;
   syncAnts();
+  pickupExitQueue();   // quem pediu para sair larga o trabalho e vai à boca
 
   // ---- quem pega na picareta: operárias largam a coleta e vão para a obra
   {
     let diggers = nest.ants.filter((n) => n.job === "digger").length;
     const want = nest.dig ? 4 : 0;
     for (const n of nest.ants) {
+      if (n.leaving) continue;   // quem está indo para a boca não pega na picareta
       if (n.job === "carrier" && diggers < want) { n.job = "digger"; n.route = null; diggers++; }
       else if (n.job === "digger" && diggers > want) { n.job = "carrier"; n.route = null; diggers--; }
     }
@@ -296,6 +342,21 @@ export function nestUpdate(dt, visible = true) {
     n.bob += dt * (n.route ? 8 : 2);
     const r = n.room ? roomOf(n.room) : null;
     const moving = !!n.route;
+    // Fila da boca: atravessa os túneis até a ENTRADA (rede de 15s incluída).
+    if (n.leaving) {
+      n.leaveT = (n.leaveT || 0) + dt;
+      if (n.leaveT > 15) {
+        const a = (allies.inside || []).find((v) => v.id === n.id);
+        n.leaving = false;
+        if (a && !a.dead && !a.dying) antExitNest(a);
+        const i = nest.ants.indexOf(n);
+        if (i >= 0) nest.ants.splice(i, 1);
+        continue;
+      }
+      if (moving) { advance(n, dt); continue; }
+      stepLeaving(n);
+      continue;
+    }
     if (moving) { advance(n, dt); continue; }
     if (n.job === "colossus") { n.angle = lerp(n.angle, 1.2, 0.02); continue; }
 
@@ -443,24 +504,26 @@ export function nestClick(x, y) {
 // ------------------------------------------------------------- boca (saída) --
 /**
  * Libera formigas para FORA pela boca (elas voltam a viver no mundo).
- * n > 0 libera n; n < 0 chama de volta do lado de fora para o turno interno.
- * Retorna quantas de fato atravessaram a boca.
+ * A saída entra na FILA: a escolhida anda pelos túneis até a ENTRADA e só
+ * então atravessa (stepLeaving) — o retorno conta quem entrou na fila.
+ * n < 0 chama de volta do lado de fora para o turno interno.
  */
 export function nestLeaveOne(dir = 1) {
   const roster = allies.inside || [];
   if (dir > 0) {
-    // sai quem está há mais tempo (o turno mais antigo cede a vez)
+    // sai quem está há mais tempo (o turno mais antigo cede a vez), desde
+    // que ainda não esteja andando para a boca
     let best = null, bt = -1;
     for (const a of roster) {
-      if (a.dead || a.dying || a.doorT > 0) continue;
+      if (a.dead || a.dying || a.doorT > 0 || a.exitRequested) continue;
+      const n = nest.ants.find((v) => v.id === a.id);
+      if (n && n.leaving) continue;
       if (a.insideT > bt) { bt = a.insideT; best = a; }
     }
     if (!best) return 0;
-    const n = nest.ants.find((v) => v.id === best.id);
-    if (n) dustOut(n);
-    antExitNest(best);
+    requestNestExit(best);
     float(center(roomOf("entrance")).x, center(roomOf("entrance")).y - 26,
-      "PELA BOCA!", "#ffd479", 1.4);
+      "A CAMINHO DA BOCA!", "#ffd479", 1.4);
     SFX.pickup();
     return 1;
   }

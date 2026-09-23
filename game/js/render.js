@@ -271,9 +271,9 @@ export function drawOutsideEye(ctx, x, y, w = PIP.w, h = PIP.h) {
       { color: PAL.textDim, scale: 0.8, align: "right" });
   }
   drawText(ctx, "FORA " + outside, x + 5, y + h - 12,
-    { color: "#8fd3ff", scale: 0.75 });
+    { color: "#8fd3ff", scale: 0.85 });
   drawText(ctx, "DENTRO " + insideCount(), x + w - 5, y + h - 12,
-    { color: "#7fd6a0", scale: 0.75, align: "right" });
+    { color: "#7fd6a0", scale: 0.85, align: "right" });
 }
 
 // ===================================================================== RUN ==
@@ -346,18 +346,18 @@ function drawNest(ctx, w2s, A, labels = true) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const pulse = 0.5 + Math.sin(G.time * 2.2) * 0.25;
-    const rg = ctx.createRadialGradient(s.x, s.y + 4 * z, 2, s.x, s.y + 4 * z, 30 * z);
+    const rg = ctx.createRadialGradient(s.x, s.y + 15 * z, 2, s.x, s.y + 15 * z, 30 * z);
     rg.addColorStop(0, `rgba(255,200,110,${0.55 * pulse})`);
     rg.addColorStop(1, "rgba(255,120,40,0)");
     ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(s.x, s.y + 4 * z, 30 * z, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y + 15 * z, 30 * z, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
   for (let i = 0; i < eggs.length; i++) {
     const ang = (i / Math.max(1, eggs.length)) * TAU + G.time * 0.3;
     const ex = s.x + Math.cos(ang) * 26 * z;
-    const ey = s.y + 6 * z + Math.sin(ang) * 12 * z;
+    const ey = s.y + 15 * z + Math.sin(ang) * 12 * z;
     const egg = eggs[i];
     const efrac = 1 - egg.tLeft / egg.tTotal;
     ctx.fillStyle = "#201733";
@@ -413,10 +413,14 @@ function drawAnt(ctx, u, w2s) {
     squashX = 1 + (1 - t) * 0.7;
     squashY = Math.max(0.15, t * 0.9);
   } else if (u.spawnT > 0) {
+    // NASCER/BROTAR é o mergulho ao contrário: sobe do buraco crescendo e
+    // aparecendo (mesma leitura da entrada, invertida) — ver doorT acima.
     const t = 1 - u.spawnT / 0.34;
     const e = 1 - Math.pow(1 - t, 3);
     squashX = 0.4 + 0.6 * e;
     squashY = 0.4 + 0.6 * e;
+    dy -= (1 - e) * 7 * z;
+    doorFade = 0.08 + 0.92 * e;
   } else if (moving) {
     const wob = Math.sin(u.bob * 2.2);
     squashX = 1 - wob * 0.07;
