@@ -14,14 +14,14 @@ const CHARS =
   "0123456789" +
   "?!.,:;+-*/%()<>=#_ " +
   "—•▶[]✓" +
-  "♿∞Ñ";
+  "∞Ñ";
 
 /** Glifos disponíveis no atlas (ordem da grade). Usado pelo teste de texto. */
 export const FONT_CHARS = CHARS;
 
 export const FONT = {
   big:   { src: "assets/font/font_big.png",   cw: 22, ch: 30, adv: 13, lh: 36 },
-  small: { src: "assets/font/font_small.png", cw: 18, ch: 16, adv: 10, lh: 20 },
+  small: { src: "assets/font/font_small.png", cw: 20, ch: 18, adv: 11, lh: 22 },
 };
 
 const imgs = {};

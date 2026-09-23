@@ -138,7 +138,7 @@ const OPTIONS_TABS = [
   { id: "audio", label: "ÁUDIO", color: "#37e6c8", icon: "♪" },
   { id: "video", label: "VÍDEO", color: "#6db7ff", icon: "◫" },
   { id: "controles", label: "CONTROLES", color: "#ffb347", icon: "⌨" },
-  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "♿" },
+  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "A" },
   { id: "idioma", label: "IDIOMA", color: "#ffd479", icon: "A" },
 ];
 
@@ -748,7 +748,7 @@ function updateRun(dt) {
     // acessibilidade invencível
     if (G.save.accessibility.invincible) {
       q.hp = q.maxHp * 0.3;
-      floatText(world.anthill.x, world.anthill.y - 80, "♿ MODO ACESSÍVEL: RAINHA PROTEGIDA", { color: "#7fd6a0", life: 1.5 });
+      floatText(world.anthill.x, world.anthill.y - 80, "MODO ACESSÍVEL: RAINHA PROTEGIDA", { color: "#7fd6a0", life: 1.5 });
       return;
     }
     if (metaBonus().rebirth && !run.rebirthUsed) {
@@ -995,7 +995,7 @@ function renderTitle() {
   const btns = [
     { label: "JOGAR", id: "start", accent: "#37e6c8", h: btnH, font: "big" },
     { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: 42, font: "big" },
-    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: 40, font: "big" },
+    { label: "OPÇÕES", id: "options", accent: "#ffb347", h: 40, font: "big" },
     { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: 38 },
   ];
   let by = 252;
@@ -1036,7 +1036,7 @@ function renderTitle() {
   // (linha de stats removida da tela de TÍTULO a pedido — só versão + acessibilidade)
   
   if (G.save.accessibility && (G.save.accessibility.invincible || G.save.accessibility.slowMo || G.save.accessibility.infiniteDash)) {
-    drawText(ctx, "♿ MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
+    drawText(ctx, "MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
   }
 }
 
@@ -1076,7 +1076,7 @@ function renderModeScreen() {
   // FASE 6 FINAL: área toque maior rodapé MODE também 44px
   const footerH = mobile ? 44 : 28;
   panel(ctx, 12, VIEW_H - footerH - 8, VIEW_W - 24, footerH, { fill: "rgba(10,8,16,0.65)", border: "rgba(74,58,110,0.35)", r: 3 });
-  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 20 : 18), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1 });
+  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 28 : 24), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1, maxWidth: VIEW_W - 40 });
 }
 
 // -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec - FUNDO SÓLIDO (parallax só no TITLE)
@@ -1230,7 +1230,7 @@ function renderOptions() {
     cy += 64;
     drawText(ctx, touchMode.on ? "Botões na tela: pausa • ninho • rali • onda • zoom • centro" : "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
   } else if (optionsTab === 3) { // ACESSIBILIDADE - Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade
-    drawText(ctx, "♿ ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
+    drawText(ctx, "ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
     drawText(ctx, "Spec: Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
     const a = G.save.accessibility;
     const accOpts = [
@@ -1274,7 +1274,7 @@ function renderOptions() {
     if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
       panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
       drawKitIcon(ctx, 3, colX + 6, cy + 8, 16);
-      drawText(ctx, "♿ ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
+      drawText(ctx, "ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
     }
   } else if (optionsTab === 4) { // IDIOMA
     drawText(ctx, "IDIOMA / LANGUAGE", colX, cy, { font: "big", color: "#ffd479" }); cy += 28;
@@ -1647,8 +1647,8 @@ function drawHUD() {
   const shopSprite = rotFrame("worker", Math.PI / 2);
   const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? bh.accent : bh.border, selected: shopOpen, maxPadX: 12 });
   ctx.drawImage(shopSprite, 56 - shopSprite.width * 0.17, footY + 3, shopSprite.width * 0.34, shopSprite.height * 0.34);
-  drawText(ctx, "IRMÃS", 56, footY + 26, { color: PAL.text, align: "center" });
-  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 40, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85 });
+  drawText(ctx, "IRMÃS", 56, footY + 26, { color: PAL.text, align: "center", maxWidth: 88 });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 40, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85, maxWidth: 88 });
 
   if (live && rShop.clicked) { shopOpen = !shopOpen; }
 
@@ -1729,7 +1729,7 @@ function drawHUD() {
     gelo: "GASTER DE GELO"
   };
   drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 24, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw-16 });
-  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 40, { color: bh.accent, align: "center", scale: 0.85 });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 40, { color: bh.accent, align: "center", scale: 0.85, maxWidth: nw - 8 });
   if (live && rNest.clicked) {
     openNest(run);
     return;
@@ -2007,7 +2007,7 @@ function drawPause() {
 
   const pauseBtns = [
     { label: "CONTINUAR", id: "resume", accent: "#37e6c8" },
-    { label: "OPÇÕES ♿", id: "pauseOptions", accent: "#ffb347" },
+    { label: "OPÇÕES", id: "pauseOptions", accent: "#ffb347" },
     { label: "ÁRVORE DA EVOLUÇÃO", id: "pauseTree", accent: "#c77dff" },
     { label: "COMO JOGAR", id: "pauseHelp", accent: "#6db7ff" },
     { label: "REINICIAR EXPEDIÇÃO", id: "restart", accent: "#ffb347" },
@@ -2121,7 +2121,7 @@ function drawPause() {
     drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.75, maxWidth: rightW - 32 }); sy2 += 18;
 
     if (G.save.accessibility.invincible) {
-      drawText(ctx, "♿ INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
+      drawText(ctx, "INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
     }
     if (G.save.accessibility.infiniteDash) {
       drawText(ctx, "∞ DASHES INFINITOS ATIVO", rx + 16, sy2, { color: "#37e6c8", scale: 0.85 }); sy2 += 16;

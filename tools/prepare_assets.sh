@@ -246,7 +246,7 @@ CHS=(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z \
      Á À Â Ã É Ê Í Ó Ô Õ Ú Ç \
      0 1 2 3 4 5 6 7 8 9 \
      '?' '!' '.' ',' ':' ';' '+' '-' '*' '/' '%' '(' ')' '<' '>' '=' '#' '_' ' ' \
-     '—' '•' '▶' '[' ']' '✓' '♿' '∞' 'Ñ')
+     '—' '•' '▶' '[' ']' '✓' '∞' 'Ñ')
 FDIR=$(mktemp -d)
 convert -size 22x30 xc:none "$FDIR/blank.png"
 i=0
@@ -283,11 +283,10 @@ convert $(for r in $(seq 0 $((rows-1))); do echo "$FDIR/row$r.png"; done) -appen
 echo "  font font_big.png ($(identify -format '%wx%h' "$OUT/font/font_big.png"))"
 rm -rf "$FDIR"
 
-# Versão pequena (HUD / corpo de texto): pointsize 16, célula 18x16 —
-# ~1,8× mais pixels de tinta que a antiga 13x16, mesma altura de célula
-# (não empurra o rodapé do HUD).
+# Versão pequena (HUD / corpo de texto): pointsize 18, célula 20x18 —
+# glifos bem maiores que a antiga 13x16 (legibilidade), sem o glifo ♿.
 FDIR=$(mktemp -d)
-convert -size 18x16 xc:none "$FDIR/blank.png"
+convert -size 20x18 xc:none "$FDIR/blank.png"
 i=0
 while [ $i -lt ${#CHS[@]} ]; do
   ch="${CHS[$i]}"
@@ -296,7 +295,7 @@ while [ $i -lt ${#CHS[@]} ]; do
     cp "$FDIR/blank.png" "$f"
   else
     convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
-      -pointsize 16 +antialias "label:$ch" -gravity north -extent 18x16 "$f"
+      -pointsize 18 +antialias "label:$ch" -gravity north -extent 20x18 "$f"
   fi
   i=$((i+1))
 done
