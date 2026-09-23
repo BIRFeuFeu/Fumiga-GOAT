@@ -241,12 +241,14 @@ defender a onda, coletar essência). `T` pula, e a preferência fica salva.
   berçário, despensa, postura da rainha, custo das câmaras.
 - `assets/` — sprites e fontes bitmap processados
 - `tools/prepare_assets.sh` — regenera os sprites a partir das fontes
-- `tools/fix_title_parallax.py` — repara as 4 camadas de parallax da tela TITLE
-  (`assets/parallax/menu/`): fecha os buracos do recorte, remove o chuvisco e o
-  verde do chromakey, harmoniza montanhas/vinhas com a paleta do céu e gera cada
-  camada já no tamanho exato que `drawTitleBg()` desenha (blit 1:1, com
-  anti-aliasing). Os originais ficam em `assets/parallax/menu/_orig/` (ignorado
-  pelo git) e o script aceita `--report` e `--restore`.
+- TITLE: quatro PNGs com +128 px pintados por lado, desenhados em escala 1:1.
+  Céu e cenário principal preservam o centro original; vegetação frontal e
+  montanhas foram refeitas com aprovação visual. Principal e frente possuem
+  +16 px de cobertura inferior. `test/title-parallax.mjs` valida cobertura nos
+  cantos, oscilação, coordenadas zero e ausência de redimensionamento no render.
+- `tools/fix_title_parallax.py` é o reparador **legado**: `--report` segue
+  disponível; escrita/restauração são bloqueadas nos PNGs expandidos, para não
+  destruir as novas margens com o processamento antigo.
 - `test/sim.mjs` — simulação headless da expedição inteira:
   - `node test/sim.mjs` — roda uma expedição desde o começo
   - `FORCE=N node test/sim.mjs` — pula direto para o chefão do mapa `N` (1–6) com um exército

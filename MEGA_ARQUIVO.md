@@ -1980,3 +1980,45 @@ determinístico — sementes fixas + `-limit thread 1` + `-strip`, verificado co
 `drawAnt`/`drawBoss` (`game/js/render.js`), rastro pálido removido de
 `game/js/enemies.js`. Olhos/elipse pálida/aura removidos; orbes + coroa da
 fase 2 mantidos. Suíte 13/16 (3 falhas pré-existentes, iguais ao baseline).
+
+## Registro — TITLE: extensão lateral e revisão da vegetação (2026-09-22)
+
+Escopo aprovado: estender as quatro camadas, sem zoom no render. Após rejeitar
+alternativas iniciais, o usuário aprovou vegetação mais baixa com pontas finas e
+montanhas pontudas mais alaranjadas, coerentes com o céu do pôr do sol.
+
+- PNGs em `game/assets/parallax/menu/`: +128 px de cada lado; centro do céu e
+  cenário principal preservado. Frente e montanhas revisadas conforme aprovação.
+  Fundos sólidos/quadriculado dos arquivos gerados removidos no preparo.
+- Principal e frente: +16 px inferiores para cobrir deslocamento vertical;
+  vegetação frontal rebaixada 45 px no arquivo, sem alterar o movimento.
+- `game/js/render.js`: desenho nativo 1:1, origem compensada pelas margens;
+  coordenada zero válida e input limitado ao viewport. Mesmos assets no mobile.
+- Reparador legado protegido contra sobrescrever as novas artes.
+- Testes: 12 dos 13 testes documentados passaram; `lorehud.mjs` falha em
+  "carregamento idempotente" (5 !== 3), também reproduzida no HEAD original
+  extraído fora do checkout. Novo `title-parallax.mjs` passou.
+- Chromium headless: boot → TITLE em PC e mobile (tap), capturas dos quatro
+  cantos e centro; sem erros JS/HTTP. Inspeção identificou e removeu resíduo de
+  quadriculado na crista das montanhas. Preview local na porta 8000.
+
+## Registro — correção robusta do teste LORE HUD (2026-09-22)
+
+Pedido: corrigir a falha identificada na validação da TITLE. Escopo aprovado:
+correção do teste com proteção contra regressão, sem mudar visual/jogabilidade.
+
+Causa: `game/test/lorehud.mjs` ainda esperava três atlas; o carregador atual usa
+cinco (`panels`, `icons`, `gaster`, `textbox`, `kit`). O teste também enumerava
+`colonia` como se fosse um sétimo bioma com célula de alimento, embora seja tema
+neutro de menu. Não foi necessário modificar o carregador de produção.
+
+Correções: lista explícita de arquivos/dimensões esperados; mesma promessa em
+chamadas concorrentes e após resolução; nenhuma nova imagem em chamadas
+posteriores; seis biomas separados do tema de menu; recortes e cache de caixas,
+banners, molduras e quatro ícones do kit cobertos.
+
+Validação: 13/13 testes documentados + `title-parallax.mjs` aprovados (14/14).
+Chromium headless: PC e mobile do boot à expedição, introdução pulada pelo handler
+real; cinco requisições únicas dos atlas, promessa reutilizada, sete temas
+renderizados, sem erros JS/HTTP. Capturas do HUD inspecionadas. Preview :8000 ativo.
+Este registro resolve a pendência de `lorehud.mjs` citada na entrega anterior.

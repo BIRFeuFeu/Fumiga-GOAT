@@ -344,6 +344,15 @@ def main():
     ap.add_argument("--restore", action="store_true", help="devolve os originais de _orig/")
     args = ap.parse_args()
 
+    # The 2026-09-22 outpainted art is final artwork, not legacy chromakey input.
+    # Never shrink it back to the old TARGET sizes or restore mismatched layers.
+    if Image.open(os.path.join(MENU, F_SKY)).width > TARGET[F_SKY][0]:
+        if args.report:
+            for f in (F_SKY, F_MTN, F_MAIN, F_VINE):
+                measure(f, *imread_rgba(os.path.join(MENU, f)))
+            return
+        ap.error("Arte TITLE expandida: reparo legado bloqueado para preservar laterais e escala 1:1.")
+
     if args.restore:
         step_restore()
         return

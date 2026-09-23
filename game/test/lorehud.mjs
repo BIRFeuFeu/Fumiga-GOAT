@@ -31,11 +31,24 @@ globalThis.Image = class {
 };
 const hud=await import('../js/lore_hud.js');
 const {G}=await import('../js/state.js');
+const expectedAtlases = [
+  ['lore_panels.png',192,32], ['lore_icons.png',192,16],
+  ['lore_gaster.png',192,24], ['lore_textbox.png',224,32],
+  ['lore_kit.png',280,52],
+];
+const firstLoad=hud.loadLoreHUD(), concurrentLoad=hud.loadLoreHUD();
+assert.equal(firstLoad,concurrentLoad,'chamadas concorrentes compartilham a promessa');
+await Promise.all([firstLoad,concurrentLoad]);
+assert.deepEqual(requested.map(i=>[
+  new URL(i._src,'https://fumiga.test/').pathname.split('/').at(-1),i.width,i.height,
+]),expectedAtlases,'cada um dos cinco atlas corretos carregado uma única vez');
+const loadedImages=[...requested];
+assert.equal(hud.loadLoreHUD(),firstLoad,'chamada posterior reutiliza a promessa resolvida');
 await Promise.all([hud.loadLoreHUD(),hud.loadLoreHUD()]);
-assert.equal(requested.length,3,'carregamento idempotente');
-assert.deepEqual(requested.map(i=>[i.width,i.height]),[[192,32],[192,16],[192,24]]);
+assert.deepEqual(requested,loadedImages,'chamadas posteriores não recarregam imagens');
+const biomes=['planicie','floresta','pantano','deserto','outono','gelo'];
 const ctx=context();
-for (const [i,biome] of Object.keys(hud.BIOME_HUD).entries()) {
+for (const [i,biome] of biomes.entries()) {
   let n=canvases;
   hud.drawBiomeTexture(ctx,10,8,320,96,biome,0);
   assert.equal(canvases,n+1);
@@ -45,6 +58,23 @@ for (const [i,biome] of Object.keys(hud.BIOME_HUD).entries()) {
   hud.drawFoodIcon(ctx,biome,84,60);
   assert.equal(draws.at(-1)[1],i*16,'ícone próprio do bioma');
 }
+// Colônia é tema neutro de menu, não uma sétima célula de alimento no atlas.
+for (const biome of [...biomes,'colonia']) {
+  for (const draw of [hud.drawLoreTextbox,hud.drawWoodBanner,hud.drawWoodBarFrame]) {
+    assert.equal(draw(ctx,10,10,240,48,biome),true,'atlas adicional disponível');
+    const count=canvases;
+    assert.equal(draw(ctx,10,10,240,48,biome),true);
+    assert.equal(canvases,count,'caixa/banner/moldura reaproveitam cache');
+  }
+}
+for(let kind=0;kind<4;kind++) {
+  assert.equal(hud.drawKitIcon(ctx,kind,10,10),true);
+  assert.equal(draws.at(-1)[1],kind*16,'célula do ícone do kit');
+}
+hud.drawBiomeTexture(ctx,10,8,320,96,'colonia',0);
+const menuCanvases=canvases;
+hud.drawBiomeTexture(ctx,10,8,320,96,'colonia',1);
+assert.equal(canvases,menuCanvases,'tema neutro também cacheado');
 assert.equal(hud.getBiomeHUD('desconhecido'),hud.BIOME_HUD.planicie);
 for (const frac of [-1,0,0.2,1,2,NaN]) {
   hud.drawGasterBar(ctx,96,45,122,12,frac,'planicie',frac<0.3,1);
@@ -71,7 +101,7 @@ for (const call of draws) {
   const [img,x,y,w,h]=call;
   assert(x>=0 && y>=0 && x+w<=img.width && y+h<=img.height,'recorte dentro do atlas');
 }
-console.log('LORE HUD OK — 6 biomas, 3 atlas, cache, vida limitada, feromônio com zoom/shake, FX reduzidos');
+console.log('LORE HUD OK — 6 biomas + menu, 5 atlas, carga concorrente/posterior, cache, vida limitada, feromônio com zoom/shake, FX reduzidos');
 
 // Novo acabamento da Fase 1: nomes canônicos, anéis e cache sensorial.
 const {MAPS} = await import('../js/config.js');
