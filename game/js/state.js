@@ -26,7 +26,7 @@ export const G = {
     prophecies: {},      // PÓS-FINAL: vaticínios cumpridos (id -> true)
     cutscenes: {},       // MEGA LORE: memórias vistas (Noite Branca + 6 degraus + Pálida)
     tutorial: 0,         // 1 = tutorial concluído (ou pulado)
-    accessibility: {     // ♿ modo acessível - escolha do usuário
+    accessibility: {     // modo acessível - escolha do usuário
       invincible: false,
       slowMo: false,
       infiniteDash: false,
