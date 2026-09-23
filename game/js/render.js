@@ -346,18 +346,18 @@ function drawNest(ctx, w2s, A, labels = true) {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     const pulse = 0.5 + Math.sin(G.time * 2.2) * 0.25;
-    const rg = ctx.createRadialGradient(s.x, s.y + 4 * z, 2, s.x, s.y + 4 * z, 30 * z);
+    const rg = ctx.createRadialGradient(s.x, s.y + 15 * z, 2, s.x, s.y + 15 * z, 30 * z);
     rg.addColorStop(0, `rgba(255,200,110,${0.55 * pulse})`);
     rg.addColorStop(1, "rgba(255,120,40,0)");
     ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(s.x, s.y + 4 * z, 30 * z, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y + 15 * z, 30 * z, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
   for (let i = 0; i < eggs.length; i++) {
     const ang = (i / Math.max(1, eggs.length)) * TAU + G.time * 0.3;
     const ex = s.x + Math.cos(ang) * 26 * z;
-    const ey = s.y + 6 * z + Math.sin(ang) * 12 * z;
+    const ey = s.y + 15 * z + Math.sin(ang) * 12 * z;
     const egg = eggs[i];
     const efrac = 1 - egg.tLeft / egg.tTotal;
     ctx.fillStyle = "#201733";

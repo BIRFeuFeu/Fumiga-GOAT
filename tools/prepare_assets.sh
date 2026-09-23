@@ -13,8 +13,8 @@ OUT="$ROOT/game/assets"
 mkdir -p "$OUT/sprites/ants" "$OUT/sprites/animals" "$OUT/sprites/props" \
          "$OUT/sprites/icons" "$OUT/font"
 
-# Formigueiro (sprite pixel-art procedural — ver tools/make_nest.py)
-python3 "$ROOT/tools/make_nest.py"
+# Formigueiro (sprite pixel-art procedural — ver tools/make_nest.py, style 3 = terra da TITLE)
+python3 "$ROOT/tools/make_nest.py" 3
 
 # ---------------------------------------------------------------- Formigas ----
 # trim transparente + redimensiona pela altura (mantém pixels nítidos)

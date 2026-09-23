@@ -12,11 +12,12 @@ export const world = {
   seed: 0,
   mapIdx: 0,
   def: null,        // definição do bioma ativo (config.MAPS[i])
-  // A BOCA do formigueiro é a porta da colônia: o buraco central do sprite
-  // (desenhado em A.y + 8 — ver drawNest). Toda formiga entra e sai por aqui.
+  // A BOCA do formigueiro é a porta da colônia: o buraco do sprite (arte style 3,
+  // inspirada na TITLE — boca generosa deslocada para baixo, em A.y + 15).
+  // Toda formiga entra e sai por aqui — ver drawNest.
   anthill: {
     x: WORLD_W / 2, y: WORLD_H / 2, r: 96,
-    door: { x: WORLD_W / 2, y: WORLD_H / 2 + 8, r: 26 },
+    door: { x: WORLD_W / 2, y: WORLD_H / 2 + 15, r: 26 },
   },
   props: [],        // {x,y,img,scale,shadowR,collR,flip,tint}
   statics: null,    // grade espacial de colisores
@@ -44,7 +45,7 @@ export function genWorld(seed, mapIdx = 0) {
 
   const A = world.anthill;
   A.x = WORLD_W / 2; A.y = WORLD_H / 2;
-  A.door.x = A.x; A.door.y = A.y + 8;      // a boca acompanha o ninho
+  A.door.x = A.x; A.door.y = A.y + 15;     // a boca acompanha o ninho (buraco em +15 na arte style 3)
   const distA = (x, y) => Math.hypot(x - A.x, y - A.y);
   const margin = 90;
   // MEGA LORE: Eras - mundo muda por Era (mais trilhas, seda, portas)
