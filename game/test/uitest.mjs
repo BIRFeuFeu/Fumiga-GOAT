@@ -217,20 +217,41 @@ await wait(600);
 const busy = nestMod.nest.ants.filter(a => a.route || a.carry).length;
 expect(busy >= 1, "formigas em movimento dentro do formigueiro (" + busy + " ocupadas)");
 
-// A PORTA AO CONTRÁRIO: L solta uma formiga de volta para o mundo, pela boca
+// A PORTA AO CONTRÁRIO: L põe uma formiga na FILA da boca — ela ANDA pelos
+// túneis até a sala da ENTRADA e só então brota no mundo (sem teleporte).
 {
-  const idsDentro = units.allies.inside.map(a => a.id);
-  const antes = idsDentro.length;
+  // Garante uma candidata nova (o rodízio não a toca: insideT ~ 0 < 12s).
+  // Ela nasce colada na porta e mergulha na hora — atravessar o campo de
+  // batalha a pé seria pedir para morrer antes de descer (há ondas rolando).
+  let recruta = null;
+  for (let tent = 0; tent < 3 && !recruta; tent++) {
+    const cand = units.spawnAnt("worker", world.anthill.door.x, world.anthill.door.y);
+    units.antEnterNest(cand, "teste");
+    let guardIn = 0;
+    while (!cand.inside && !cand.dead && guardIn < 8000) { await wait(250); guardIn += 250; }
+    if (cand.inside) recruta = cand;
+  }
+  expect(recruta !== null, "recruta desceu pela boca para o teste de saída");
+  const flaggedAntes = new Set(units.allies.inside.filter(a => a.exitRequested).map(a => a.id));
+  const antes = units.insideCount();
   pressed.KeyL = true;
   await wait(80);
   pressed.KeyL = false;
-  await wait(200);
-  const saiuId = idsDentro.find(id => !units.allies.inside.some(a => a.id === id));
-  expect(units.insideCount() === antes - 1, "L liberou uma formiga (dentro: " + units.insideCount() + ")");
+  await wait(150);
+  const novos = units.allies.inside.filter(a => a.exitRequested && !flaggedAntes.has(a.id));
+  expect(novos.length >= 1, "L colocou uma formiga na fila da boca (" + novos.length + " nova(s))");
+  const naFila = nestMod.nest.ants.some(n => n.leaving);
+  expect(naFila, "há corpo andando até a ENTRADA na cena de dentro");
+  expect(units.insideCount() === antes, "ninguém teleportou: todas ainda dentro enquanto ela caminha");
+  let guardOut = 0;
+  const aindaDentro = () => novos.some(a => units.allies.inside.some(b => b.id === a.id));
+  while (aindaDentro() && guardOut < 20000) { await wait(250); guardOut += 250; }
+  const saiuId = novos.map(a => a.id).find(id => !units.allies.inside.some(a => a.id === id));
+  expect(!!saiuId, "a formiga da fila atravessou a boca depois de andar até a ENTRADA");
   const saiu = units.allies.find(a => a.id === saiuId);
   expect(!!saiu && !saiu.inside &&
     Math.hypot(saiu.x - world.anthill.door.x, saiu.y - world.anthill.door.y) < 200,
-    "quem saiu reapareceu no mundo junto à boca do formigueiro");
+    "quem saiu brotou no mundo junto à boca do formigueiro");
   expect(saiu && !nestMod.nest.ants.some(n => n.id === saiu.id),
     "quem saiu não tem mais corpo na cena de dentro");
 }

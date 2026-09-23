@@ -1196,8 +1196,8 @@ function renderOptions() {
     drawText(ctx, "Fullscreen nativo • F11 também funciona", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
     cy += 8;
     drawText(ctx, "PARALLAX 4 CAMADAS ALTA RESOLUÇÃO:", colX, cy, { color: "#ffd479", scale: 0.9 }); cy += 18;
-    drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.75 }); cy += 20;
-    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.75 });
+    drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.8 }); cy += 20;
+    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.8 });
   } else if (optionsTab === 2) { // CONTROLES - PC WASD / Mobile gestos de toque
     drawText(ctx, touchMode.on ? "CONTROLES - Mobile Toque" : "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
     const optControls = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
@@ -1297,7 +1297,7 @@ function renderOptions() {
     cy += 12;
     panel(ctx, colX, cy, PW - 64, 40, { fill: "rgba(255,212,121,0.08)", border: "#ffd479", r: 4 });
     drawText(ctx, "Idioma afeta: menus, tutoriais, descrições de mutações e unidades", colX + 8, cy + 8, { color: "#ffd479", scale: 0.8 });
-    drawText(ctx, "Atual: " + s.language + " • Mais idiomas em breve!", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.75 });
+    drawText(ctx, "Atual: " + s.language + " • Mais idiomas em breve!", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.8 });
   }
 
   const mobile = isMobileLayout();
@@ -1572,7 +1572,7 @@ function drawHUD() {
     needBar("GUERRA", n.defense, "#ff4d5a");
     needBar("CURA", n.medical, "#7fd6a0");
     drawText(ctx, "COLETA " + hc.gather + " • EXPLORAÇÃO " + hc.explore, 20, cy + 28, { color: bh.border, scale: 0.8, maxWidth: 300 });
-    drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 42, { color: PAL.textDim, scale: 0.75, maxWidth: 300 });
+    drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 42, { color: PAL.textDim, scale: 0.85, maxWidth: 300 });
     leftStackBottom = ey + 110;
   }
 
@@ -1747,7 +1747,7 @@ function drawHUD() {
     drawGasterBar(ctx, bx0, by + 24, bw, 12, boss.hp / boss.maxHp, biomeId, boss.hp/boss.maxHp < 0.5, G.time);
     // fase 2 indicador
     if (boss.hp / boss.maxHp < 0.5) {
-      drawText(ctx, "FASE 2: NÉVOA DESPERTA", VIEW_W/2, by + 38, { color: "#ffd479", align: "center", scale: 0.7 });
+      drawText(ctx, "FASE 2: NÉVOA DESPERTA", VIEW_W/2, by + 38, { color: "#ffd479", align: "center", scale: 0.85 });
     }
     bossBottom = by + 50;
   }
@@ -1850,7 +1850,7 @@ function drawMinimap() {
   ctx.strokeStyle = "rgba(239,233,255,0.65)";
   ctx.strokeRect(mx + (cam.x - vx / 2) * sx, my + (cam.y - vy / 2) * sy, vx * sx, vy * sy);
   fogDrawMini(ctx, mx, my, mw, mh);
-  drawText(ctx, bh.loreName, mx + mw/2, my + 4, { color: bh.border, align: "center", scale: 0.7, maxWidth: mw-12 });
+  drawText(ctx, bh.loreName, mx + mw/2, my + 4, { color: bh.border, align: "center", scale: 0.8, maxWidth: mw-12 });
 
 
   const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
@@ -2095,7 +2095,7 @@ function drawPause() {
   if (pointInRect(mouse.x, mouse.y, miniX, miniY, miniW, miniH)) {
     ctx.strokeStyle = "#37e6c8"; ctx.lineWidth = 2;
     ctx.strokeRect(miniX-1, miniY-1, miniW+2, miniH+2);
-    drawText(ctx, "CLIQUE PARA MOVER CÂMERA", rx + rightW/2, miniY + miniH + 4, { color: "#37e6c8", align: "center", scale: 0.7 });
+    drawText(ctx, "CLIQUE PARA MOVER CÂMERA", rx + rightW/2, miniY + miniH + 4, { color: "#37e6c8", align: "center", scale: 0.8 });
     if (mouse.justDown) {
       cam.x = (mouse.x - miniX) / sx;
       cam.y = (mouse.y - miniY) / sy;
@@ -2117,8 +2117,8 @@ function drawPause() {
 
     // cérebro da colônia + headcount detalhado
     const n = colony.needs, hc = colony.headcount;
-    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "% • CURA " + Math.round(n.medical*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.75 }); sy2 += 16;
-    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.75 }); sy2 += 18;
+    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "% • CURA " + Math.round(n.medical*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.8, maxWidth: rightW - 32 }); sy2 += 16;
+    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.8, maxWidth: rightW - 32 }); sy2 += 18;
 
     if (G.save.accessibility.invincible) {
       drawText(ctx, "♿ INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
@@ -2131,7 +2131,7 @@ function drawPause() {
     }
   }
 
-  drawText(ctx, "ESC: VOLTAR • M: SOM • CLIQUE NO MAPA", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.75 });
+  drawText(ctx, "ESC: VOLTAR • M: SOM • CLIQUE NO MAPA", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.8 });
 }
 
 function settleAbandon() {
@@ -2369,8 +2369,8 @@ function renderMemoryScreen() {
     const kitM = drawKitIcon(ctx, seen ? 0 : 1, x+10, y+7, 14);
     if (!kitM) drawText(ctx, seen ? "✓ " : "○ ", x+10, y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
     drawText(ctx, def.title, x+10+(kitM ? 18 : 0), y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
-    drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.75 });
-    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.7 });
+    drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.8 });
+    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.8 });
     if (seen) {
       drawText(ctx, "VER", x+cw-30, y+22, { color: isHover ? "#000" : "#ffd479", align:"center" });
       if (isHover) {

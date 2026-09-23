@@ -36,7 +36,7 @@ let resourceList = [];           // recursos disponíveis no frame (ver brain.js
 // Undergrowth (a entrada do ninho transfere a formiga entre superfície e
 // subsolo) e Pikmin/Onion (só quem entrou pela boca está dentro).
 export const DOOR_R = 38;      // raio da boca: aqui a formiga mergulha
-export const EXIT_R = 104;     // onde quem sai pisa no mundo (fora da cratera)
+export const EXIT_R = 104;     // (legado) raio antigo da saída; quem sai agora brota junto à porta (10–26px)
 const DIVE_T = 0.42;           // duração do mergulho na boca
 const INSIDE_MAX = 12;         // teto de moradoras do turno interno
 const INSIDE_SHARE = 0.25;     // fração de cada casta pacífica que fica dentro
@@ -122,10 +122,25 @@ function finishEntrance(a) {
   a.doorT = 0;
   a.inside = true;
   a.insideT = 0;
+  a.exitRequested = false;   // fila da boca: pedido de saída atendido/zera
+  a.exitReqT = 0;
+  a.rallyPos = null;
   a.state = "idle";
   a.x = world.anthill.door.x; a.y = world.anthill.door.y;
   a.vx = 0; a.vy = 0;
   if (!allies.inside.includes(a)) allies.inside.push(a);
+}
+
+/**
+ * Pede a saída pelo caminho real: a formiga entra na FILA da boca (o corpo
+ * dela na cena de dentro larga o trabalho, anda pelos túneis até a ENTRADA
+ * e só então atravessa — ver pickupExitQueue/stepLeaving em nest.js).
+ */
+export function requestNestExit(a) {
+  if (!a || !a.inside || a.dead || a.dying || a.doorT > 0) return false;
+  a.exitRequested = true;
+  a.exitReqT = 0;
+  return true;
 }
 
 /** Tira a formiga do ninho: ela sobe pela boca e pisa no mundo. */
@@ -137,8 +152,12 @@ export function antExitNest(a) {
   a.inside = false;
   a.insideT = 0;
   a.enteredByThreat = false;
+  a.exitRequested = false;
+  a.exitReqT = 0;
   a.doorT = 0;
-  const ang = rand(0, TAU), d = EXIT_R + rand(-8, 24);
+  // Quem atravessa a boca BROTA NA BOCA (não longe dela): o caminho pelos
+  // túneis já foi andado na cena de dentro, então a saída é junto à porta.
+  const ang = rand(0, TAU), d = rand(10, 26);
   a.x = D.x + Math.cos(ang) * d;
   a.y = D.y + Math.sin(ang) * d;
   a.spawnT = 0.34;                                 // brota da terra ao sair
@@ -149,6 +168,13 @@ export function antExitNest(a) {
   a.fleeT = 0;
   if (a.brain) a.brain.recovering = false;
   if (a.def.attack !== false) a.guardPos = { x: a.x, y: a.y };
+  // Rali feito pela fila: ao subir, ela já sai andando para o anel.
+  if (a.rallyPos) {
+    a.guardPos = a.rallyPos;
+    a.tx = a.rallyPos.x; a.ty = a.rallyPos.y;
+    a.state = "move";
+    a.rallyPos = null;
+  }
   dustPoof(a.x, a.y - 4, 4);
   return true;
 }
@@ -185,6 +211,12 @@ function rotationTick(dt, foes) {
       continue;
     }
     a.insideT += dt;
+    // Fila da boca, rede de segurança: se o corpo não atravessou em 25s
+    // (sem vaga visível na cena de dentro, por exemplo), ela sobe direto.
+    if (a.exitRequested) {
+      a.exitReqT = (a.exitReqT || 0) + dt;
+      if (a.exitReqT > 25) { antExitNest(a); continue; }
+    }
   }
   ROT.t -= dt;
   if (ROT.t > 0) return;
@@ -205,7 +237,8 @@ function rotationTick(dt, foes) {
     if (a.insideT < minStay) continue;
     if (wounded && a.insideT < 32) continue;        // deixa a cura terminar
     if (threat > 0 && a.insideT < 34 && a.enteredByThreat) continue;
-    antExitNest(a);
+    if (a.exitRequested) continue;                   // já está na fila da boca
+    requestNestExit(a);                              // o rodízio usa a mesma fila
   }
 
   // ---- entradas: repõe o turno (fração por casta, teto global)
@@ -1352,13 +1385,18 @@ export function rallyDefenders(anthill) {
   let n = 0;
   for (const a of allies) {
     if (a.dead || a.dying || a.def.role === "worker") continue;
-    // O RALI CHAMA A COLÔNIA PARA FORA: guerreira que está no ninho sobe pela
-    // boca antes de formar o anel (o jogador vê a colônia saindo do buraco).
-    if (a.inside) antExitNest(a);
+    // O RALI CHAMA A COLÔNIA PARA FORA: guerreira que está no ninho entra na
+    // fila da boca e forma o anel ao subir (antExitNest usa o rallyPos).
     const ang = (n * 2.4) + 0.6;
-    a.guardPos = { x: anthill.x + Math.cos(ang) * 220, y: anthill.y + Math.sin(ang) * 220 };
-    a.tx = a.guardPos.x; a.ty = a.guardPos.y;
-    a.state = "move";
+    const ring = { x: anthill.x + Math.cos(ang) * 220, y: anthill.y + Math.sin(ang) * 220 };
+    if (a.inside) {
+      a.rallyPos = ring;
+      requestNestExit(a);
+    } else {
+      a.guardPos = ring;
+      a.tx = ring.x; a.ty = ring.y;
+      a.state = "move";
+    }
     n++;
   }
   if (n > 0) SFX.command();

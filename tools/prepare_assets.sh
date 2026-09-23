@@ -256,8 +256,10 @@ while [ $i -lt ${#CHS[@]} ]; do
   if [ "$ch" = " " ]; then
     cp "$FDIR/blank.png" "$f"
   else
-    convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
-      -pointsize 21 +antialias "label:$ch" -gravity north -extent 22x30 "$f"
+    # caption: (não label:) — o label: do IM6 ignora -stroke e saía sem contorno
+    convert -background none -fill white -stroke black -strokewidth 3 \
+      -font DejaVu-Sans-Mono-Bold -pointsize 42 -gravity north \
+      -size 44x60 "caption:$ch" +repage -scale 50% "$f"
   fi
   i=$((i+1))
 done
@@ -283,7 +285,7 @@ convert $(for r in $(seq 0 $((rows-1))); do echo "$FDIR/row$r.png"; done) -appen
 echo "  font font_big.png ($(identify -format '%wx%h' "$OUT/font/font_big.png"))"
 rm -rf "$FDIR"
 
-# Versão pequena (HUD / corpo de texto): pointsize 11, célula 13x16
+# Versão pequena (HUD / corpo de texto): 2x com contorno, célula 13x16
 FDIR=$(mktemp -d)
 convert -size 13x16 xc:none "$FDIR/blank.png"
 i=0
@@ -293,8 +295,9 @@ while [ $i -lt ${#CHS[@]} ]; do
   if [ "$ch" = " " ]; then
     cp "$FDIR/blank.png" "$f"
   else
-    convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
-      -pointsize 11 +antialias "label:$ch" -gravity north -extent 13x16 "$f"
+    convert -background none -fill white -stroke black -strokewidth 1.5 \
+      -font DejaVu-Sans-Mono-Bold -pointsize 22 -gravity north \
+      -size 26x32 "caption:$ch" +repage -scale 50% "$f"
   fi
   i=$((i+1))
 done

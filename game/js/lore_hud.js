@@ -201,7 +201,10 @@ function tbIndex(id) { return id === "colonia" ? 6 : Math.max(0, BIOMES.indexOf(
 // Layouts 9-slice dos atlas do kit (célula + margens fixas que nunca esticam).
 const L_BOX    = { cw: 32, ch: 32, l: 8, r: 8, t: 8, b: 8 };  // painéis e tábuas
 const L_BANNER = { cw: 40, ch: 24, l: 8, r: 14, t: 8, b: 8 }; // tábua-seta
-const L_BAR    = { cw: 32, ch: 12, l: 4, r: 4, t: 4, b: 4 };  // moldura de barra
+// Moldura de barra: a ARTE tem 32px mas as colunas do kit têm 40px de passo
+// (mesmas colunas dos banners) — sem o stride, 6 dos 7 biomas recortavam
+// pixels errados e a moldura de madeira saía quebrada/invisível no jogo.
+const L_BAR    = { cw: 32, ch: 12, l: 4, r: 4, t: 4, b: 4, stride: 40 };
 
 // Os cantos nunca esticam; apenas as faixas e o centro. Cache limitado por uso.
 function tileOf(kind, styleId, w, h, L) {
@@ -216,7 +219,7 @@ function tileOf(kind, styleId, w, h, L) {
     const idx = kind === "panels"
       ? Math.max(0, BIOMES.indexOf(styleId === "colonia" ? "planicie" : styleId))
       : tbIndex(styleId);
-    const sx = idx * L.cw, sy = kind === "bar" ? 24 : kind === "banner" ? 0 : 0;
+    const sx = idx * (L.stride || L.cw), sy = kind === "bar" ? 24 : kind === "banner" ? 0 : 0;
     const ex = Math.min(L.l, Math.floor(w / 2)), ey = Math.min(L.t, Math.floor(h / 2));
     const exr = Math.min(L.r, Math.floor(w / 2)), eyb = Math.min(L.b, Math.floor(h / 2));
     const srcX = [0, L.l, L.cw - L.r], sizeX = [L.l, L.cw - L.l - L.r, L.r];
@@ -265,7 +268,10 @@ export function drawBiomeTexture(ctx, x, y, w, h, biome, time) {
   w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
   const style = getBiomeHUD(biome);
   noteBiome(style.id);
-  blitMolt(ctx, "panels", style.id, x, y, w, h, L_BOX);
+  // Tábua viva do bioma (atlas textbox, 7 células 32x32): o HUD inteiro usa a
+  // mesma madeira dos diálogos. Sem a arte, volta aos painéis procedurais.
+  if (art.textbox) blitMolt(ctx, "textbox", style.id, x, y, w, h, L_BOX);
+  else blitMolt(ctx, "panels", style.id, x, y, w, h, L_BOX);
   // Respiração discreta sem movimentar texto ou hitboxes.
   ctx.save();
   ctx.globalAlpha = reducedFX() ? 0.12 : 0.16 + Math.sin(time * 2) * 0.06;
@@ -499,9 +505,9 @@ export function drawPheromoneLegend(ctx, width, y) {
   ctx.fillStyle = "#100c1c"; ctx.fillRect(x,y,w,36);
   ctx.strokeStyle = "#7fd6a0"; ctx.strokeRect(x+0.5,y+0.5,w-1,35);
   drawText(ctx,"A COLÔNIA VÊ COM CHEIRO",width/2,y+3,{align:"center",scale:0.8,color:"#efe9ff"});
-  drawText(ctx,"COMIDA +",x+18,y+19,{scale:0.75,color:"#7fd6a0"});
-  drawText(ctx,"PERIGO !",x+154,y+19,{scale:0.75,color:"#ff4d5a"});
-  drawText(ctx,"SOLTE H: VOLTAR",x+w-12,y+19,{align:"right",scale:0.7,color:"#efe9ff"});
+  drawText(ctx,"COMIDA +",x+18,y+19,{scale:0.8,color:"#7fd6a0"});
+  drawText(ctx,"PERIGO !",x+154,y+19,{scale:0.8,color:"#ff4d5a"});
+  drawText(ctx,"SOLTE H: VOLTAR",x+w-12,y+19,{align:"right",scale:0.8,color:"#efe9ff"});
   ctx.restore();
 }
 

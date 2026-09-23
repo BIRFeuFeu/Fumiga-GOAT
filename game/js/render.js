@@ -271,9 +271,9 @@ export function drawOutsideEye(ctx, x, y, w = PIP.w, h = PIP.h) {
       { color: PAL.textDim, scale: 0.8, align: "right" });
   }
   drawText(ctx, "FORA " + outside, x + 5, y + h - 12,
-    { color: "#8fd3ff", scale: 0.75 });
+    { color: "#8fd3ff", scale: 0.85 });
   drawText(ctx, "DENTRO " + insideCount(), x + w - 5, y + h - 12,
-    { color: "#7fd6a0", scale: 0.75, align: "right" });
+    { color: "#7fd6a0", scale: 0.85, align: "right" });
 }
 
 // ===================================================================== RUN ==
