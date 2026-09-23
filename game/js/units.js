@@ -176,6 +176,7 @@ export function antExitNest(a) {
     a.rallyPos = null;
   }
   dustPoof(a.x, a.y - 4, 4);
+  scent(a.x, a.y, "#ffd479");   // mesmo perfume do mergulho (startDive): sair espelha entrar
   return true;
 }
 

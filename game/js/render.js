@@ -413,10 +413,14 @@ function drawAnt(ctx, u, w2s) {
     squashX = 1 + (1 - t) * 0.7;
     squashY = Math.max(0.15, t * 0.9);
   } else if (u.spawnT > 0) {
+    // NASCER/BROTAR é o mergulho ao contrário: sobe do buraco crescendo e
+    // aparecendo (mesma leitura da entrada, invertida) — ver doorT acima.
     const t = 1 - u.spawnT / 0.34;
     const e = 1 - Math.pow(1 - t, 3);
     squashX = 0.4 + 0.6 * e;
     squashY = 0.4 + 0.6 * e;
+    dy -= (1 - e) * 7 * z;
+    doorFade = 0.08 + 0.92 * e;
   } else if (moving) {
     const wob = Math.sin(u.bob * 2.2);
     squashX = 1 - wob * 0.07;
