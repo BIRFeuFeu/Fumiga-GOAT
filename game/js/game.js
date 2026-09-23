@@ -138,7 +138,7 @@ const OPTIONS_TABS = [
   { id: "audio", label: "ÁUDIO", color: "#37e6c8", icon: "♪" },
   { id: "video", label: "VÍDEO", color: "#6db7ff", icon: "◫" },
   { id: "controles", label: "CONTROLES", color: "#ffb347", icon: "⌨" },
-  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "♿" },
+  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "A" },
   { id: "idioma", label: "IDIOMA", color: "#ffd479", icon: "A" },
 ];
 
@@ -748,7 +748,7 @@ function updateRun(dt) {
     // acessibilidade invencível
     if (G.save.accessibility.invincible) {
       q.hp = q.maxHp * 0.3;
-      floatText(world.anthill.x, world.anthill.y - 80, "♿ MODO ACESSÍVEL: RAINHA PROTEGIDA", { color: "#7fd6a0", life: 1.5 });
+      floatText(world.anthill.x, world.anthill.y - 80, "MODO ACESSÍVEL: RAINHA PROTEGIDA", { color: "#7fd6a0", life: 1.5 });
       return;
     }
     if (metaBonus().rebirth && !run.rebirthUsed) {
@@ -995,7 +995,7 @@ function renderTitle() {
   const btns = [
     { label: "JOGAR", id: "start", accent: "#37e6c8", h: btnH, font: "big" },
     { label: "ÁRVORE DA EVOLUÇÃO", id: "tree", accent: "#c77dff", h: 42, font: "big" },
-    { label: "OPÇÕES ♿", id: "options", accent: "#ffb347", h: 40, font: "big" },
+    { label: "OPÇÕES", id: "options", accent: "#ffb347", h: 40, font: "big" },
     { label: "COMO JOGAR", id: "help", accent: "#6db7ff", h: 38 },
   ];
   let by = 252;
@@ -1036,7 +1036,7 @@ function renderTitle() {
   // (linha de stats removida da tela de TÍTULO a pedido — só versão + acessibilidade)
   
   if (G.save.accessibility && (G.save.accessibility.invincible || G.save.accessibility.slowMo || G.save.accessibility.infiniteDash)) {
-    drawText(ctx, "♿ MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
+    drawText(ctx, "MODO ACESSÍVEL ATIVO" + (G.save.accessibility.infiniteDash ? " ∞" : ""), VIEW_W - 20, footerY + (mobile ? 14 : 8), { color: "#7fd6a0", align: "right", scale: mobile ? 0.8 : 1 });
   }
 }
 
@@ -1076,7 +1076,7 @@ function renderModeScreen() {
   // FASE 6 FINAL: área toque maior rodapé MODE também 44px
   const footerH = mobile ? 44 : 28;
   panel(ctx, 12, VIEW_H - footerH - 8, VIEW_W - 24, footerH, { fill: "rgba(10,8,16,0.65)", border: "rgba(74,58,110,0.35)", r: 3 });
-  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 20 : 18), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1 });
+  drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 28 : 24), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1, maxWidth: VIEW_W - 40 });
 }
 
 // -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec - FUNDO SÓLIDO (parallax só no TITLE)
@@ -1196,8 +1196,8 @@ function renderOptions() {
     drawText(ctx, "Fullscreen nativo • F11 também funciona", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
     cy += 8;
     drawText(ctx, "PARALLAX 4 CAMADAS ALTA RESOLUÇÃO:", colX, cy, { color: "#ffd479", scale: 0.9 }); cy += 18;
-    drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.8 }); cy += 20;
-    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.8 });
+    drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.75 }); cy += 20;
+    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.75 });
   } else if (optionsTab === 2) { // CONTROLES - PC WASD / Mobile gestos de toque
     drawText(ctx, touchMode.on ? "CONTROLES - Mobile Toque" : "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
     const optControls = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
@@ -1230,7 +1230,7 @@ function renderOptions() {
     cy += 64;
     drawText(ctx, touchMode.on ? "Botões na tela: pausa • ninho • rali • onda • zoom • centro" : "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
   } else if (optionsTab === 3) { // ACESSIBILIDADE - Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade
-    drawText(ctx, "♿ ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
+    drawText(ctx, "ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
     drawText(ctx, "Spec: Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
     const a = G.save.accessibility;
     const accOpts = [
@@ -1274,7 +1274,7 @@ function renderOptions() {
     if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
       panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
       drawKitIcon(ctx, 3, colX + 6, cy + 8, 16);
-      drawText(ctx, "♿ ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
+      drawText(ctx, "ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
     }
   } else if (optionsTab === 4) { // IDIOMA
     drawText(ctx, "IDIOMA / LANGUAGE", colX, cy, { font: "big", color: "#ffd479" }); cy += 28;
@@ -1297,7 +1297,7 @@ function renderOptions() {
     cy += 12;
     panel(ctx, colX, cy, PW - 64, 40, { fill: "rgba(255,212,121,0.08)", border: "#ffd479", r: 4 });
     drawText(ctx, "Idioma afeta: menus, tutoriais, descrições de mutações e unidades", colX + 8, cy + 8, { color: "#ffd479", scale: 0.8 });
-    drawText(ctx, "Atual: " + s.language + " • Mais idiomas em breve!", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.8 });
+    drawText(ctx, "Atual: " + s.language + " • Mais idiomas em breve!", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.75 });
   }
 
   const mobile = isMobileLayout();
@@ -1348,8 +1348,8 @@ function renderHelp() {
   y += 26;
   for (const t of HELP_GOAL) {
     for (const L of wrapText(t, PW - 48, {})) {
-      drawText(ctx, L, colX[0], y, { color: PAL.text });
-      y += 18;
+      drawText(ctx, L, colX[0], y, { color: PAL.text, scale: 0.9 });
+      y += 17;
     }
   }
   y += 14;
@@ -1360,21 +1360,21 @@ function renderHelp() {
   drawText(ctx, touchMode.on ? "CONTROLES (TOQUE)" : "CONTROLES", colX[0], yl, { font: "big", color: "#c77dff" });
   yl += 26;
   for (const [k, d] of controlsTable) {
-    drawText(ctx, k, colX[0], yl, { color: "#37e6c8" });
-    const lines = wrapText(d, colW - descX, {});
-    lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 16, { color: PAL.text }));
-    yl += Math.max(20, lines.length * 16 + 4);
+    drawText(ctx, k, colX[0], yl, { color: "#37e6c8", scale: 0.85 });
+    const lines = wrapText(d, colW - descX, { scale: 0.85 });
+    lines.forEach((L, li) => drawText(ctx, L, colX[0] + descX, yl + li * 14, { color: PAL.text, scale: 0.85 }));
+    yl += Math.max(17, lines.length * 14 + 3);
   }
 
   let yr = y;
   drawText(ctx, "DICAS", colX[1], yr, { font: "big", color: "#c77dff" });
   yr += 26;
   for (const t of HELP_TIPS) {
-    for (const L of wrapText(t, colW, {})) {
-      drawText(ctx, L, colX[1], yr, { color: PAL.text });
-      yr += 17;
+    for (const L of wrapText(t, colW, { scale: 0.9 })) {
+      drawText(ctx, L, colX[1], yr, { color: PAL.text, scale: 0.9 });
+      yr += 16;
     }
-    yr += 6;
+    yr += 5;
   }
 
   const helpMobile = isMobileLayout();
@@ -1572,7 +1572,7 @@ function drawHUD() {
     needBar("GUERRA", n.defense, "#ff4d5a");
     needBar("CURA", n.medical, "#7fd6a0");
     drawText(ctx, "COLETA " + hc.gather + " • EXPLORAÇÃO " + hc.explore, 20, cy + 28, { color: bh.border, scale: 0.8, maxWidth: 300 });
-    drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 42, { color: PAL.textDim, scale: 0.85, maxWidth: 300 });
+    drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 42, { color: PAL.textDim, scale: 0.75, maxWidth: 300 });
     leftStackBottom = ey + 110;
   }
 
@@ -1647,8 +1647,8 @@ function drawHUD() {
   const shopSprite = rotFrame("worker", Math.PI / 2);
   const rShop = iconButton(ctx, { x: 10, y: footY, w: 92, h: 64, id: "shopToggle", frame: shopOpen ? bh.accent : bh.border, selected: shopOpen, maxPadX: 12 });
   ctx.drawImage(shopSprite, 56 - shopSprite.width * 0.17, footY + 3, shopSprite.width * 0.34, shopSprite.height * 0.34);
-  drawText(ctx, "IRMÃS", 56, footY + 35, { color: PAL.text, align: "center" });
-  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 48, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85 });
+  drawText(ctx, "IRMÃS", 56, footY + 26, { color: PAL.text, align: "center", maxWidth: 88 });
+  drawText(ctx, shopOpen ? "FECHAR (Q)" : "ABRIR (Q)", 56, footY + 40, { color: shopOpen ? bh.accent : bh.border, align: "center", scale: 0.85, maxWidth: 88 });
 
   if (live && rShop.clicked) { shopOpen = !shopOpen; }
 
@@ -1674,7 +1674,7 @@ function drawHUD() {
       ctx.globalAlpha = canBuy ? 1 : 0.35;
       ctx.drawImage(frame, x + SHOP_W / 2 - frame.width * sc2 / 2, footY + 5, frame.width * sc2, frame.height * sc2);
       ctx.globalAlpha = 1;
-      drawText(ctx, cost, x + SHOP_W / 2, footY + 47, { color: canBuy ? bh.accent : "#a32e46", align: "center" });
+      drawText(ctx, cost, x + SHOP_W / 2, footY + 40, { color: canBuy ? bh.accent : "#a32e46", align: "center" });
       const hot = i < 9 ? String(i + 1) : i === 9 ? "0" : "";
       if (hot) drawText(ctx, hot, x + SHOP_W - 3, footY + 4, { color: PAL.textDim, align: "right", scale: 0.8 });
       if (r.hot) shopTooltip = sp;
@@ -1728,8 +1728,8 @@ function drawHUD() {
     outono: "BERÇO DOURADO",
     gelo: "GASTER DE GELO"
   };
-  drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 33, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw-16 });
-  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 46, { color: bh.accent, align: "center", scale: 0.85 });
+  drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 24, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw-16 });
+  drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 40, { color: bh.accent, align: "center", scale: 0.85, maxWidth: nw - 8 });
   if (live && rNest.clicked) {
     openNest(run);
     return;
@@ -1747,7 +1747,7 @@ function drawHUD() {
     drawGasterBar(ctx, bx0, by + 24, bw, 12, boss.hp / boss.maxHp, biomeId, boss.hp/boss.maxHp < 0.5, G.time);
     // fase 2 indicador
     if (boss.hp / boss.maxHp < 0.5) {
-      drawText(ctx, "FASE 2: NÉVOA DESPERTA", VIEW_W/2, by + 38, { color: "#ffd479", align: "center", scale: 0.85 });
+      drawText(ctx, "FASE 2: NÉVOA DESPERTA", VIEW_W/2, by + 38, { color: "#ffd479", align: "center", scale: 0.7 });
     }
     bossBottom = by + 50;
   }
@@ -1850,7 +1850,7 @@ function drawMinimap() {
   ctx.strokeStyle = "rgba(239,233,255,0.65)";
   ctx.strokeRect(mx + (cam.x - vx / 2) * sx, my + (cam.y - vy / 2) * sy, vx * sx, vy * sy);
   fogDrawMini(ctx, mx, my, mw, mh);
-  drawText(ctx, bh.loreName, mx + mw/2, my + 4, { color: bh.border, align: "center", scale: 0.8, maxWidth: mw-12 });
+  drawText(ctx, bh.loreName, mx + mw/2, my + 4, { color: bh.border, align: "center", scale: 0.7, maxWidth: mw-12 });
 
 
   const live = run.status === "running" && !paused && !run.baseOpen && !run.draft && !run.transition;
@@ -2007,7 +2007,7 @@ function drawPause() {
 
   const pauseBtns = [
     { label: "CONTINUAR", id: "resume", accent: "#37e6c8" },
-    { label: "OPÇÕES ♿", id: "pauseOptions", accent: "#ffb347" },
+    { label: "OPÇÕES", id: "pauseOptions", accent: "#ffb347" },
     { label: "ÁRVORE DA EVOLUÇÃO", id: "pauseTree", accent: "#c77dff" },
     { label: "COMO JOGAR", id: "pauseHelp", accent: "#6db7ff" },
     { label: "REINICIAR EXPEDIÇÃO", id: "restart", accent: "#ffb347" },
@@ -2095,7 +2095,7 @@ function drawPause() {
   if (pointInRect(mouse.x, mouse.y, miniX, miniY, miniW, miniH)) {
     ctx.strokeStyle = "#37e6c8"; ctx.lineWidth = 2;
     ctx.strokeRect(miniX-1, miniY-1, miniW+2, miniH+2);
-    drawText(ctx, "CLIQUE PARA MOVER CÂMERA", rx + rightW/2, miniY + miniH + 4, { color: "#37e6c8", align: "center", scale: 0.8 });
+    drawText(ctx, "CLIQUE PARA MOVER CÂMERA", rx + rightW/2, miniY + miniH + 4, { color: "#37e6c8", align: "center", scale: 0.7 });
     if (mouse.justDown) {
       cam.x = (mouse.x - miniX) / sx;
       cam.y = (mouse.y - miniY) / sy;
@@ -2117,11 +2117,11 @@ function drawPause() {
 
     // cérebro da colônia + headcount detalhado
     const n = colony.needs, hc = colony.headcount;
-    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "% • CURA " + Math.round(n.medical*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.8, maxWidth: rightW - 32 }); sy2 += 16;
-    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.8, maxWidth: rightW - 32 }); sy2 += 18;
+    drawText(ctx, "COLÔNIA: FOME " + Math.round(n.food*100) + "% • GUERRA " + Math.round(n.defense*100) + "% • CURA " + Math.round(n.medical*100) + "%", rx + 16, sy2, { color: "#8f7bb5", scale: 0.75, maxWidth: rightW - 32 }); sy2 += 16;
+    drawText(ctx, "COLETANDO " + hc.gather + " • EXPLORANDO " + hc.explore + " • DEFENDENDO " + (hc.defend||0), rx + 16, sy2, { color: "#9a8fc0", scale: 0.75, maxWidth: rightW - 32 }); sy2 += 18;
 
     if (G.save.accessibility.invincible) {
-      drawText(ctx, "♿ INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
+      drawText(ctx, "INVENCÍVEL ATIVO", rx + 16, sy2, { color: "#7fd6a0" }); sy2 += 16;
     }
     if (G.save.accessibility.infiniteDash) {
       drawText(ctx, "∞ DASHES INFINITOS ATIVO", rx + 16, sy2, { color: "#37e6c8", scale: 0.85 }); sy2 += 16;
@@ -2131,7 +2131,7 @@ function drawPause() {
     }
   }
 
-  drawText(ctx, "ESC: VOLTAR • M: SOM • CLIQUE NO MAPA", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.8 });
+  drawText(ctx, "ESC: VOLTAR • M: SOM • CLIQUE NO MAPA", rx + rightW/2, py + panelH - 12, { color: PAL.textDim, align: "center", scale: 0.75 });
 }
 
 function settleAbandon() {
@@ -2369,8 +2369,8 @@ function renderMemoryScreen() {
     const kitM = drawKitIcon(ctx, seen ? 0 : 1, x+10, y+7, 14);
     if (!kitM) drawText(ctx, seen ? "✓ " : "○ ", x+10, y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
     drawText(ctx, def.title, x+10+(kitM ? 18 : 0), y+8, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
-    drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.8 });
-    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.8 });
+    drawText(ctx, def.subtitle, x+10, y+28, { color: seen ? PAL.textDim : "#3a3054", scale:0.75 });
+    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+44, { color: "#6b5a8a", scale:0.7 });
     if (seen) {
       drawText(ctx, "VER", x+cw-30, y+22, { color: isHover ? "#000" : "#ffd479", align:"center" });
       if (isHover) {

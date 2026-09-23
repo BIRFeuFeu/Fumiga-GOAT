@@ -246,7 +246,7 @@ CHS=(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z \
      Á À Â Ã É Ê Í Ó Ô Õ Ú Ç \
      0 1 2 3 4 5 6 7 8 9 \
      '?' '!' '.' ',' ':' ';' '+' '-' '*' '/' '%' '(' ')' '<' '>' '=' '#' '_' ' ' \
-     '—' '•' '▶' '[' ']' '✓' '♿' '∞' 'Ñ')
+     '—' '•' '▶' '[' ']' '✓' '∞' 'Ñ')
 FDIR=$(mktemp -d)
 convert -size 22x30 xc:none "$FDIR/blank.png"
 i=0
@@ -256,10 +256,8 @@ while [ $i -lt ${#CHS[@]} ]; do
   if [ "$ch" = " " ]; then
     cp "$FDIR/blank.png" "$f"
   else
-    # caption: (não label:) — o label: do IM6 ignora -stroke e saía sem contorno
-    convert -background none -fill white -stroke black -strokewidth 3 \
-      -font DejaVu-Sans-Mono-Bold -pointsize 42 -gravity north \
-      -size 44x60 "caption:$ch" +repage -scale 50% "$f"
+    convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
+      -pointsize 21 +antialias "label:$ch" -gravity north -extent 22x30 "$f"
   fi
   i=$((i+1))
 done
@@ -285,9 +283,10 @@ convert $(for r in $(seq 0 $((rows-1))); do echo "$FDIR/row$r.png"; done) -appen
 echo "  font font_big.png ($(identify -format '%wx%h' "$OUT/font/font_big.png"))"
 rm -rf "$FDIR"
 
-# Versão pequena (HUD / corpo de texto): 2x com contorno, célula 13x16
+# Versão pequena (HUD / corpo de texto): pointsize 18, célula 20x18 —
+# glifos bem maiores que a antiga 13x16 (legibilidade).
 FDIR=$(mktemp -d)
-convert -size 13x16 xc:none "$FDIR/blank.png"
+convert -size 20x18 xc:none "$FDIR/blank.png"
 i=0
 while [ $i -lt ${#CHS[@]} ]; do
   ch="${CHS[$i]}"
@@ -295,9 +294,8 @@ while [ $i -lt ${#CHS[@]} ]; do
   if [ "$ch" = " " ]; then
     cp "$FDIR/blank.png" "$f"
   else
-    convert -background none -fill white -stroke black -strokewidth 1.5 \
-      -font DejaVu-Sans-Mono-Bold -pointsize 22 -gravity north \
-      -size 26x32 "caption:$ch" +repage -scale 50% "$f"
+    convert -background none -fill white -font DejaVu-Sans-Mono-Bold \
+      -pointsize 18 +antialias "label:$ch" -gravity north -extent 20x18 "$f"
   fi
   i=$((i+1))
 done
