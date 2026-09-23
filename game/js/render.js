@@ -6,7 +6,7 @@ import { G } from "./state.js";
 import { IMG, rotFrame, whiteRotFrame, bakeRot, bakeSheet, rotDrawSize, fogFrame, FOG_FRAMES } from "./assets.js";
 import { world } from "./world.js";
 import { cam, worldToScreen, visibleWorldRect, screenToWorld } from "./camera.js";
-import { allies, eggs } from "./units.js";
+import { allies, eggs, insideCount } from "./units.js";
 import { foes, boss } from "./enemies.js";
 import { orbs, projectiles, drawProjectiles, drawOrbs } from "./combat.js";
 import { drawDecals, drawTrails, drawParts, drawGlows, drawRings, drawFloats } from "./particles.js";
@@ -55,48 +55,50 @@ function nestKeyForFrac(frac) {
 }
 
 // ===================================================================== RUN ==
-export function drawRun(ctx, dt) {
-  if (!vignette) bakeVignette();
-  const w2s = (x, y) => worldToScreen(x, y);
-  const vis = visibleWorldRect(80);
+/**
+ * Núcleo do mundo lá fora: chão, recursos, adereços, formigas, o ninho,
+ * inimigos, projéteis, partículas, atmosfera e névoa. Desenha com a câmera que
+ * receber (w2s/vis/zoom) — é o mesmo código que pinta a tela cheia da
+ * expedição (drawRun) e a janela "OLHO LÁ FORA" do formigueiro, que é como as
+ * duas telas mostram a MESMA simulação rodando ao mesmo tempo.
+ * box = retângulo de tela para os preenchimentos "de tela" (tint/céu).
+ */
+// pipMode: a janela "OLHO LÁ FORA" esconde os rótulos de texto do mundo (eles
+// ficariam ilegíveis em 1/3 de escala e poluiriam a janelinha) — formas, barras
+// e sprites continuam, então a leitura do que está acontecendo não se perde.
+let pipMode = false;
 
-  // ------------------------------------------------------------------ chão --
-  const origin = worldToScreen(0, 0);
+function drawWorldCore(ctx, w2s, vis, zoom, box, dt) {
+  const inView = (x, y, m) => x > vis.x0 - m && x < vis.x1 + m && y > vis.y0 - m && y < vis.y1 + m;
+  const origin = w2s(0, 0);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(world.ground, origin.x, origin.y, WORLD_W * cam.zoom, WORLD_H * cam.zoom);
-  // borda do mundo
-  ctx.fillStyle = "#0d0a14";
-  const L = worldToScreen(0, 0), R2 = worldToScreen(WORLD_W, WORLD_H);
-  if (L.x > 0) ctx.fillRect(0, 0, L.x, VIEW_H);
-  if (L.y > 0) ctx.fillRect(0, 0, VIEW_W, L.y);
-  if (R2.x < VIEW_W) ctx.fillRect(R2.x, 0, VIEW_W - R2.x, VIEW_H);
-  if (R2.y < VIEW_H) ctx.fillRect(0, R2.y, VIEW_W, VIEW_H - R2.y);
+  ctx.drawImage(world.ground, origin.x, origin.y, WORLD_W * zoom, WORLD_H * zoom);
 
   drawDecals(ctx, w2s);
   drawTrails(ctx, w2s);
 
   // ------------------------------------------------------ pilhas e recursos -
   for (const p of world.piles) {
-    if (p.amount <= 0 || !inView(vis, p.x, p.y, 60)) continue;
+    if (p.amount <= 0 || !inView(p.x, p.y, 60)) continue;
     const s = w2s(p.x, p.y);
     const scale = 0.55 + 0.65 * (p.amount / p.max);
-    const sz = 56 * scale * cam.zoom / 1.15;
+    const sz = 56 * scale * zoom / 1.15;
     ctx.globalAlpha = 1;
     ctx.drawImage(p.sprite, s.x - sz / 2, s.y - sz * 0.42, sz, sz * 0.72);
     amountBar(ctx, s.x, s.y + 12, p.amount / p.max, "#ffb347");
   }
   for (const n of world.nodes) {
-    if (n.amount <= 0 || !inView(vis, n.x, n.y, 80)) continue;
+    if (n.amount <= 0 || !inView(n.x, n.y, 80)) continue;
     const s = w2s(n.x, n.y);
     if (n.kind !== "essence") continue;
     const pulse = 0.5 + Math.sin(G.time * 2.4 + n.glowT) * 0.3;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    const rg = ctx.createRadialGradient(s.x, s.y - 8, 2, s.x, s.y - 8, 46 * cam.zoom);
+    const rg = ctx.createRadialGradient(s.x, s.y - 8, 2, s.x, s.y - 8, 46 * zoom);
     rg.addColorStop(0, `rgba(138,107,222,${0.5 * pulse})`);
     rg.addColorStop(1, "rgba(138,107,222,0)");
     ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(s.x, s.y - 8, 46 * cam.zoom, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y - 8, 46 * zoom, 0, TAU); ctx.fill();
     ctx.restore();
     amountBar(ctx, s.x, s.y + 18, n.amount / n.max, "#c77dff");
   }
@@ -104,12 +106,15 @@ export function drawRun(ctx, dt) {
   // --------------------------------------------------------- lista de desenho
   const drawList = [];
   for (const p of world.props) {
-    if (!inView(vis, p.x, p.y, 240)) continue;
+    if (!inView(p.x, p.y, 240)) continue;
     drawList.push({ kind: "prop", y: p.y, ref: p });
   }
-  for (const a of allies) if (inView(vis, a.x, a.y, 60)) drawList.push({ kind: "ant", y: a.y, ref: a });
+  for (const a of allies) {
+    if (a.inside) continue;      // desceu pela boca: vive na tela de dentro
+    if (inView(a.x, a.y, 60)) drawList.push({ kind: "ant", y: a.y, ref: a });
+  }
   for (const f of foes) {
-    if (f.isBoss || !inView(vis, f.x, f.y, 60)) continue;
+    if (f.isBoss || !inView(f.x, f.y, 60)) continue;
     if (f.revealT <= 0 && !fogVisible(f.x, f.y)) continue;
     drawList.push({ kind: "ant", y: f.y, ref: f });
   }
@@ -121,7 +126,7 @@ export function drawRun(ctx, dt) {
     if (d.kind !== "ant") continue;
     const u = d.ref;
     const s = w2s(u.x, u.y);
-    const z = cam.zoom;
+    const z = zoom;
     // sombra dispersa
     ctx.fillStyle = "rgba(10,7,16,0.3)";
     ctx.beginPath();
@@ -164,8 +169,8 @@ export function drawRun(ctx, dt) {
   }
 
   const A = world.anthill;
-  if (inView(vis, A.x, A.y, 320)) {
-    drawNest(ctx, w2s, A);
+  if (inView(A.x, A.y, 320)) {
+    drawNest(ctx, w2s, A, !pipMode);
   }
 
   for (const d of drawList) {
@@ -173,42 +178,124 @@ export function drawRun(ctx, dt) {
     else drawAnt(ctx, d.ref, w2s);
   }
 
-  if (boss && inView(vis, boss.x, boss.y, 220) && (boss.revealT > 0 || fogVisible(boss.x, boss.y))) drawBoss(ctx, boss, w2s);
+  if (boss && inView(boss.x, boss.y, 220) && (boss.revealT > 0 || fogVisible(boss.x, boss.y))) drawBoss(ctx, boss, w2s);
 
   drawProjectiles(ctx, w2s);
   drawOrbs(ctx, w2s, G.time);
   drawParts(ctx, w2s);
   drawGlows(ctx, w2s);
-  drawRings(ctx, w2s, cam.zoom);
+  drawRings(ctx, w2s, zoom);
 
   // atmosfera
   const tint = world.def ? world.def.tint : "#2a2140";
   ctx.globalAlpha = 0.16;
   ctx.fillStyle = tint;
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillRect(box.x, box.y, box.w, box.h);
   ctx.globalAlpha = 1;
 
-  const sky = ctx.createLinearGradient(0, 0, 0, 200);
+  const sky = ctx.createLinearGradient(box.x, box.y, box.x, box.y + 200);
   sky.addColorStop(0, "rgba(120,96,190,0.14)");
   sky.addColorStop(1, "rgba(120,96,190,0)");
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, VIEW_W, 200);
+  ctx.fillRect(box.x, box.y, box.w, 200);
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   const hs = w2s(A.x, A.y);
-  if (inView(vis, A.x, A.y, 480)) {
+  if (inView(A.x, A.y, 480)) {
     const q2 = allies.queen;
     const low = q2 && !q2.dead && q2.hp < q2.maxHp * 0.3;
     const pulse = 0.75 + Math.sin(G.time * (low ? 4.5 : 1.6)) * 0.18;
-    const rg = ctx.createRadialGradient(hs.x, hs.y, 10, hs.x, hs.y, 320 * cam.zoom);
+    const rg = ctx.createRadialGradient(hs.x, hs.y, 10, hs.x, hs.y, 320 * zoom);
     rg.addColorStop(0, low ? `rgba(255,77,90,${0.34 * pulse})` : `rgba(255,169,71,${0.32 * pulse})`);
     rg.addColorStop(0.5, low ? `rgba(255,77,90,${0.12 * pulse})` : `rgba(255,122,61,${0.12 * pulse})`);
     rg.addColorStop(1, "rgba(255,122,61,0)");
     ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(hs.x, hs.y, 320 * cam.zoom, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(hs.x, hs.y, 320 * zoom, 0, TAU); ctx.fill();
   }
   ctx.restore();
+
+  fogDraw(ctx, origin.x, origin.y, zoom, G.time);
+  if (!pipMode) drawFloats(ctx, drawText, w2s);
+}
+
+// ========================================================== OLHO LÁ FORA ====
+// A janela do formigueiro: a MESMA simulação do mundo lá fora, vista por uma
+// segunda câmera centrada na boca do ninho. Enquanto o jogador está no lado de
+// dentro, é aqui que ele vê as ondas chegando, as formigas trabalhando e a
+// fila entrando e saindo pela boca.
+export const PIP = { w: 300, h: 170, zoom: 0.62 };
+
+export function drawOutsideEye(ctx, x, y, w = PIP.w, h = PIP.h) {
+  if (!world.def) return;
+  const A = world.anthill;
+  const z = PIP.zoom;
+  const prevZoom = cam.zoom;
+  cam.zoom = z;
+  const ox = x + w / 2, oy = y + h / 2;
+  const w2s = (wx, wy) => ({ x: ox + (wx - A.x) * z, y: oy + (wy - A.y) * z });
+  const hw = (w / 2) / z, hh = (h / 2) / z;
+  const vis = { x0: A.x - hw, y0: A.y - hh, x1: A.x + hw, y1: A.y + hh };
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = "#0d0a14";
+  ctx.fillRect(x, y, w, h);
+  pipMode = true;
+  try {
+    drawWorldCore(ctx, w2s, vis, z, { x, y, w, h }, 0);
+  } finally {
+    pipMode = false;
+  }
+  ctx.restore();
+  cam.zoom = prevZoom;
+
+  // moldura viva: vermelha quando a rainha está por um fio
+  const q = allies.queen;
+  const alarm = q && !q.dead && q.hp < q.maxHp * 0.3;
+  ctx.strokeStyle = alarm ? "#ff4d5a" : "rgba(255,212,121,0.85)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  const run = G.run;
+  let outside = 0;
+  for (const a of allies) if (!a.dead && !a.dying && !a.inside && a.type !== "queen") outside++;
+  // faixa de título (em cima) e faixa de status (embaixo) — como uma janela
+  ctx.fillStyle = "rgba(10,8,16,0.86)";
+  ctx.fillRect(x, y, w, 15);
+  ctx.fillRect(x, y + h - 14, w, 14);
+  drawText(ctx, "OLHO LÁ FORA", x + 5, y + 2,
+    { color: alarm ? "#ff8a96" : "#ffd479", scale: 0.8 });
+  if (run) {
+    drawText(ctx, "ONDA " + (run.wave || 0), x + w - 5, y + 2,
+      { color: PAL.textDim, scale: 0.8, align: "right" });
+  }
+  drawText(ctx, "FORA " + outside, x + 5, y + h - 12,
+    { color: "#8fd3ff", scale: 0.75 });
+  drawText(ctx, "DENTRO " + insideCount(), x + w - 5, y + h - 12,
+    { color: "#7fd6a0", scale: 0.75, align: "right" });
+}
+
+// ===================================================================== RUN ==
+export function drawRun(ctx, dt) {
+  if (!vignette) bakeVignette();
+  const w2s = (x, y) => worldToScreen(x, y);
+  const vis = visibleWorldRect(80);
+  const box = { x: 0, y: 0, w: VIEW_W, h: VIEW_H };
+
+  // fundo (aparece fora dos limites do mundo)
+  ctx.fillStyle = "#0d0a14";
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+  drawWorldCore(ctx, w2s, vis, cam.zoom, box, dt);
+
+  // borda do mundo por cima (esconde a emenda do chão assado)
+  const L = w2s(0, 0), R2 = w2s(WORLD_W, WORLD_H);
+  ctx.fillStyle = "#0d0a14";
+  if (L.x > 0) ctx.fillRect(0, 0, L.x, VIEW_H);
+  if (L.y > 0) ctx.fillRect(0, 0, VIEW_W, L.y);
+  if (R2.x < VIEW_W) ctx.fillRect(R2.x, 0, VIEW_W - R2.x, VIEW_H);
+  if (R2.y < VIEW_H) ctx.fillRect(0, R2.y, VIEW_W, VIEW_H - R2.y);
 
   ctx.drawImage(vignette, 0, 0);
 
@@ -221,9 +308,6 @@ export function drawRun(ctx, dt) {
     ctx.fillRect(0, 0, 6, VIEW_H);
     ctx.fillRect(VIEW_W - 6, 0, 6, VIEW_H);
   }
-
-  fogDraw(ctx, origin.x, origin.y, cam.zoom, G.time);
-  drawFloats(ctx, drawText, w2s);
 }
 
 function inView(vis, x, y, m) {
@@ -241,7 +325,7 @@ function amountBar(ctx, sx, sy, frac, color) {
 }
 
 // -------------------------------------------------------------- formigueiro -
-function drawNest(ctx, w2s, A) {
+function drawNest(ctx, w2s, A, labels = true) {
   const q = allies.queen;
   const z = cam.zoom;
   const s = w2s(A.x, A.y);
@@ -296,8 +380,8 @@ function drawNest(ctx, w2s, A) {
     ctx.fillRect(bx, by, bw * frac2, 5);
     ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
     ctx.strokeRect(bx - 2.5, by - 2.5, bw + 5, 10);
-    drawText(ctx, "RAINHA", s.x, by - 18 * z, { scale: 1, color: frac2 < 0.3 ? "#ff4d5a" : "#ffb347", align: "center" });
-  } else if (q && q.dead) {
+    if (labels) drawText(ctx, "RAINHA", s.x, by - 18 * z, { scale: 1, color: frac2 < 0.3 ? "#ff4d5a" : "#ffb347", align: "center" });
+  } else if (q && q.dead && labels) {
     drawText(ctx, "A COLÔNIA CAIU", s.x, s.y - 70 * z, { font: "big", scale: 1, color: "#ff4d5a", align: "center" });
   }
   if (q) q.flash = Math.max(0, q.flash - 0.016);
@@ -315,7 +399,16 @@ function drawAnt(ctx, u, w2s) {
 
   const moving = Math.abs(u.vx) + Math.abs(u.vy) > 4;
   let squashX = 1, squashY = 1, lean = 0;
-  if (u.dying) {
+  // MERGULHO NA BOCA (rework do formigueiro): a formiga encolhe e afunda no
+  // buraco central — é a animação de atravessar a porta do ninho.
+  let doorFade = 1;
+  if (u.doorT > 0) {
+    const t = clamp(1 - u.doorT / 0.42, 0, 1);
+    squashX = 1 - t * 0.72;
+    squashY = 1 - t * 0.72;
+    dy += t * 7 * z;
+    doorFade = 1 - t * 0.92;
+  } else if (u.dying) {
     const t = clamp(u.dying / 0.45, 0, 1);
     squashX = 1 + (1 - t) * 0.7;
     squashY = Math.max(0.15, t * 0.9);
@@ -344,7 +437,7 @@ function drawAnt(ctx, u, w2s) {
     dy -= (Math.sin(u.bob * 2) * 1.5 + 2) * z;
   }
 
-  let alpha = 1;
+  let alpha = doorFade;
   if (u.dying) alpha = clamp(u.dying / 0.3, 0, 1);
 
   const sc = z * squashY;

@@ -24,6 +24,7 @@ import {
   allies, spawnQueen, spawnAnt, updateAllies, buyUnit, unitCost, popUsed, popCapTotal,
   unitLimitLeft, selectInRect, selectTypeOnScreen, clearSelection, selectedCount,
   orderSelected, orderAttackSelected, rallyDefenders, recomputeAllies,
+  antExitNest, insideCount,
 } from "./units.js";
 import { foes, boss, clearFoes, updateFoes, updateBoss } from "./enemies.js";
 import { projectiles, orbs, updateProjectiles, updateOrbs, clearCombat } from "./combat.js";
@@ -43,7 +44,10 @@ import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay, drawP
 import { startCutscene, updateCutscene, drawCutscene, handleCutsceneInput, isCutsceneActive, startLoadingCutscene, getCutsceneDefs } from "./cutscenes.js";
 import { uiBegin, uiButtons, button, iconButton, panel, bar, pointInRect, dialogBox, isTouchUI, touchPad } from "./ui.js";
 import { startTutorial, stopTutorial, updateTutorial, drawTutorial, tutEvent, TUT, tutorialCardRect } from "./tutorial.js";
-import { nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover } from "./nest.js";
+import {
+  nest, nestEnter, nestExit, nestUpdate, nestDraw, nestClick, nestHover,
+  nestSendOut, nestCallBack,
+} from "./nest.js";
 import { rand, clamp, lerp, TAU, fmt } from "./utils.js";
 
 const canvas = document.getElementById("game");
@@ -321,6 +325,9 @@ function advanceMap() {
   clearCombat();
 
   const A = world.anthill;
+  // a colônia migra inteira: quem estava dentro do formigueiro sobe pela boca
+  // antes de a nova terra ser gerada (senão ficaria presa na cena antiga)
+  for (let i = allies.inside.length - 1; i >= 0; i--) antExitNest(allies.inside[i]);
   let k = 0;
   for (const a of allies) {
     if (a.dead || a.dying) continue;
@@ -381,7 +388,7 @@ function enemyAt(wx, wy) {
 
 function allyAt(wx, wy) {
   for (const a of allies) {
-    if (a.dead || a.dying) continue;
+    if (a.dead || a.dying || a.inside) continue;
     if (Math.hypot(a.x - wx, a.y - wy) < a.bodyR + 10) return a;
   }
   return null;
@@ -515,6 +522,78 @@ function updateTreeScreen(dt) {
   }
 }
 
+// --------------------------------------------------------------- mundo fora --
+// Lista reutilizada por frame: TODAS as aliadas menos quem está dentro do
+// formigueiro. Inimigos, chefes e projéteis só enxergam esta lista — quem
+// desceu pela boca não pode ser alvo de ninguém lá fora.
+const _outside = [];
+function outsideAllies() {
+  _outside.length = 0;
+  for (const a of allies) if (!a.inside) _outside.push(a);
+  _outside.queen = allies.queen;
+  return _outside;
+}
+
+/**
+ * Um tick do MUNDO (ondas, formigas de fora, inimigos, projéteis, essência,
+ * fungário, níveis e névoa). É o mesmo tick para a expedição normal e para o
+ * formigueiro aberto — é isso que faz as duas telas rodarem ao mesmo tempo.
+ */
+function worldTick(simDt, run) {
+  // a colônia de DENTRO também trabalha enquanto o jogador está no mundo
+  // (visible=false: o turno produz, mas a chocagem grátis espera a visita)
+  if (!run.baseOpen) nestUpdate(simDt, false);
+  updateDirector(simDt);
+  updateAllies(simDt, foes);
+  const outside = outsideAllies();
+  updateFoes(simDt, outside);
+  if (boss) updateBoss(simDt, outside);
+  updateProjectiles(simDt, outside, foes);
+  const gained = updateOrbs(simDt, world.anthill, allies.queen && !allies.queen.dead);
+  if (gained > 0) {
+    const refMult = 1 + 0.15 * run.chambers.refinery;
+    run.essencePool += Math.round(gained * metaBonus().essMult * refMult);
+    tutEvent("essence");
+  }
+  spawnAmbient(simDt);
+
+  run.fungusT -= simDt;
+  if (run.fungusT <= 0) {
+    run.fungusT = 9;
+    const crop = run.chambers.fungus + metaBonus().fungusRate;
+    if (crop > 0) run.food += crop;
+  }
+
+  while (run.xp >= run.xpNext) {
+    run.xp -= run.xpNext;
+    run.level++;
+    run.xpNext = xpForLevel(run.level + 1);
+    recomputeAllies();
+    SFX.chime();
+    const A2 = world.anthill;
+    ring(A2.x, A2.y, { r0: 24, r1: 190, life: 0.7, color: "#6db7ff", width: 4 });
+    levelUpBurst(A2.x, A2.y - 20);
+    floatText(A2.x, A2.y - 150, "NÍVEL " + run.level + "! A COLÔNIA FICOU MAIS FORTE", {
+      color: "#6db7ff", life: 2.2, scale: 2,
+    });
+  }
+
+  fogT += simDt;
+  if (fogT >= 0.12) {
+    fogT = 0;
+    const beings = [];
+    const nester = allies.queen;
+    if (nester && !nester.dead) beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 360 });
+    else beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 240 });
+    for (const a of allies) {
+      if (a.dead || a.dying || a.type === "queen" || a.inside) continue;
+      beings.push({ x: a.x, y: a.y, sight: a.def.sight || SIGHT[a.def.role] || 240 });
+    }
+    if (boss && !boss.dead && (boss.revealT || 0) > 0) beings.push({ x: boss.x, y: boss.y, sight: 320 });
+    fogUpdate(beings);
+  }
+}
+
 // --------------------------------------------------------------------- RUN --
 function updateRun(dt) {
   const run = G.run;
@@ -538,9 +617,19 @@ function updateRun(dt) {
   const simDt = dt * G.timeScale * totalSpeed;
   run.elapsed += simDt;
 
+  // ------------------------------------------------ FORMIGUEIRO (duas telas) --
+  // REWORK: abrir o formigueiro NÃO congela mais o mundo. Enquanto o jogador
+  // olha o lado de dentro, a colônia continua trabalhando, as ondas continuam
+  // vindo e quem está lá fora vive a própria vida — o "OLHO LÁ FORA" mostra
+  // exatamente esse mundo rodando (ver drawOutsideEye em render.js).
   if (run.baseOpen) {
     if (pressed.Escape || pressed.KeyB) { closeNest(run, true); hudInputless(dt); return; }
-    nestUpdate(dt);
+    nestUpdate(dt, true);
+    if (run.status === "running" && !paused) worldTick(simDt, run);
+    // A BOCA: L solta uma formiga para fora, P chama uma de volta para dentro
+    // (o mesmo vale pela camada de toque — ver game/mobile/touch.js)
+    if (pressed.KeyL || pressed.PageUp) nestSendOut(1);
+    if (pressed.KeyP || pressed.PageDown) nestCallBack(1);
     hudInputless(dt);
     return;
   }
@@ -652,54 +741,7 @@ function updateRun(dt) {
     }
   }
 
-  updateDirector(simDt);
-  updateAllies(simDt, foes);
-  updateFoes(simDt, allies);
-  if (boss) updateBoss(simDt, allies);
-  updateProjectiles(simDt, allies, foes);
-  const gained = updateOrbs(simDt, world.anthill, allies.queen && !allies.queen.dead);
-  if (gained > 0) {
-    const refMult = 1 + 0.15 * run.chambers.refinery;
-    run.essencePool += Math.round(gained * metaBonus().essMult * refMult);
-    tutEvent("essence");
-  }
-  spawnAmbient(simDt);
-
-  run.fungusT -= simDt;
-  if (run.fungusT <= 0) {
-    run.fungusT = 9;
-    const crop = run.chambers.fungus + metaBonus().fungusRate;
-    if (crop > 0) run.food += crop;
-  }
-
-  while (run.xp >= run.xpNext) {
-    run.xp -= run.xpNext;
-    run.level++;
-    run.xpNext = xpForLevel(run.level + 1);
-    recomputeAllies();
-    SFX.chime();
-    const A2 = world.anthill;
-    ring(A2.x, A2.y, { r0: 24, r1: 190, life: 0.7, color: "#6db7ff", width: 4 });
-    levelUpBurst(A2.x, A2.y - 20);
-    floatText(A2.x, A2.y - 150, "NÍVEL " + run.level + "! A COLÔNIA FICOU MAIS FORTE", {
-      color: "#6db7ff", life: 2.2, scale: 2,
-    });
-  }
-
-  fogT += simDt;
-  if (fogT >= 0.12) {
-    fogT = 0;
-    const beings = [];
-    const nester = allies.queen;
-    if (nester && !nester.dead) beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 360 });
-    else beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 240 });
-    for (const a of allies) {
-      if (a.dead || a.dying || a.type === "queen") continue;
-      beings.push({ x: a.x, y: a.y, sight: a.def.sight || SIGHT[a.def.role] || 240 });
-    }
-    if (boss && !boss.dead && (boss.revealT || 0) > 0) beings.push({ x: boss.x, y: boss.y, sight: 320 });
-    fogUpdate(beings);
-  }
+  worldTick(simDt, run);
 
   const q = allies.queen;
   if (q && q.hp <= 0 && !q.dead) {
@@ -1357,7 +1399,10 @@ function renderRun() {
     drawCutscene(ctx, G.time);
     return;
   }
-  drawRun(ctx, dtClampForAnim());
+  // No formigueiro a cena de dentro cobre a tela inteira: desenhar o mundo por
+  // baixo seria trabalho jogado fora (e são duas telas vivas no mesmo quadro).
+  // O mundo continua visível e simulado pela janela "OLHO LÁ FORA" (drawNest).
+  if (!run.baseOpen) drawRun(ctx, dtClampForAnim());
 
   const modal = paused || !!run.draft || !!run.transition || !!run.baseOpen || run.status !== "running";
 
@@ -1393,8 +1438,14 @@ function drawNestScreen(run) {
   if (!nest.open) nestEnter();
   nestHover(mouse.x, mouse.y);
   const action = nestDraw(ctx);
-  if (mouse.justDown && action !== "back") nestClick(mouse.x, mouse.y);
-  if (action === "back") closeNest(run, true);
+  if (action === "back") { closeNest(run, true); return; }
+  // a BOCA: os botões do rodapé e o clique na sala da entrada mexem na porta
+  if (action === "out") nestSendOut(1);
+  else if (action === "in") nestCallBack(1);
+  else if (mouse.justDown) {
+    const r = nestClick(mouse.x, mouse.y);
+    if (r === "out") { /* o clique na entrada já soltou uma formiga */ }
+  }
 }
 
 function hudTopSlot() {

@@ -147,15 +147,22 @@ if (gatheredFromBlocked > 0 || blocked.amount === 0) {
   ok("as operárias ignoraram a pilha inalcançável e foram trabalhar em outro lugar");
 }
 
-// ----------------------------------------- 3) ninguém fica preso no formigueiro
-// Depois de todo o movimento, nenhuma formiga pode estar DENTRO da colisão.
-let inside = 0;
+// --------------------------------- 3) ninguém fica preso no BURACO do ninho
+// Regra atualizada pelo rework da boca: a colina do formigueiro é caminhável
+// (a formiga desce a cratera até a entrada), então o antigo "raio 60
+// intocável" deixou de existir. O que não pode acontecer é formiga PARADA
+// dentro do buraco central: ou ela desceu pela boca (a.inside, o roster de
+// units.js), ou está mergulhando (a.doorT), ou foi empurrada para o lado.
+let inHole = 0, desceram = 0;
 for (const a of units.allies) {
   if (a.dead) continue;
-  if (Math.hypot(a.x - A.x, a.y - A.y) < 60) inside++;
+  if (a.inside) { desceram++; continue; }
+  if (a.doorT > 0) continue;
+  const d = Math.hypot(a.x - A.door.x, a.y - A.door.y);
+  if (d < 20 + a.bodyR - 12) inHole++;      // 20 = colisor do buraco (world.js)
 }
-if (inside) bad(`${inside} formiga(s) terminaram dentro do formigueiro`);
-else ok("nenhuma formiga terminou dentro do formigueiro");
+if (inHole) bad(`${inHole} formiga(s) pararam dentro do buraco do formigueiro`);
+else ok(`ninguém ficou preso no buraco do formigueiro (${desceram} desceram pela boca)`);
 
 // --------------------------------------- 4) a bombeira explode de verdade ----
 // Regressão: o papel da bombeira é "ranged" no config, e o código testava

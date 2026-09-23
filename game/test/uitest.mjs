@@ -147,13 +147,45 @@ await wait(120);
 expect(gi.bodyR === 240, "corpo da gigante = 20x a soldado (bodyR " + gi.bodyR + ")");
 expect(G.run.status === "running", "run segue viva com o colosso em campo");
 
-// ---- FORMIGUEIRO
+// ---- FORMIGUEIRO (REWORK DA BOCA)
 const nestMod = await import(BASE + "/nest.js");
+const enMod = await import(BASE + "/enemies.js");
 mouse.x = 960 - 10 - 132 + 66; mouse.y = FOOT_Y + 32; mouse.down = mouse.justDown = true;
 await wait(60); mouse.down = mouse.justDown = false; mouse.justUp = true;
 await wait(40); mouse.justUp = false; await wait(120);
 expect(G.run.baseOpen === true && nestMod.nest.open === true, "formigueiro aberto pelo botão do canto");
-expect(nestMod.nest.ants.length >= 1, "formigas trabalhando lá dentro (" + nestMod.nest.ants.length + ")");
+
+// REGRESSÃO DO BUG ANTIGO: abrir o formigueiro espelhava TODAS as formigas
+// para dentro (syncAnts(true)). Agora a cena de dentro mostra só quem passou
+// pela boca — allies.inside (roster real, units.js).
+expect(nestMod.nest.ants.length === units.insideCount(),
+  "cena de dentro espelha o roster real (" + nestMod.nest.ants.length + " corpos / " +
+  units.insideCount() + " dentro)");
+
+// três operárias caminham até a boca e descem pela porta
+const crew = units.allies.filter(a => !a.dead && !a.inside && a.type === "worker").slice(0, 3);
+for (const a of crew) units.antEnterNest(a, "teste");
+await wait(3200);
+const entraram = crew.filter(a => a.inside);
+expect(entraram.length >= 1, "formigas pacíficas desceram pela boca (" + entraram.length + "/3)");
+expect(entraram.every(a => nestMod.nest.ants.some(n => n.id === a.id)),
+  "quem entrou tem corpo trabalhando na cena de dentro");
+const ficaram = crew.filter(a => !a.inside && !a.dead && !a.dying);
+expect(ficaram.every(a => !nestMod.nest.ants.some(n => n.id === a.id)),
+  "quem NÃO entrou pela boca continua fora (nada de respawn geral)");
+expect(nestMod.nest.ants.length === units.insideCount(),
+  "roster de dentro e cena batem depois das entradas (" + nestMod.nest.ants.length + ")");
+
+// O MUNDO NÃO CONGELA: com o formigueiro aberto, um inimigo colocado longe
+// continua andando em direção ao ninho (as duas telas rodam juntas).
+{
+  const foe = enMod.spawnEnemy("runner", world.anthill.x + 900, world.anthill.y, 1);
+  const d0 = Math.hypot(foe.x - world.anthill.x, foe.y - world.anthill.y);
+  await wait(900);
+  const d1 = Math.hypot(foe.x - world.anthill.x, foe.y - world.anthill.y);
+  expect(d1 < d0 - 12, "mundo vivo com o formigueiro aberto (inimigo andou " + Math.round(d0 - d1) + " px)");
+  foe.dead = true;
+}
 
 G.run.food = 999; G.run.essencePool = 999;
 const rr = nestMod.NEST_ROOMS.find(r => r.id === "pantry");
@@ -184,6 +216,24 @@ if (carrier) {
 await wait(600);
 const busy = nestMod.nest.ants.filter(a => a.route || a.carry).length;
 expect(busy >= 1, "formigas em movimento dentro do formigueiro (" + busy + " ocupadas)");
+
+// A PORTA AO CONTRÁRIO: L solta uma formiga de volta para o mundo, pela boca
+{
+  const idsDentro = units.allies.inside.map(a => a.id);
+  const antes = idsDentro.length;
+  pressed.KeyL = true;
+  await wait(80);
+  pressed.KeyL = false;
+  await wait(200);
+  const saiuId = idsDentro.find(id => !units.allies.inside.some(a => a.id === id));
+  expect(units.insideCount() === antes - 1, "L liberou uma formiga (dentro: " + units.insideCount() + ")");
+  const saiu = units.allies.find(a => a.id === saiuId);
+  expect(!!saiu && !saiu.inside &&
+    Math.hypot(saiu.x - world.anthill.door.x, saiu.y - world.anthill.door.y) < 200,
+    "quem saiu reapareceu no mundo junto à boca do formigueiro");
+  expect(saiu && !nestMod.nest.ants.some(n => n.id === saiu.id),
+    "quem saiu não tem mais corpo na cena de dentro");
+}
 
 {
   const antes = units.allies.filter(a => !a.dead).length;
