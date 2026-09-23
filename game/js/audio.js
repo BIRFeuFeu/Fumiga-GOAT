@@ -19,6 +19,7 @@ export function initAudio() {
   master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination);
   sfxBus = ctx.createGain(); sfxBus.gain.value = 1.0; sfxBus.connect(master);
   musBus = ctx.createGain(); musBus.gain.value = 0.34; musBus.connect(master);
+  applyMix();
 
   // buffer de ruído branco reutilizável
   const len = ctx.sampleRate * 1.2;
@@ -30,6 +31,20 @@ export function initAudio() {
 }
 
 export function setCombat(h) { combatHeat = h; }
+
+/** Aplica os volumes das OPÇÕES (música/sfx 0..1) aos barramentos.
+ *  Antes os ganhos eram fixos e as barras da tela de áudio não faziam nada. */
+export function applyMix() {
+  if (!ctx || !sfxBus || !musBus) return;
+  const s = (typeof G !== "undefined" && G.save && G.save.settings) || {};
+  const mv = Math.max(0, Math.min(1, s.musicVol === undefined ? 1 : s.musicVol));
+  const sv = Math.max(0, Math.min(1, s.sfxVol === undefined ? 1 : s.sfxVol));
+  const t = ctx.currentTime || 0;
+  try {
+    musBus.gain.setTargetAtTime(0.34 * mv, t, 0.02);
+    sfxBus.gain.setTargetAtTime(1.0 * sv, t, 0.02);
+  } catch (e) { /* motor de áudio simulado nos testes */ }
+}
 
 function now() { return ctx ? ctx.currentTime : 0; }
 function ok() { return ctx && !G.muted; }

@@ -3,6 +3,7 @@
 // ============================================================================
 import { VIEW_W, VIEW_H, WORLD_W, WORLD_H } from "./config.js";
 import { clamp, rand, TAU } from "./utils.js";
+import { G } from "./state.js";
 
 export const cam = {
   x: WORLD_W / 2, y: WORLD_H / 2,
@@ -24,6 +25,12 @@ export function updateCam(dt, moveX, moveY) {
   clampCam();
   if (cam.trauma > 0.001) {
     cam.trauma = Math.max(0, cam.trauma - dt * 1.6);
+    // OPÇÕES → VÍDEO → TREMOR DE TELA: desligado = trauma decai mas a
+    // câmera não balança (antes a opção existia e não fazia nada).
+    if (G.save && G.save.settings && G.save.settings.screenshake === false) {
+      cam.offsetX = cam.offsetY = 0;
+      return;
+    }
     const m = cam.trauma * cam.trauma * 9;
     cam.offsetX = rand(-m, m);
     cam.offsetY = rand(-m, m);

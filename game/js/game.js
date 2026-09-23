@@ -18,7 +18,7 @@ import {
   spawnPart, burst, ring, floatText, clearParticles, updateParticles,
   impact, critBurst, healPulse, levelUpBurst, explosion, dustPoof, bloodSplatter, magicOrb,
 } from "./particles.js";
-import { initAudio, audioReady, SFX, setCombat } from "./audio.js";
+import { initAudio, audioReady, SFX, setCombat, applyMix } from "./audio.js";
 import { world, genWorld, MINI } from "./world.js";
 import {
   allies, spawnQueen, spawnAnt, updateAllies, buyUnit, unitCost, popUsed, popCapTotal,
@@ -128,19 +128,53 @@ let modeRects = [];
 let ascRects = [];          // PÓS-FINAL: zonas de clique do seletor de ASCENSÃO
 let selectedMode = GAME_MODES[0];
 
-// ------------------------------------------------------------- options -- FASE 4: 5 abas spec (Áudio/Vídeo/Controles/Acessibilidade/Idioma)
+// ------------------------------------------------------------- options -- 5 abas (Áudio/Vídeo/Controles/Acessibilidade/Idioma)
+// Layout medido pelo tamanho real do texto (sem sobreposição) + área de
+// conteúdo ROLÁVEL: roda do mouse, setas/PgUp/PgDn ou arrastar vertical
+// (mouse ou dedo). Botões da área usam toque (soltar sem arrastar), então
+// rolar nunca dispara um controle por acidente.
 let optionsReturn = "TITLE";
 let optionsTab = 0; // 0=audio,1=video,2=controles,3=acess,4=idioma
-let optionsSwipeX = null;
+let optionsTabPrev = -1;
+let optionsScroll = 0;      // px rolados dentro da viewport
+let optionsContentH = 0;    // altura do conteúdo (medida a cada render)
+let optionsSwipeX = null, optionsSwipeY = null;
+let optGrab = null;         // gesto em curso: {x,y,mode,slider}
+let optSliders = [];        // barras de volume [{id,x,y,w}] em coords de tela
 let modeSwipeX = null;
 let modeScrollOffset = 0;
 const OPTIONS_TABS = [
-  { id: "audio", label: "ÁUDIO", color: "#37e6c8", icon: "♪" },
-  { id: "video", label: "VÍDEO", color: "#6db7ff", icon: "◫" },
-  { id: "controles", label: "CONTROLES", color: "#ffb347", icon: "⌨" },
-  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0", icon: "A" },
-  { id: "idioma", label: "IDIOMA", color: "#ffd479", icon: "A" },
+  { id: "audio", label: "ÁUDIO", color: "#37e6c8" },
+  { id: "video", label: "VÍDEO", color: "#6db7ff" },
+  { id: "controles", label: "CONTROLES", color: "#ffb347" },
+  { id: "acess", label: "ACESSIBILIDADE", color: "#7fd6a0" },
+  { id: "idioma", label: "IDIOMA", color: "#ffd479" },
 ];
+
+/** Janela do conteúdo rolável (entre as abas e o rodapé). */
+function optViewport() { return { x: 52, y: 156, w: VIEW_W - 104, h: 324 }; }
+/** Multiplicador da FONTE GRANDE (igual ao de font.js). */
+function optFS() { return G.save.accessibility.bigFont ? 1.3 : 1; }
+/** Troca de aba pelo teclado: zera a rolagem como os botões fazem. */
+function optSetTab(i) {
+  i = clamp(i, 0, OPTIONS_TABS.length - 1);
+  if (i !== optionsTab) { optionsTab = i; optionsScroll = 0; optGrab = null; SFX.uiClick(); }
+}
+/** Barra de volume sob o ponto (coords de tela) ou null. */
+function optSliderAt(x, y) {
+  for (const s of optSliders) {
+    if (pointInRect(x, y, s.x, s.y, s.w, s.h)) return s;
+  }
+  return null;
+}
+/** Define o volume pela posição horizontal sobre a barra. */
+function optSetVolume(sl, x, silent) {
+  const v = Math.round(clamp((x - sl.x) / sl.w, 0, 1) * 20) / 20;
+  G.save.settings[sl.id === "music" ? "musicVol" : "sfxVol"] = v;
+  persistSave();
+  applyMix();
+  if (!silent) SFX.uiClick();
+}
 
 // O "modo mobile" é decidido por QUEM carrega o jogo (o shell de toque) e pelo
 // ponteiro do aparelho — NUNCA pela largura da janela. Janela estreita no PC não
@@ -511,6 +545,51 @@ function updateOptions(dt) {
     SFX.uiClick();
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
+  const V = optViewport();
+  if (optionsTab !== optionsTabPrev) { optionsTabPrev = optionsTab; optionsScroll = 0; optGrab = null; }
+  // rolagem: roda do mouse, setas seguradas e PgUp/PgDn
+  if (mouse.wheel) { optionsScroll += mouse.wheel * 40; mouse.wheel = 0; }
+  if (keys.ArrowDown) optionsScroll += 300 * dt;
+  if (keys.ArrowUp) optionsScroll -= 300 * dt;
+  if (pressed.PageDown) optionsScroll += V.h * 0.85;
+  if (pressed.PageUp) optionsScroll -= V.h * 0.85;
+  if (pressed.ArrowLeft) optSetTab(optionsTab - 1);
+  if (pressed.ArrowRight) optSetTab(optionsTab + 1);
+  // gesto: começa no pressionar dentro da viewport; vira "slider" se o
+  // primeiro movimento for horizontal sobre uma barra de volume, senão
+  // vira rolagem vertical (toque = soltar sem arrastar, tratado no botão)
+  if (mouse.justDown) {
+    optionsSwipeX = mouse.x; optionsSwipeY = mouse.y;
+    optGrab = pointInRect(mouse.x, mouse.y, V.x, V.y, V.w, V.h)
+      ? { x: mouse.x, y: mouse.y, mode: null, slider: optSliderAt(mouse.x, mouse.y) }
+      : null;
+  }
+  if (optGrab && mouse.down && !optGrab.mode) {
+    const dx = mouse.x - optGrab.x, dy = mouse.y - optGrab.y;
+    if (Math.hypot(dx, dy) > 10) {
+      optGrab.mode = (optGrab.slider && Math.abs(dx) >= Math.abs(dy)) ? "slider" : "scroll";
+    }
+  }
+  if (optGrab && optGrab.mode === "scroll" && mouse.down) {
+    optionsScroll -= (mouse.y - mouse.lastY);
+  }
+  if (optGrab && optGrab.mode === "slider" && mouse.down && optGrab.slider) {
+    optSetVolume(optGrab.slider, mouse.x, true);
+  }
+  if (mouse.justUp) {
+    const wasSlider = optGrab && optGrab.mode === "slider";
+    if (optGrab && !optGrab.mode && optGrab.slider) optSetVolume(optGrab.slider, mouse.x, false);
+    optGrab = null;
+    // swipe horizontal troca de aba (mobile); vertical dominante só rola
+    if (isMobileLayout() && optionsSwipeX !== null && !wasSlider) {
+      const dx = mouse.x - optionsSwipeX, dy = mouse.y - optionsSwipeY;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+        optSetTab(optionsTab + (dx < 0 ? 1 : -1));
+      }
+    }
+    optionsSwipeX = optionsSwipeY = null;
+  }
+  optionsScroll = clamp(optionsScroll, 0, Math.max(0, optionsContentH - V.h));
 }
 
 function updateTreeScreen(dt) {
@@ -1015,7 +1094,7 @@ function renderTitle() {
       } else if (b.id === "options") {
         notePointer(mouse.x, mouse.y);
         optionsReturn = "TITLE";
-        optionsTab = 0;
+        optionsTab = 0; optionsScroll = 0; optGrab = null;
         startTransition("auto", "TITLE", "OPTIONS", 0, () => { G.screen = "OPTIONS"; });
         return;
       } else if (b.id === "help") {
@@ -1079,7 +1158,10 @@ function renderModeScreen() {
   drawText(ctx, mobile ? "TOQUE NO CARD PARA JOGAR • ARRASTE PARA NAVEGAR • SWIPE" : "ESC: VOLTAR • CLIQUE NO CARD PARA JOGAR • SCROLL VISUAL ATIVO", VIEW_W/2, VIEW_H - (mobile ? 28 : 24), { color: "#5a4f78", align: "center", scale: mobile ? 0.85 : 1, maxWidth: VIEW_W - 40 });
 }
 
-// -------------------------------------------------------------- OPÇÕES -- FASE 4: 5 abas spec - FUNDO SÓLIDO (parallax só no TITLE)
+// -------------------------------------------------------------- OPÇÕES -- 5 abas, fundo sólido (parallax só no TITLE)
+// Toda posição horizontal nasce da largura MEDIDA do texto (textWidth) e
+// todo texto tem maxWidth: nada vaza, nada sobrepõe. O conteúdo vive numa
+// viewport com recorte + rolagem; a troca de aba zera a rolagem.
 function renderOptions() {
   drawSolidMenuBg(ctx, "#0e0c1e");
   drawTitleMotes(ctx, G.time);
@@ -1088,244 +1170,315 @@ function renderOptions() {
 
   const PX = 24, PY = 16, PW = VIEW_W - 48, PH = VIEW_H - 32;
   dialogBox(ctx, PX, PY, PW, PH, { border: "#ffb347", accent: "#37e6c8" });
-  drawText(ctx, "OPÇÕES", VIEW_W / 2, PY + 14, { font: "big", scale: 2, color: "#ffd479", align: "center" });
-  drawText(ctx, "5 abas: Áudio/Vídeo/Controles/Acessibilidade/Idioma • swipe no mobile", VIEW_W / 2, PY + 48, { color: "#9a8fc0", align: "center" });
+  // Chrome fixo: com FONTE GRANDE só o CONTEÚDO cresce (e rola); título,
+  // subtítulo, abas e rodapé mantêm o tamanho — senão o cabeçalho engole a
+  // tela e colide com o subtítulo. O 1/FS cancela os +30% do drawText.
+  const chrome = 1 / optFS();
+  drawText(ctx, "OPÇÕES", VIEW_W / 2, PY + 12, { font: "big", scale: 2 * chrome, color: "#ffd479", align: "center" });
 
-  // abas - 5 abas, layout responsivo
-  const isMobile = isMobileLayout();
-  const tabW = isMobile ? 128 : 156, tabH = isMobile ? 36 : 36, tabGap = isMobile ? 8 : 10;
-  const totalTabsW = OPTIONS_TABS.length * tabW + (OPTIONS_TABS.length - 1) * tabGap;
-  const tabX0 = VIEW_W/2 - totalTabsW/2;
+  const V = optViewport();
+  const FS = optFS();
+  if (optionsTab !== optionsTabPrev) { optionsTabPrev = optionsTab; optionsScroll = 0; optGrab = null; }
+
+  // subtítulo curto da aba ativa (sem notas de desenvolvimento)
+  const SUBS = [
+    "VOLUME DA MÚSICA E DOS EFEITOS",
+    "GRÁFICOS, TELA E DESEMPENHO",
+    touchMode.on ? "TOQUES E GESTOS" : "TECLADO E MOUSE",
+    "JOGUE DO SEU JEITO",
+    "MENUS E TUTORIAIS",
+  ];
+  drawText(ctx, SUBS[optionsTab], VIEW_W / 2, PY + 64, { color: "#9a8fc0", align: "center", scale: 0.85 * chrome, maxWidth: PW - 60 });
+
+  // abas: 5 botões de largura igual preenchendo o diálogo
+  const tabGap = 10, tabW = Math.floor((PW - 16 - tabGap * 4) / 5), tabH = 34, tabY = PY + 92;
+  const tabX0 = VIEW_W / 2 - (tabW * 5 + tabGap * 4) / 2;
   for (let i = 0; i < OPTIONS_TABS.length; i++) {
     const tab = OPTIONS_TABS[i];
     const x = tabX0 + i * (tabW + tabGap);
-    const y = PY + 72;
     const sel = optionsTab === i;
-    if (button(ctx, { x, y, w: tabW, h: tabH, label: tab.icon + " " + tab.label, id: "tab"+i, accent: tab.color, color: sel ? "#000" : undefined, scale: isMobile ? 0.75 : 0.85 })) {
-      optionsTab = i;
-      SFX.uiClick();
+    if (button(ctx, { x, y: tabY, w: tabW, h: tabH, label: (sel ? "▶ " : "") + tab.label, id: "tab" + i, accent: tab.color, color: sel ? "#000" : undefined, scale: 0.85 * chrome })) {
+      optionsTab = i; optionsScroll = 0; optGrab = null;
     }
     if (sel) {
       ctx.fillStyle = tab.color;
-      ctx.fillRect(x, y + tabH + 2, tabW, 3);
+      ctx.fillRect(x, tabY + tabH + 2, tabW, 3);
     }
   }
 
-  // conteúdo da aba
-  const contentY = PY + 124;
-  const colX = PX + 32;
-  let cy = contentY;
+  // conteúdo rolável com recorte (o que passa da janela não desenha nem clica)
+  optionsScroll = clamp(optionsScroll, 0, Math.max(0, optionsContentH - V.h));
+  const oy = V.y - optionsScroll;
+  const TX = V.x + 8;        // margem esquerda do conteúdo
+  const RR = V.x + V.w - 24; // margem direita (antes da barra de rolagem)
+  optSliders = [];
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(V.x, V.y, V.w, V.h);
+  ctx.clip();
+  if (optionsTab === 0) optionsContentH = optContentAudio(TX, RR, oy, V, FS);
+  else if (optionsTab === 1) optionsContentH = optContentVideo(TX, RR, oy, V, FS);
+  else if (optionsTab === 2) optionsContentH = optContentControls(TX, RR, oy, V, FS);
+  else if (optionsTab === 3) optionsContentH = optContentAccess(TX, RR, oy, V, FS);
+  else optionsContentH = optContentLang(TX, RR, oy, V, FS);
+  ctx.restore();
 
-  if (optionsTab === 0) { // ÁUDIO - sliders spec FASE 4 FINAL: barra visual preenchida estilo Celeste
-    drawText(ctx, "ÁUDIO", colX, cy, { font: "big", color: "#37e6c8" }); cy += 28;
-    const s = G.save.settings;
-    // slider visual function inline — SÓ a barra: o rótulo é desenhado por quem
-    // chama (antes os dois textos caíam na mesma linha, um por cima do outro)
-    const drawSlider = (val, yPos, color) => {
-      const bx = colX + 220, bw = 200, bh = 14;
-      // fundo
-      ctx.fillStyle = "rgba(10,8,16,0.8)";
-      ctx.fillRect(bx, yPos+2, bw, bh);
-      ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1; ctx.strokeRect(bx+0.5, yPos+2.5, bw-1, bh-1);
-      // preenchido
-      const grad = ctx.createLinearGradient(bx, yPos+2, bx, yPos+2+bh);
-      grad.addColorStop(0, color);
-      grad.addColorStop(1, "#1a1430");
-      ctx.fillStyle = grad;
-      ctx.fillRect(bx+2, yPos+4, (bw-4)*val, bh-4);
-      // handle
-      const hx = bx + (bw-4)*val;
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(hx-1, yPos, 3, bh+4);
-      ctx.fillStyle = color;
-      ctx.fillRect(hx-1, yPos+2, 3, bh);
-    };
-    drawText(ctx, "MÚSICA: " + (G.muted ? "MUTADO (M)" : Math.round(s.musicVol*100) + "%"), colX, cy, { color: PAL.text });
-    drawSlider(G.muted ? 0 : s.musicVol, cy, "#c77dff");
-    cy += 22;
-    if (button(ctx, { x: colX, y: cy, w: 160, h: isMobile ? 40 : 32, label: G.muted ? "LIGAR SOM" : "MUTAR (M)", id: "muteBtn", accent: "#ff4d5a" })) {
-      toggleMute(); persistSave(); SFX.uiClick();
-    }
-    cy += isMobile ? 50 : 44;
-    drawText(ctx, "SFX VOLUME: " + Math.round(s.sfxVol*100) + "%", colX, cy, { color: PAL.text });
-    drawSlider(s.sfxVol, cy, "#37e6c8");
-    cy += 22;
-    if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX -", id: "sfxDown" })) {
-      s.sfxVol = Math.max(0, s.sfxVol - 0.1); persistSave(); SFX.uiClick();
-    }
-    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: isMobile ? 36 : 28, label: "SFX +", id: "sfxUp", accent: "#37e6c8" })) {
-      s.sfxVol = Math.min(1, s.sfxVol + 0.1); persistSave(); SFX.uiClick();
-    }
-    cy += isMobile ? 58 : 36;
-    if (button(ctx, { x: colX, y: cy, w: 100, h: isMobile ? 36 : 28, label: "MÚSICA -", id: "musicDown" })) {
-      s.musicVol = Math.max(0, s.musicVol - 0.1); persistSave();
-    }
-    if (button(ctx, { x: colX + 110, y: cy, w: 100, h: isMobile ? 36 : 28, label: "MÚSICA +", id: "musicUp", accent: "#c77dff" })) {
-      s.musicVol = Math.min(1, s.musicVol + 0.1); persistSave();
-    }
-    cy += 32;
-    drawText(ctx, "DICA: Sliders estilo Celeste • M muta tudo", colX, cy, { color: "#6b5a8a", scale: 0.8 });
-  } else if (optionsTab === 1) { // VÍDEO - partículas/scanline/tremor/fullscreen spec
-    drawText(ctx, "VÍDEO - Planície Viva + Fullscreen", colX, cy, { font: "big", color: "#6db7ff" }); cy += 28;
-    const s = G.save.settings;
-    const opts = [
-      { key: "particles", label: "PARTÍCULAS (motes + pollen)", desc: "Desliga motes subindo e pollen caindo - ganha performance" },
-      { key: "screenshake", label: "TREMOR DE TELA", desc: "Shake quando rainha toma dano ou crítico" },
-      { key: "scanline", label: "SCANLINE RETRÔ", desc: "Linhas horizontais estilo Shovel Knight" },
-    ];
-    for (const o of opts) {
-      const on = s[o.key];
-      const kit = drawKitIcon(ctx, on ? 0 : 1, colX, cy - 1, 14);
-      drawText(ctx, o.label + ": " + (on ? "LIGADO" : "DESLIGADO"), colX + (kit ? 18 : 0), cy, { color: on ? "#7fd6a0" : "#5a4f78" });
-      if (button(ctx, { x: colX + 360, y: cy - 4, w: 110, h: isMobile ? 32 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "vid_"+o.key, accent: on ? "#ff4d5a" : "#7fd6a0" })) {
-        s[o.key] = !s[o.key]; persistSave(); SFX.uiClick();
-      }
-      cy += 18;
-      drawText(ctx, o.desc, colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
-    }
-    cy += 4;
-    // fullscreen toggle - FASE 4
-    const isFull = !!document.fullscreenElement;
-    drawText(ctx, "TELA CHEIA: " + (isFull ? "LIGADO" : "JANELA"), colX, cy, { color: isFull ? "#7fd6a0" : "#5a4f78" });
-    if (button(ctx, { x: colX + 360, y: cy - 4, w: 130, h: isMobile ? 32 : 24, label: isFull ? "SAIR FULLSCREEN" : "ENTRAR FULLSCREEN", id: "fullscreen", accent: "#6db7ff" })) {
-      if (!isFull) document.documentElement.requestFullscreen().catch(()=>{});
-      else document.exitFullscreen().catch(()=>{});
-      SFX.uiClick();
-    }
-    cy += 18;
-    drawText(ctx, "Fullscreen nativo • F11 também funciona", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
-    cy += 8;
-    drawText(ctx, "PARALLAX 4 CAMADAS ALTA RESOLUÇÃO:", colX, cy, { color: "#ffd479", scale: 0.9 }); cy += 18;
-    drawText(ctx, "5 Céu lua minguante laranja • 4 Montanhas silhueta • 3 Gramado ruínas+formigueiro • 1 Vinhas inferior", colX, cy, { color: "#9a8fc0", scale: 0.75 }); cy += 20;
-    drawText(ctx, "CICLO DIA/NOITE: 80s • day/night tint sobre parallax + highContrast border", colX, cy, { color: "#9a8fc0", scale: 0.75 });
-  } else if (optionsTab === 2) { // CONTROLES - PC WASD / Mobile gestos de toque
-    drawText(ctx, touchMode.on ? "CONTROLES - Mobile Toque" : "CONTROLES - PC WASD + Mobile Toque 104px", colX, cy, { font: "big", color: "#ffb347" }); cy += 28;
-    const optControls = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
-    for (const [k, d] of optControls) {
-      drawText(ctx, k, colX, cy, { color: "#37e6c8", scale: 0.9 });
-      drawText(ctx, d, colX + 160, cy, { color: PAL.text, scale: 0.85 }); cy += 20;
-    }
-    cy += 12;
-    // MOBILE: modo explícito ORDENAR ↔ SELECIONAR (alternativa aos gestos inteligentes)
-    if (touchMode.on) {
-      const s = G.save.settings;
-      const on = !!s.touchSelect;
-      drawText(ctx, (on ? "✓ " : "○ ") + "BOTÃO DE MODO ORDENAR / SELECIONAR", colX, cy, { color: on ? "#ffd479" : "#5a4f78", scale: 0.9 });
-      if (button(ctx, { x: colX + 400, y: cy - 4, w: 100, h: isMobile ? 30 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "ctl_touchSelect", accent: "#ffd479" })) {
-        s.touchSelect = !on; persistSave(); SFX.uiClick();
-        touchMode.smart = !s.touchSelect;
-        touchMode.mode = "ordenar";
-      }
-      cy += 18;
-      drawText(ctx, on ? "Botão flutuante na expedição alterna entre dar ordens e selecionar" : "Desligado: gestos inteligentes (toque na formiga seleciona)", colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 26;
-    }
-    panel(ctx, colX, cy, PW - 64, 56, { fill: "rgba(255,179,71,0.08)", border: "#ffb347", r: 4 });
-    if (touchMode.on) {
-      drawText(ctx, "GESTOS: toque = ordem • arrastar = câmera • pinça = zoom • 2 dedos = caixa", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
-      drawText(ctx, "TOQUE DUPLO seleciona o tipo • versão mobile: save próprio, independente do PC", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
-    } else {
-      drawText(ctx, "MOBILE: existe uma versão paralela para celular em /game/mobile/ (save próprio)", colX + 8, cy + 8, { color: "#ffd479", scale: 0.85 });
-      drawText(ctx, "SWIPE nos cards de modo: arraste horizontal para navegar • swipe nas abas", colX + 8, cy + 28, { color: "#ffb347", scale: 0.8 });
-    }
-    cy += 64;
-    drawText(ctx, touchMode.on ? "Botões na tela: pausa • ninho • rali • onda • zoom • centro" : "WASD move câmera • Q abre loja • B formigueiro • ESC pausa • M som", colX, cy, { color: "#6b5a8a", scale: 0.8 });
-  } else if (optionsTab === 3) { // ACESSIBILIDADE - Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade
-    drawText(ctx, "ACESSIBILIDADE - Modo Assist (Celeste)", colX, cy, { font: "big", color: "#7fd6a0" }); cy += 28;
-    drawText(ctx, "Spec: Invencível, Dashes Infinitos, Câmera Lenta 0.5x, Fonte Grande + Velocidade", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 24;
-    const a = G.save.accessibility;
-    const accOpts = [
-      { key: "invincible", label: "INVENCÍVEL - RAINHA PROTEGIDA", desc: "Rainha não morre, volta com 30% de vida - para explorar", color: "#7fd6a0" },
-      { key: "infiniteDash", label: "DASHES INFINITOS", desc: "Sem cooldown de rally (F) e habilidades - spec pedida", color: "#37e6c8" },
-      { key: "slowMo", label: "CÂMERA LENTA 0.5x", desc: "Jogo roda em 50% da velocidade - mais tempo para reagir", color: "#6db7ff" },
-      { key: "bigFont", label: "FONTE GRANDE", desc: "Textos 30% maiores - melhor legibilidade", color: "#ffd479" },
-      { key: "reducedParticles", label: "POUCAS PARTÍCULAS", desc: "Reduz motes, pollen e efeitos - menos distração", color: "#c77dff" },
-      { key: "highContrast", label: "ALTO CONTRASTE", desc: "Bordas grossas, cores vivas - sobre parallax high-res", color: "#ff4d5a" },
-    ];
-    for (const o of accOpts) {
-      const on = a[o.key];
-      const kit = drawKitIcon(ctx, on ? 0 : 1, colX, cy - 1, 14);
-      if (!kit) drawText(ctx, on ? "✓ " : "○ ", colX, cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
-      drawText(ctx, o.label, colX + (kit ? 18 : 0), cy, { color: on ? o.color : "#5a4f78", scale: 0.9 });
-      if (button(ctx, { x: colX + 400, y: cy - 4, w: 100, h: isMobile ? 30 : 24, label: on ? "DESLIGAR" : "LIGAR", id: "acc_"+o.key, accent: o.color })) {
-        a[o.key] = !a[o.key]; persistSave(); SFX.uiClick();
-      }
-      cy += 18;
-      drawText(ctx, o.desc, colX, cy, { color: "#6b5a8a", scale: 0.8 }); cy += 24;
-    }
-    cy += 6;
-    // Velocidade consolidada aqui - FASE 4
-    drawText(ctx, "VELOCIDADE DO JOGO:", colX, cy, { color: "#ff7a6a", font: "big" }); cy += 22;
-    const s = G.save.settings;
-    const speeds = [
-      { v: 0.5, label: "0.5x LENTO", color: "#7fd6a0" },
-      { v: 1, label: "1x NORMAL", color: "#37e6c8" },
-      { v: 1.5, label: "1.5x RÁPIDO", color: "#ffb347" },
-      { v: 2, label: "2x MUITO RÁPIDO", color: "#ff4d5a" },
-    ];
-    let sx = colX;
-    for (const sp of speeds) {
-      const sel = s.gameSpeed === sp.v;
-      if (button(ctx, { x: sx, y: cy, w: 110, h: isMobile ? 34 : 28, label: sp.label, id: "speed_"+sp.v, accent: sp.color, color: sel ? "#000" : undefined, scale: 0.8 })) {
-        s.gameSpeed = sp.v; persistSave(); SFX.uiClick();
-      }
-      sx += 118;
-    }
-    cy += 36;
-    if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
-      panel(ctx, colX, cy, PW - 64, 32, { fill: "rgba(127,214,160,0.15)", border: "#7fd6a0", r: 4 });
-      drawKitIcon(ctx, 3, colX + 6, cy + 8, 16);
-      drawText(ctx, "ACESSÍVEL ATIVO • " + s.gameSpeed + "x • conquistas continuam valendo!", colX + 26, cy + 8, { color: "#7fd6a0", scale: 0.8 });
-    }
-  } else if (optionsTab === 4) { // IDIOMA
-    drawText(ctx, "IDIOMA / LANGUAGE", colX, cy, { font: "big", color: "#ffd479" }); cy += 28;
-    drawText(ctx, "Selecione o idioma - menus e tutoriais", colX, cy, { color: "#9a8fc0", scale: 0.85 }); cy += 28;
-    const s = G.save.settings;
-    const langs = [
-      { id: "pt-BR", label: "PORTUGUÊS (BR)", flag: "🇧🇷", desc: "Idioma original, completo", color: "#7fd6a0" },
-      { id: "en-US", label: "ENGLISH (US)", flag: "🇺🇸", desc: "English translation, full support", color: "#6db7ff" },
-      { id: "es", label: "ESPAÑOL", flag: "🇪🇸", desc: "Traducción al español, en progreso", color: "#ffb347" },
-    ];
-    for (const lg of langs) {
-      const sel = s.language === lg.id;
-      drawText(ctx, lg.flag + " " + lg.label, colX, cy, { color: sel ? lg.color : "#5a4f78", font: sel ? "big" : "small" });
-      drawText(ctx, lg.desc, colX + 200, cy, { color: sel ? PAL.text : "#6b5a8a", scale: 0.8 });
-      if (button(ctx, { x: colX + 420, y: cy - 4, w: 80, h: isMobile ? 34 : 24, label: sel ? "ATIVO" : "USAR", id: "lang_"+lg.id, accent: lg.color, color: sel ? "#000" : undefined })) {
-        s.language = lg.id; persistSave(); SFX.uiClick();
-      }
-      cy += 30;
-    }
-    cy += 12;
-    panel(ctx, colX, cy, PW - 64, 40, { fill: "rgba(255,212,121,0.08)", border: "#ffd479", r: 4 });
-    drawText(ctx, "Idioma afeta: menus, tutoriais, descrições de mutações e unidades", colX + 8, cy + 8, { color: "#ffd479", scale: 0.8 });
-    drawText(ctx, "Atual: " + s.language + " • Mais idiomas em breve!", colX + 8, cy + 24, { color: "#9a8fc0", scale: 0.75 });
+  // barra de rolagem (só quando o conteúdo passa da janela)
+  const maxScroll = Math.max(0, optionsContentH - V.h);
+  if (maxScroll > 0) {
+    const sbX = V.x + V.w - 14;
+    ctx.fillStyle = "rgba(74,58,110,0.4)";
+    ctx.fillRect(sbX, V.y, 8, V.h);
+    const hh = Math.max(30, V.h * V.h / optionsContentH);
+    const hy = V.y + (V.h - hh) * (optionsScroll / maxScroll);
+    ctx.fillStyle = "#8f6fd6";
+    ctx.fillRect(sbX, hy, 8, hh);
+    ctx.fillStyle = "#c9b8f5";
+    ctx.fillRect(sbX + 2, hy + 2, 4, hh - 4);
   }
 
-  const mobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W / 2 - 250, y: VIEW_H - 44, w: mobile ? 240 : 220, h: 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6" })) {
+  // rodapé fixo (fora da área rolável: nunca some nem colide com o conteúdo)
+  if (button(ctx, { x: VIEW_W / 2 - 250, y: VIEW_H - 48, w: 220, h: 36, label: "VOLTAR", id: "optionsBack", accent: "#8f6fd6", scale: chrome })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
   }
-  // MOBILE: troca entre as duas versões paralelas (PC ↔ mobile), mesma engine
-  if (button(ctx, { x: VIEW_W / 2 + 30, y: VIEW_H - 44, w: mobile ? 240 : 220, h: 36, label: touchMode.on ? "VERSÃO PC" : "VERSÃO MOBILE", id: "switchVersion", accent: "#37e6c8", scale: 0.85 })) {
+  // troca entre as duas versões paralelas (PC ↔ mobile), mesma engine
+  if (button(ctx, { x: VIEW_W / 2 + 30, y: VIEW_H - 48, w: 220, h: 36, label: touchMode.on ? "VERSÃO PC" : "VERSÃO MOBILE", id: "switchVersion", accent: "#37e6c8", scale: 0.85 * chrome })) {
     notePointer(mouse.x, mouse.y);
     location.href = touchMode.on ? "../" : "mobile/";
   }
-  if (pressed.Escape) {
-    notePointer(VIEW_W/2, VIEW_H/2);
-    startTransition("auto", "OPTIONS", optionsReturn, 0, () => { G.screen = optionsReturn; });
+  if (!touchMode.on) {
+    drawText(ctx, "ESC VOLTA", VIEW_W - 40, VIEW_H - 44, { color: "#5a4f78", scale: 0.75 * chrome, align: "right", maxWidth: 120 });
   }
-  // swipe entre abas no mobile - FASE 2
-  if (isMobile && mouse.justDown) {
-    optionsSwipeX = mouse.x;
+}
+
+// Linha LIGADO/DESLIGADO das OPÇÕES: ícone + rótulo à esquerda, botão à
+// direita, descrição curta embaixo. Retorna a altura ocupada.
+function optToggle(y, TX, RR, oy, V, FS, o) {
+  const btnW = 120, btnH = 28, bx = RR - btnW;
+  const txX = TX + 24, txW = bx - 14 - txX;
+  const kit = drawKitIcon(ctx, o.on ? 0 : 1, TX, y + oy + 2, 16);
+  if (!kit) {
+    ctx.fillStyle = o.on ? o.color : "#5a4f78";
+    ctx.fillRect(TX, y + oy + 3, 12, 12);
   }
-  if (isMobile && mouse.justUp && optionsSwipeX !== null) {
-    const dx = mouse.x - optionsSwipeX;
-    if (Math.abs(dx) > 60) {
-      if (dx < 0 && optionsTab < OPTIONS_TABS.length - 1) { optionsTab++; SFX.uiClick(); }
-      if (dx > 0 && optionsTab > 0) { optionsTab--; SFX.uiClick(); }
+  drawText(ctx, o.label + ": " + (o.on ? "LIGADO" : "DESLIGADO"), txX, y + oy,
+    { color: o.on ? o.color : "#5a4f78", scale: 0.95, maxWidth: txW });
+  if (button(ctx, { x: bx, y: y + oy - 4, w: btnW, h: btnH, label: o.on ? "DESLIGAR" : "LIGAR", id: o.id, accent: o.color, tap: true, clip: V, scale: 0.85 })) {
+    o.flip();
+  }
+  let dy = y + 21 * FS;
+  if (o.desc) {
+    for (const ln of wrapText(o.desc, txW, { scale: 0.8 * FS })) {
+      drawText(ctx, ln, txX, dy + oy, { color: "#6b5a8a", scale: 0.8, maxWidth: txW });
+      dy += 16 * FS;
     }
-    optionsSwipeX = null;
   }
+  return dy + 11 * FS;
+}
+
+// Painel de aviso com quebra de linha medida. Retorna a altura ocupada.
+function optNote(y, TX, RR, oy, FS, lines, border, color) {
+  const pad = 8, maxW = RR - TX - pad * 2;
+  const wrapped = [];
+  for (const ln of lines) for (const w of wrapText(ln, maxW, { scale: 0.8 * FS })) wrapped.push(w);
+  const lh = 18 * FS, h = wrapped.length * lh + pad * 2;
+  panel(ctx, TX, y + oy, RR - TX, h, { fill: "rgba(255,179,71,0.07)", border: border || "#ffb347", r: 4 });
+  let ly = y + pad + 2;
+  for (const w of wrapped) {
+    drawText(ctx, w, TX + pad, ly + oy, { color: color || "#ffd479", scale: 0.8, maxWidth: maxW });
+    ly += lh;
+  }
+  return y + h + 10 * FS;
+}
+
+// Linha de volume: rótulo + % em cima, [-] barra [+] embaixo.
+function optVolRow(y, TX, RR, oy, V, FS, id, label, color) {
+  const key = id === "music" ? "musicVol" : "sfxVol";
+  const v = G.save.settings[key];
+  drawText(ctx, label, TX, y + oy, { color: "#efe9ff", scale: 0.95, maxWidth: 340 });
+  drawText(ctx, Math.round(v * 100) + "%", RR, y + oy, { color, align: "right", scale: 0.95 });
+  const by = y + 22 * FS, bw = 52, bh = 30;
+  if (button(ctx, { x: TX, y: by + oy, w: bw, h: bh, label: "-", id: id + "Down", tap: true, clip: V, scale: 1.1 })) {
+    G.save.settings[key] = Math.round(clamp(v - 0.1, 0, 1) * 10) / 10;
+    persistSave(); applyMix();
+  }
+  if (button(ctx, { x: RR - bw, y: by + oy, w: bw, h: bh, label: "+", id: id + "Up", accent: color, tap: true, clip: V, scale: 1.1 })) {
+    G.save.settings[key] = Math.round(clamp(v + 0.1, 0, 1) * 10) / 10;
+    persistSave(); applyMix();
+  }
+  // barra (toque/arraste ajustam: updateOptions traduz o gesto em volume)
+  const tx0 = TX + bw + 10, tw = (RR - bw - 10) - tx0, th = 14, ty = by + oy + (bh - th) / 2;
+  ctx.fillStyle = "rgba(10,8,16,0.8)";
+  ctx.fillRect(tx0, ty, tw, th);
+  ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
+  ctx.strokeRect(tx0 + 0.5, ty + 0.5, tw - 1, th - 1);
+  const grad = ctx.createLinearGradient(tx0, ty, tx0, ty + th);
+  grad.addColorStop(0, color);
+  grad.addColorStop(1, "#1a1430");
+  ctx.fillStyle = grad;
+  ctx.fillRect(tx0 + 2, ty + 2, (tw - 4) * v, th - 4);
+  const hx = tx0 + 2 + (tw - 4) * v;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(hx - 2, ty - 3, 4, th + 6);
+  optSliders.push({ id, x: tx0, y: ty - 6, w: tw, h: th + 12 });
+  return by + bh + 14 * FS;
+}
+
+function optContentAudio(TX, RR, oy, V, FS) {
+  let cy = 8;
+  cy = optVolRow(cy, TX, RR, oy, V, FS, "music", "MÚSICA", "#c77dff");
+  cy = optToggle(cy, TX, RR, oy, V, FS, {
+    label: "SOM", on: !G.muted, id: "muteBtn", color: "#ff4d5a",
+    desc: touchMode.on ? "USE ESTE BOTÃO PARA SILENCIAR TUDO" : "A TECLA M TAMBÉM LIGA E DESLIGA",
+    flip() { toggleMute(); applyMix(); persistSave(); },
+  });
+  cy = optVolRow(cy, TX, RR, oy, V, FS, "sfx", "EFEITOS", "#37e6c8");
+  for (const ln of wrapText("TOQUE OU ARRASTE A BARRA • - / + AJUSTAM DE 10 EM 10", RR - TX, { scale: 0.8 * FS })) {
+    drawText(ctx, ln, TX, cy + oy, { color: "#6b5a8a", scale: 0.8, maxWidth: RR - TX });
+    cy += 17 * FS;
+  }
+  return cy + 8;
+}
+
+function optContentVideo(TX, RR, oy, V, FS) {
+  const s = G.save.settings;
+  let cy = 8;
+  cy = optToggle(cy, TX, RR, oy, V, FS, {
+    label: "PARTÍCULAS", on: s.particles, id: "vid_particles", color: "#7fd6a0",
+    desc: "POEIRA, PÓLEN E BRILHOS — DESLIGAR GANHA DESEMPENHO",
+    flip() { s.particles = !s.particles; persistSave(); },
+  });
+  cy = optToggle(cy, TX, RR, oy, V, FS, {
+    label: "TREMOR DE TELA", on: s.screenshake, id: "vid_screenshake", color: "#ffb347",
+    desc: "A CÂMERA BALANÇA NOS GOLPES FORTES",
+    flip() { s.screenshake = !s.screenshake; persistSave(); },
+  });
+  cy = optToggle(cy, TX, RR, oy, V, FS, {
+    label: "SCANLINES RETRÔ", on: s.scanline, id: "vid_scanline", color: "#6db7ff",
+    desc: "LISTRAS DE CRT SOBRE A IMAGEM",
+    flip() { s.scanline = !s.scanline; persistSave(); applyScanlines(); },
+  });
+  const isFull = typeof document !== "undefined" && !!document.fullscreenElement;
+  cy = optToggle(cy, TX, RR, oy, V, FS, {
+    label: "TELA CHEIA", on: isFull, id: "fullscreen", color: "#c77dff",
+    desc: "F11 TAMBÉM ALTERNA NO NAVEGADOR",
+    flip() {
+      try {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+        else document.exitFullscreen().catch(() => {});
+      } catch (e) { /* DOM simulado nos testes */ }
+    },
+  });
+  return cy + 8;
+}
+
+function optContentControls(TX, RR, oy, V, FS) {
+  const rows = touchMode.on ? HELP_CONTROLS_TOUCH : HELP_CONTROLS;
+  // coluna da descrição começa depois da TECLA mais larga (medida de verdade)
+  let keyW = 0;
+  for (const [k] of rows) keyW = Math.max(keyW, textWidth(k, { scale: 0.9 * FS }));
+  const dx = TX + keyW + 18, dw = RR - dx;
+  let cy = 8;
+  for (const [k, d] of rows) {
+    drawText(ctx, k, TX, cy + oy, { color: "#37e6c8", scale: 0.9, maxWidth: keyW + 2 });
+    drawText(ctx, d, dx, cy + oy, { color: PAL.text, scale: 0.85, maxWidth: dw });
+    cy += 19 * FS;
+  }
+  cy += 10 * FS;
+  if (touchMode.on) {
+    const s = G.save.settings;
+    cy = optToggle(cy, TX, RR, oy, V, FS, {
+      label: "MODO ORDENAR / SELECIONAR", on: !!s.touchSelect, id: "ctl_touchSelect", color: "#ffd479",
+      desc: s.touchSelect
+        ? "BOTÃO NA EXPEDIÇÃO ALTERNANDO ORDEM E SELEÇÃO"
+        : "GESTOS INTELIGENTES: TOQUE NA FORMIGA SELECIONA",
+      flip() { s.touchSelect = !s.touchSelect; persistSave(); touchMode.smart = !s.touchSelect; touchMode.mode = "ordenar"; },
+    });
+  }
+  cy = optNote(cy, TX, RR, oy, FS, touchMode.on ? [
+    "TOQUE ORDENA • ARRASTAR MOVE A CÂMERA • PINÇA DÁ ZOOM",
+    "2 DEDOS FAZEM CAIXA • DUPLO SELECIONA O TIPO • SAVE PRÓPRIO",
+  ] : [
+    "A VERSÃO MOBILE (/GAME/MOBILE/) TEM SAVE PRÓPRIO",
+    "SETAS ESQ/DIR TROCAM DE ABA • RODA DO MOUSE ROLA A TELA",
+  ], "#ffb347");
+  return cy + 8;
+}
+
+function optContentAccess(TX, RR, oy, V, FS) {
+  const a = G.save.accessibility, s = G.save.settings;
+  let cy = 8;
+  const rows = [
+    { key: "invincible", label: "RAINHA INVENCÍVEL", desc: "A RAINHA NÃO MORRE: VOLTA COM 30% DA VIDA", color: "#7fd6a0" },
+    { key: "infiniteDash", label: "AÇÕES SEM RECARGA", desc: "RALI (F) E ATAQUES SEM TEMPO DE ESPERA", color: "#37e6c8" },
+    { key: "slowMo", label: "CÂMERA LENTA", desc: "TUDO RODA NA METADE DA VELOCIDADE", color: "#6db7ff" },
+    { key: "bigFont", label: "FONTE GRANDE", desc: "TEXTOS 30% MAIORES EM TODO O JOGO", color: "#ffd479" },
+    { key: "reducedParticles", label: "POUCAS PARTÍCULAS", desc: "MENOS EFEITOS E DISTRAÇÕES VISUAIS", color: "#c77dff" },
+    { key: "highContrast", label: "ALTO CONTRASTE", desc: "CONTORNOS FORTES NOS TEXTOS", color: "#ff4d5a" },
+  ];
+  for (const o of rows) {
+    cy = optToggle(cy, TX, RR, oy, V, FS, {
+      label: o.label, desc: o.desc, on: !!a[o.key], id: "acc_" + o.key, color: o.color,
+      flip() { a[o.key] = !a[o.key]; persistSave(); },
+    });
+  }
+  // velocidade: rótulo + 4 botões na mesma linha (medidos para caber)
+  drawText(ctx, "VELOCIDADE", TX, cy + oy + 6, { color: "#ff7a6a", scale: 0.95, maxWidth: 150 });
+  const speeds = [
+    { v: 0.5, label: "0.5X LENTO", color: "#7fd6a0" },
+    { v: 1, label: "1X NORMAL", color: "#37e6c8" },
+    { v: 1.5, label: "1.5X RÁPIDO", color: "#ffb347" },
+    { v: 2, label: "2X TURBO", color: "#ff4d5a" },
+  ];
+  let bw = 0;
+  for (const sp of speeds) bw = Math.max(bw, textWidth(sp.label, { scale: 0.8 * FS }));
+  bw = Math.min(150, Math.ceil(bw) + 24);
+  let sx = TX + 170;
+  for (const sp of speeds) {
+    const sel = s.gameSpeed === sp.v;
+    if (button(ctx, { x: sx, y: cy + oy, w: bw, h: 30, label: sp.label, id: "speed_" + sp.v, accent: sp.color, color: sel ? "#000" : undefined, tap: true, clip: V, scale: 0.8 })) {
+      s.gameSpeed = sp.v; persistSave();
+    }
+    sx += bw + 8;
+  }
+  cy += 30 + 12 * FS;
+  if (a.invincible || a.slowMo || s.gameSpeed !== 1) {
+    cy = optNote(cy, TX, RR, oy, FS, [
+      "MODO ASSIST ATIVO • VELOCIDADE " + s.gameSpeed + "X • CONQUISTAS CONTINUAM VALENDO",
+    ], "#7fd6a0", "#7fd6a0");
+  }
+  return cy + 8;
+}
+
+function optContentLang(TX, RR, oy, V, FS) {
+  const s = G.save.settings;
+  const langs = [
+    { id: "pt-BR", tag: "[BR]", label: "PORTUGUÊS", desc: "TRADUÇÃO COMPLETA E REVISADA", color: "#7fd6a0", ready: true },
+    { id: "en-US", tag: "[US]", label: "ENGLISH", desc: "ENGLISH TRANSLATION", color: "#6db7ff", ready: false },
+    { id: "es", tag: "[ES]", label: "ESPAÑOL", desc: "TRADUCCIÓN AL ESPAÑOL", color: "#ffb347", ready: false },
+  ];
+  let cy = 8;
+  for (const lg of langs) {
+    const sel = s.language === lg.id;
+    const btnW = 120, bx = RR - btnW, txW = bx - 14 - TX;
+    drawText(ctx, lg.tag + "  " + lg.label, TX, cy + oy,
+      { color: sel ? lg.color : "#efe9ff", scale: 0.95, maxWidth: txW });
+    if (button(ctx, {
+      x: bx, y: cy + oy - 4, w: btnW, h: 28,
+      label: sel ? "ATIVO" : (lg.ready ? "USAR" : "EM BREVE"), id: "lang_" + lg.id,
+      accent: lg.color, color: sel ? lg.color : undefined,
+      disabled: sel || !lg.ready, tap: true, clip: V, scale: 0.85,
+    })) {
+      s.language = lg.id; persistSave();
+    }
+    drawText(ctx, lg.desc, TX, cy + oy + 21 * FS, { color: "#6b5a8a", scale: 0.8, maxWidth: txW });
+    cy += 21 * FS + 16 * FS + 11 * FS;
+  }
+  cy = optNote(cy, TX, RR, oy, FS, [
+    "O IDIOMA VALE PARA MENUS, TUTORIAIS E DESCRIÇÕES",
+  ], "#ffd479");
+  return cy + 8;
 }
 
 // ------------------------------------------------------------------ ajuda ----
@@ -2021,7 +2174,7 @@ function drawPause() {
         notePointer(mouse.x, mouse.y);
         paused = false;
         optionsReturn = "RUN";
-        optionsTab = 0;
+        optionsTab = 0; optionsScroll = 0; optGrab = null;
         startTransition("auto", "RUN", "OPTIONS", 0, () => { G.screen = "OPTIONS"; });
         return;
       }
@@ -2399,6 +2552,26 @@ export function gameHelpReturn() { return helpReturn; }
 export function setPaused(v) { paused = v; }
 // MOBILE: a camada de toque usa para rotular o botão de pausa (⏸/▶)
 export function isPaused() { return paused; }
+// Cobertura de scanlines retrô (#scan, fora do canvas): ligada/desligada
+// conforme o save. Segura nos testes headless (DOM simulado).
+let scanApplied = null;
+function applyScanlines() {
+  const on = !!(G.save && G.save.settings && G.save.settings.scanline);
+  if (on === scanApplied) return;
+  scanApplied = on;
+  try {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("scan");
+    if (el) el.hidden = !on;
+  } catch (e) { /* DOM simulado nos testes */ }
+}
+
+// Gancho de teste/captura: rola a aba atual até o fim.
+export function __optScrollToEnd() {
+  optionsScroll = Math.max(0, optionsContentH - optViewport().h);
+}
+
 export function boot() {
   initInput(canvas);
+  applyScanlines();
 }

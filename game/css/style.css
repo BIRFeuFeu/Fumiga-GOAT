@@ -68,16 +68,22 @@ body::before {
   }
 }
 
-/* Efeito de scanline sutil estilo Dead Cells */
-#game::after {
-  content: "";
+/* Scanlines retrô (OPÇÕES → VÍDEO): o ::after antigo nunca aparecia, porque
+   <canvas> é elemento substituído e não renderiza pseudo-elementos. Agora é
+   uma div real (#scan) dimensionada pelo fit() do main.js, ligada/desligada
+   pelo jogo conforme o save. */
+#scan {
   position: absolute;
-  inset: 0;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
   background: repeating-linear-gradient(
     0deg,
-    rgba(0,0,0,0) 0px,
-    rgba(0,0,0,0) 2px,
-    rgba(0,0,0,0.03) 3px
+    rgba(0,0,0,0.22) 0px,
+    rgba(0,0,0,0.22) 1px,
+    rgba(0,0,0,0) 1px,
+    rgba(0,0,0,0) 3px
   );
   pointer-events: none;
+  z-index: 2;
 }
+#scan[hidden] { display: none; }

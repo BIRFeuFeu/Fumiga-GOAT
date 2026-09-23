@@ -23,6 +23,12 @@ function fit() {
   if (s >= 2.1) s = Math.floor(s);
   canvas.style.width = Math.floor(VIEW_W * s) + "px";
   canvas.style.height = Math.floor(VIEW_H * s) + "px";
+  // a cobertura de scanlines acompanha o canvas pixel a pixel
+  const scan = document.getElementById("scan");
+  if (scan) {
+    scan.style.width = canvas.style.width;
+    scan.style.height = canvas.style.height;
+  }
 }
 window.addEventListener("resize", fit);
 fit();
