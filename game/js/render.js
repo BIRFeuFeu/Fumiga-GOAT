@@ -639,10 +639,9 @@ let titleEssence = []; // FASE 1 FINAL - partículas essência subindo do formig
 let torchFlicker = 0;
 let dayPhase = 0;
 
-// Altura da camada de montanhas do menu: as 4 camadas de parallax são geradas
-// por tools/fix_title_parallax.py já no tamanho exato em que são desenhadas
-// (blit 1:1 — anti-aliasing embutido no PNG, sem reamostragem na tela).
-const MTN_DRAW_H = 335;
+// Arte TITLE com laterais pintadas (+128 px por lado), desenhada em 1:1.
+// Principal e frente: +16 px de solo abaixo para cobrir o movimento vertical.
+const TITLE_SIDE_PAD = 128;
 
 function ensureMotes() {
   if (titleMotes.length) return;
@@ -867,8 +866,8 @@ export function drawTitleBg(ctx) {
   
   if (hasParallax) {
     // parallax real com mouse direto - 4 CAMADAS (não 5)
-    const mx = (mouse && mouse.x ? mouse.x : VIEW_W/2);
-    const my = (mouse && mouse.y ? mouse.y : VIEW_H/2);
+    const mx = Math.max(0, Math.min(VIEW_W, mouse?.x ?? VIEW_W/2));
+    const my = Math.max(0, Math.min(VIEW_H, mouse?.y ?? VIEW_H/2));
     const offsetX = (mx - VIEW_W/2);
     const offsetY = (my - VIEW_H/2);
     
@@ -878,24 +877,22 @@ export function drawTitleBg(ctx) {
     const skyImg = IMG.parallax_sky;
     const skyOffX = offsetX * 0.01 + Math.sin(time * 0.008) * 6;
     const skyOffY = offsetY * 0.005 + Math.sin(time * 0.005) * 2;
-    ctx.drawImage(skyImg, skyOffX - 40, skyOffY - 20, VIEW_W + 80, VIEW_H + 40);
+    ctx.drawImage(skyImg, skyOffX - 40 - TITLE_SIDE_PAD, skyOffY - 20);
 
     // ----- CAMADA 3: Montanhas silhueta (meio-fundo, 0.03x) -----
-    // ALTURA 335 = altura do PNG (tools/fix_title_parallax.py gera cada camada
-    // já no tamanho exato do drawImage). Antes era VIEW_H * 0.62 = 334.8,
-    // o que forçava reamostragem e borrava a crista.
+    // Altura nativa de 335 px, sem reamostragem da crista.
     const mtnImg = IMG.parallax_mountains;
     const mtnOffX = offsetX * 0.03 + Math.sin(time * 0.012) * 8;
     const mtnOffY = 20 + offsetY * 0.01 + Math.sin(time * 0.01) * 3;
     ctx.globalAlpha = 0.96;
-    ctx.drawImage(mtnImg, mtnOffX - 50, mtnOffY, VIEW_W + 100, MTN_DRAW_H);
+    ctx.drawImage(mtnImg, mtnOffX - 50 - TITLE_SIDE_PAD, mtnOffY);
     ctx.globalAlpha = 1;
 
     // ----- CAMADA 2: Principal - gramado + ruínas esquerda + formigueiro direita-centro (0.08x) -----
     const mainImg = IMG.parallax_main;
     const mainOffX = offsetX * 0.08 + Math.sin(time * 0.015) * 6;
     const mainOffY = 10 + offsetY * 0.025 + Math.cos(time * 0.012) * 2;
-    ctx.drawImage(mainImg, mainOffX - 30, mainOffY, VIEW_W + 60, VIEW_H - 5);
+    ctx.drawImage(mainImg, mainOffX - 30 - TITLE_SIDE_PAD, mainOffY);
 
     // FASE 1 FINAL - luz formigueiro pulsante com partículas (escolha particulas) - sem tochas, só cristais
     ctx.save();
@@ -922,7 +919,7 @@ export function drawTitleBg(ctx) {
     const fgImg = IMG.parallax_foreground;
     const fgOffX = offsetX * 0.15 + Math.sin(time * 0.02) * 4;
     const fgOffY = offsetY * 0.04;
-    ctx.drawImage(fgImg, fgOffX - 40, fgOffY, VIEW_W + 80, VIEW_H);
+    ctx.drawImage(fgImg, fgOffX - 40 - TITLE_SIDE_PAD, fgOffY);
 
     // FASE 1 FINAL - ciclo dia/noite 60s tint FORTE (escolha tint_forte): dia laranja quente / noite azul escuro 0.75 + estrelas
     const dp = (time * 0.016666) % 1; // 60s exatos
