@@ -4,18 +4,25 @@
 // Corte transversal vivo da colônia: túneis, câmaras de terra e as formigas
 // trabalhando de verdade — carregando comida da entrada até a despensa,
 // escavando a câmara que você mandou abrir, cuidando das larvas no berçário e
-// a rainha botando ovos na câmara real. Tudo acontece em tempo real enquanto
-// você está aqui dentro (o mundo lá fora fica congelado).
+// a rainha botando ovos na câmara real.
+//
+// REWORK DA BOCA (2026): aqui dentro só entra quem REALMENTE passou pela boca
+// do formigueiro (allies.inside, mantido em units.js). O mundo lá fora NÃO
+// congela mais — ele continua rodando ao mesmo tempo, e a janela "OLHO LÁ
+// FORA" (render.js: drawOutsideEye) mostra essa outra tela viva. Quem está
+// dentro continua dentro (e trabalhando) mesmo depois de o jogador sair.
 // ============================================================================
 import { CHAMBERS, MAPS, PAL, VIEW_W, VIEW_H } from "./config.js";
 import { G, mods } from "./state.js";
 import { IMG, rotFrame, rotDrawSize } from "./assets.js";
+import { drawOutsideEye, PIP } from "./render.js";
 import { drawText, wrapText } from "./font.js";
 import { button, panel, bar, pointInRect } from "./ui.js";
 import { world } from "./world.js";
 import { SFX } from "./audio.js";
 import {
   allies, spawnAnt, popUsed, popCapTotal, recomputeAllies,
+  antExitNest, antEnterNest, insideCount,
 } from "./units.js";
 import { colony } from "./brain.js";
 import { clamp, rand, lerp, TAU } from "./utils.js";
@@ -23,11 +30,13 @@ import { clamp, rand, lerp, TAU } from "./utils.js";
 // ------------------------------------------------------------------ salas ---
 // Coordenadas fixas na tela (960x540). As salas usam os mesmos ids de
 // CHAMBERS, então run.chambers[id] continua mandando no nível.
+// NOTA (rework da boca): a DESPENSA desceu de y=130 para y=232 para abrir o
+// canto superior direito, onde vive a janela "OLHO LÁ FORA".
 const ROOMS = [
   { id: "entrance",  x: 62,  y: 60,  w: 168, h: 76, accent: "#ffd479" },
   { id: "nursery",   x: 128, y: 196, w: 178, h: 88, accent: "#7fd6a0" },
   { id: "royal",     x: 380, y: 112, w: 204, h: 94, accent: "#ffd479" },
-  { id: "pantry",    x: 658, y: 130, w: 178, h: 88, accent: "#ffb347" },
+  { id: "pantry",    x: 658, y: 232, w: 178, h: 88, accent: "#ffb347" },
   { id: "barracks",  x: 372, y: 300, w: 196, h: 92, accent: "#8fd3ff" },
   { id: "fungus",    x: 92,  y: 348, w: 176, h: 84, accent: "#c77dff" },
   { id: "refinery",  x: 664, y: 340, w: 180, h: 84, accent: "#c77dff" },
@@ -103,21 +112,34 @@ export function nestEnter() {
   if (!nest.larvae.length) {
     for (let i = 0; i < 4; i++) nest.larvae.push({ i, x: 0, y: 0, t: rand(0, 6.28), born: 0 });
   }
+  // REWORK: nada de espelhar a colônia inteira. A cena de dentro mostra SÓ
+  // quem realmente passou pela boca e está aqui dentro agora (allies.inside).
   syncAnts(true);
 }
 
 export function nestExit() {
   nest.open = false;
-  nest.ants.length = 0;
-}
+  // quem está dentro CONTINUA dentro (e continua trabalhando na cena de
+  // dentro quando o jogador voltar). Antes o roster era zerado aqui e a
+  // colônia inteira "renascia" lá dentro na próxima entrada.
+} 
 
-/** Espelha as formigas vivas do mundo lá dentro (e remove as mortas). */
+/**
+ * Espelha o ROSTER REAL do formigueiro (allies.inside, de units.js) — quem
+ * entrou pela boca vira uma formiga da cena de dentro; quem saiu, some daqui.
+ */
 function syncAnts(force = false) {
-  const alive = allies.filter((a) => !a.dead && !a.dying && a.type !== "queen");
   if (force) nest.ants.length = 0;
-  // remove quem não existe mais
-  nest.ants = nest.ants.filter((n) => alive.some((a) => a.id === n.id));
-  for (const a of alive) {
+  const roster = allies.inside || [];
+  // remove quem saiu pela boca (ou morreu)
+  if (!force) {
+    for (let i = nest.ants.length - 1; i >= 0; i--) {
+      const a = roster.find((r) => r.id === nest.ants[i].id);
+      if (!a) nest.ants.splice(i, 1);
+    }
+  }
+  for (const a of roster) {
+    if (a.dead || a.dying) continue;
     if (nest.ants.some((n) => n.id === a.id)) continue;
     if (nest.ants.length >= 26) break;   // o resto fica "nos túneis"
     nest.ants.push(makeNestAnt(a));
@@ -132,7 +154,9 @@ function jobFor(type) {
 }
 
 function makeNestAnt(a) {
-  const home = a.type === "healer" ? "nursery" : "barracks";
+  // quem chega do mundo desce pela BOCA: entra pela sala da ENTRADA e, a
+  // partir dela, a rota interna leva cada casta ao seu posto de trabalho
+  const home = "entrance";
   const c = center(roomOf(home));
   const n = {
     id: a.id, type: a.type, job: jobFor(a.type), sprite: a.def ? a.def.sprite : a.type,
@@ -181,8 +205,13 @@ function advance(n, dt) {
 }
 
 // ------------------------------------------------------------------ update ---
-export function nestUpdate(dt) {
-  if (!nest.open) return;
+/**
+ * Update da cena de dentro. Ela roda SEMPRE — mesmo com o jogador lá fora —
+ * porque quem está no ninho é formiga de verdade trabalhando (leva comida à
+ * despensa, cuida das larvas, escava). visible = o jogador está olhando:
+ * só nesse caso a chocagem grátis do berçário anda (o "presente" da visita).
+ */
+export function nestUpdate(dt, visible = true) {
   nest.t += dt;
   syncAnts();
 
@@ -217,7 +246,9 @@ export function nestUpdate(dt) {
   }
 
   // ---- chocagem de ovos no berçário (comida grátis da colônia)
-  if (nest.larvae.length && runRef() && runRef().chambers) {
+  // Só enquanto o jogador está olhando o formigueiro: é o presente da visita
+  // (fora disso a colônia de dentro trabalha, mas não se multiplica de graça).
+  if (visible && nest.larvae.length && runRef() && runRef().chambers) {
     const nursery = runRef().chambers.nursery;
     nest.growT -= dt;
     if (nest.growT <= 0) {
@@ -388,6 +419,14 @@ function finishDig() {
 // ------------------------------------------------------------------ clique ---
 export function nestClick(x, y) {
   if (!nest.open) return false;
+  // clique na ENTRADA = abre a boca e libera uma formiga para o mundo
+  const ent = roomOf("entrance");
+  if (pointInRect(x, y, ent.x, ent.y, ent.w, ent.h)) {
+    if (nestLeaveOne()) return "out";
+    float(x, y - 12, "NINGUÉM AQUI PARA SAIR", "#8f86b8", 1.4);
+    SFX.deny();
+    return true;
+  }
   for (const r of ROOMS) {
     if (r.id === "entrance" || r.id === "royal") continue;
     if (!pointInRect(x, y, r.x, r.y, r.w, r.h)) continue;
@@ -399,6 +438,70 @@ export function nestClick(x, y) {
     return true;
   }
   return false;
+}
+
+// ------------------------------------------------------------- boca (saída) --
+/**
+ * Libera formigas para FORA pela boca (elas voltam a viver no mundo).
+ * n > 0 libera n; n < 0 chama de volta do lado de fora para o turno interno.
+ * Retorna quantas de fato atravessaram a boca.
+ */
+export function nestLeaveOne(dir = 1) {
+  const roster = allies.inside || [];
+  if (dir > 0) {
+    // sai quem está há mais tempo (o turno mais antigo cede a vez)
+    let best = null, bt = -1;
+    for (const a of roster) {
+      if (a.dead || a.dying || a.doorT > 0) continue;
+      if (a.insideT > bt) { bt = a.insideT; best = a; }
+    }
+    if (!best) return 0;
+    const n = nest.ants.find((v) => v.id === best.id);
+    if (n) dustOut(n);
+    antExitNest(best);
+    float(center(roomOf("entrance")).x, center(roomOf("entrance")).y - 26,
+      "PELA BOCA!", "#ffd479", 1.4);
+    SFX.pickup();
+    return 1;
+  }
+  // chamar de volta: a formiga de fora mais perto da boca desce
+  const D = world.anthill.door;
+  let pick = null, bd = Infinity;
+  for (const a of allies) {
+    if (a.dead || a.dying || a.inside || a.doorT > 0 || a.type === "queen") continue;
+    if (a.state === "enter") continue;
+    const d = Math.hypot(a.x - D.x, a.y - D.y);
+    if (d < bd) { bd = d; pick = a; }
+  }
+  if (!pick) return 0;
+  antEnterNest(pick, "rodizio");
+  float(pick.x, pick.y - 16, "PARA DENTRO!", "#7fd6a0", 1.4);
+  SFX.command();
+  return -1;
+}
+
+export function nestCallBack(n = 1) {
+  let k = 0;
+  for (let i = 0; i < n; i++) if (nestLeaveOne(-1) === 0) break; else k++;
+  return k;
+}
+
+export function nestSendOut(n = 1) {
+  let k = 0;
+  for (let i = 0; i < n; i++) if (nestLeaveOne(1) === 1) k++;
+  return k;
+}
+
+/** Poeirinha na boca quando alguém atravessa (feedback de porta giratória). */
+function dustOut(n) {
+  for (let i = 0; i < 6; i++) {
+    nest.bits.push({
+      x: n.x + rnd(-8, 8), y: n.y + rnd(-6, 6),
+      vx: rnd(-18, 18), vy: rnd(-26, -6), life: rnd(0.3, 0.7), max: 0.7,
+      color: i % 2 ? "#8a5f2a" : "#ffd479", size: rnd(1.4, 2.6),
+    });
+  }
+  nest.dirFlash = 0.6;
 }
 
 export function nestHover(x, y) {
@@ -567,6 +670,10 @@ export function nestDraw(ctx) {
     ctx.fillRect(b.x, b.y, b.size, b.size);
   }
   ctx.globalAlpha = 1;
+
+  // -------------------------------------------------- OLHO LÁ FORA (PiP) ----
+  // A segunda tela: o mundo rodando de verdade enquanto você está aqui dentro.
+  drawOutsideEye(ctx, VIEW_W - PIP.w - 22, 46, PIP.w, PIP.h);
 
   // -------------------------------------------------------------- HUD -------
   return drawNestHud(ctx);
@@ -802,8 +909,8 @@ function drawNestHud(ctx) {
   // entregas contando: é a comida que as formigas trouxeram para dentro
   drawText(ctx, "ENTREGUE POR ELAS: +" + nest.deliveries, VIEW_W - 16, 14,
     { color: "#7fd6a0", align: "right" });
-  drawText(ctx, nest.ants.length + " FORMIGAS TRABALHANDO", VIEW_W - 16, 30,
-    { color: PAL.textDim, align: "right" });
+  drawText(ctx, nest.ants.length + " TRABALHANDO AQUI DENTRO (DE " + insideCount() + " NO NINHO)",
+    VIEW_W - 16, 30, { color: PAL.textDim, align: "right" });
 
   // rodapé: sair + dica
   ctx.fillStyle = "rgba(8,6,4,0.82)";
@@ -811,13 +918,20 @@ function drawNestHud(ctx) {
   ctx.strokeStyle = "#4a3a6e";
   ctx.beginPath(); ctx.moveTo(0, BOTTOM + 0.5); ctx.lineTo(VIEW_W, BOTTOM + 0.5); ctx.stroke();
 
-  if (button(ctx, { x: 16, y: BOTTOM + 20, w: 210, h: 40, label: "VOLTAR À COLÔNIA (B)", id: "nestBack", accent: "#37e6c8" })) {
+  if (button(ctx, { x: 16, y: BOTTOM + 10, w: 210, h: 34, label: "VOLTAR À COLÔNIA (B)", id: "nestBack", accent: "#37e6c8" })) {
     return "back";
   }
-  drawText(ctx, "CLIQUE NUMA CÂMARA PARA ESCAVAR — AS FORMIGAS LEVAM A COMIDA, ESCAVAM E CUIDAM DAS LARVAS",
-    VIEW_W / 2 + 90, BOTTOM + 32, { color: PAL.textDim, align: "center" });
-  drawText(ctx, "ENQUANTO VOCÊ ESTÁ AQUI DENTRO, O MUNDO LÁ FORA ESPERA",
-    VIEW_W / 2 + 90, BOTTOM + 52, { color: "#6b5a3e", align: "center" });
+  // segunda fileira de botões: a BOCA — soltar/chamar formigas pela porta
+  if (button(ctx, { x: 238, y: BOTTOM + 10, w: 186, h: 34, label: "SAIR PELA BOCA (L)", id: "nestOut", accent: "#ffd479" })) {
+    return "out";
+  }
+  if (button(ctx, { x: 430, y: BOTTOM + 10, w: 196, h: 34, label: "CHAMAR P/ DENTRO (P)", id: "nestIn", accent: "#7fd6a0" })) {
+    return "in";
+  }
+  drawText(ctx, "CLIQUE NUMA CÂMARA PARA ESCAVAR  —  CLIQUE NA ENTRADA PARA ABRIR A BOCA",
+    VIEW_W / 2, BOTTOM + 54, { color: PAL.textDim, align: "center" });
+  drawText(ctx, "O MUNDO LÁ FORA CONTINUA VIVO AGORA MESMO — É O QUE MOSTRA O OLHO LÁ FORA",
+    VIEW_W / 2, BOTTOM + 72, { color: "#8a7a5e", align: "center" });
 
   // tooltip da câmara sob o mouse
   if (nest.hover && nest.hover !== "royal" && nest.hover !== "entrance") {

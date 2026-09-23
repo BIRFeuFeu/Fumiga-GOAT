@@ -40,6 +40,16 @@ class MockCanvas {
   addEventListener() {}
 }
 
+/** Interseção de dois retângulos (usada pelo recorte/clip do MockCtx). */
+function intersectBox(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y);
+  const x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h);
+  if (x1 <= x0 || y1 <= y0) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
 class MockCtx {
   constructor(cv) {
     this.cv = cv;
@@ -48,11 +58,12 @@ class MockCtx {
     this.imageSmoothingEnabled = false; this.font = ""; this.textAlign = "left";
     this.m = mat(); this.stack = [];
     this.path = []; this.open = false;
+    this.clipBox = null;      // recorte ativo (ctx.clip respeitado pela auditoria)
     this.ops = [];
     this.canvas = cv;
   }
-  save() { this.stack.push({ ...this.m }); }
-  restore() { if (this.stack.length) this.m = this.stack.pop(); }
+  save() { this.stack.push({ m: this.m, clipBox: this.clipBox }); }
+  restore() { if (this.stack.length) { const s = this.stack.pop(); this.m = s.m; this.clipBox = s.clipBox; } }
   translate(x, y) { this.m = mul(this.m, { a: 1, b: 0, c: 0, d: 1, e: x, f: y }); }
   scale(x, y) { this.m = mul(this.m, { a: x, b: 0, c: 0, d: y, e: 0, f: 0 }); }
   rotate(a) { this.m = mul(this.m, { a: Math.cos(a), b: Math.sin(a), c: -Math.sin(a), d: Math.cos(a), e: 0, f: 0 }); }
@@ -72,7 +83,9 @@ class MockCtx {
   arcTo() {}
   ellipse(x, y, rx, ry) { this.path.push([x - rx, y - ry], [x + rx, y + ry]); }
   rect(x, y, w, h) { this.path.push([x, y], [x + w, y + h]); }
-  clip() {}
+  // recorte: guarda a caixa do path atual (o desenho real de tela cheia que
+  // acontece dentro de um clip não conta como "cobrindo" o que está fora dele)
+  clip() { this.clipBox = intersectBox(this.clipBox, this._bbox(this.path)); }
   fill() { this.op("fillPath", this._bbox(this.path), this.fillStyle); }
   stroke() { this.op("strokePath", this._bbox(this.path), this.strokeStyle); }
 
@@ -137,6 +150,11 @@ class MockCtx {
   // ---- gravação ---------------------------------------------------------
   op(kind, box, style, text) {
     const cv = this.cv;
+    if (box && this.clipBox) {
+      const clipped = intersectBox(box, this.clipBox);
+      if (!clipped) return;             // totalmente fora do recorte: não desenha
+      box = clipped;
+    }
     if (cv._draws) cv._draws.push({ kind, box, style, text, alpha: this.globalAlpha, gco: this.globalCompositeOperation });
     // canvas de linha: registra a tinta para identificar a cor do texto
     if (cv._draws && kind === "fillRect" && this.globalCompositeOperation === "source-in") cv._tint = this.fillStyle;

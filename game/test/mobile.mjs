@@ -313,11 +313,12 @@ if (scenario === "gestos") {
 
   // 9. HUD: botões virtuais pressionam as teclas do PC
   const hud = els.get("touch-hud");
-  const rowTop = hud.children[0], rowBot = hud.children[1];
+  const rowTop = hud.children[0], rowBot = hud.children[1], rowNest = hud.children[2];
   const [zOut, zIn, zCentro] = rowTop.children;
   const [onda, rali, ninho, pausa] = rowBot.children;
-  assert.equal(hud.children.length, 2, "HUD tem 2 fileiras de botões");
-  assert.ok(zOut && zIn && zCentro && onda && rali && ninho && pausa, "7 botões criados");
+  const [chamar, soltar] = rowNest.children;
+  assert.equal(hud.children.length, 3, "HUD tem 3 fileiras de botões");
+  assert.ok(zOut && zIn && zCentro && onda && rali && ninho && pausa && chamar && soltar, "9 botões criados");
   pausa.fire("pointerdown");
   assert.equal(pressed.Escape, true, "botão pausa -> Escape");
   pressed.Escape = false;
@@ -339,7 +340,23 @@ if (scenario === "gestos") {
   zOut.fire("pointerdown");
   assert.equal(mouse.wheel, 1, "zoom- -> wheel +1 (afasta)");
   mouse.wheel = 0;
-  console.log("ok    HUD virtual: pausa/ninho/rali/onda/centro/zoom mapeados");
+  // a BOCA do formigueiro: fileira extra que só aparece com o ninho aberto
+  soltar.fire("pointerdown");
+  assert.equal(pressed.KeyL, true, "botão soltar -> KeyL (libera uma pela boca)");
+  pressed.KeyL = false;
+  chamar.fire("pointerdown");
+  assert.equal(pressed.KeyP, true, "botão chamar -> KeyP (chama uma para dentro)");
+  pressed.KeyP = false;
+  assert.equal(rowNest.hidden, true, "fileira da boca escondida fora do formigueiro");
+  G.screen = "RUN"; G.run = { baseOpen: true };
+  pump(1);
+  assert.equal(rowNest.hidden, false, "fileira da boca aparece com o formigueiro aberto");
+  assert.equal(rowTop.hidden, true && rowBot.hidden, "as outras fileiras cedem o lugar no formigueiro");
+  G.run = { baseOpen: false };
+  pump(1);
+  assert.equal(rowNest.hidden, true && rowTop.hidden === false && rowBot.hidden === false,
+    "sair do formigueiro devolve as fileiras normais");
+  console.log("ok    HUD virtual: pausa/ninho/rali/onda/centro/zoom/boca mapeados");
 
   // 10. HUD aparece só na expedição e rótulo da pausa acompanha o jogo
   G.screen = "BOOT"; G.run = null;

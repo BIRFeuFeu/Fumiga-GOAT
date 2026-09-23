@@ -283,6 +283,10 @@ const btnWave  = makeBtn("btn", "⏭", "ONDA",  () => pressKey("KeyG"));
 const btnCent  = makeBtn("btn", "🎯", "CENTRO", () => pressKey("Space"));
 const btnZin   = makeBtn("btn zoom", "＋", "", () => { mouse.x = VIEW_W / 2; mouse.y = VIEW_H / 2; mouse.wheel -= 1; });
 const btnZout  = makeBtn("btn zoom", "－", "", () => { mouse.x = VIEW_W / 2; mouse.y = VIEW_H / 2; mouse.wheel += 1; });
+// A BOCA DO FORMIGUEIRO (rework): abrir a porta e chamar de volta. Só valem
+// na tela do formigueiro — a fileira inteira aparece só quando ela está aberta.
+const btnOut   = makeBtn("btn", "🐜", "SOLTAR", () => pressKey("KeyL"));
+const btnIn    = makeBtn("btn", "⬇", "CHAMAR", () => pressKey("KeyP"));
 
 const rowTop = document.createElement("div");
 rowTop.className = "hud-row";
@@ -290,8 +294,13 @@ rowTop.appendChild(btnZout); rowTop.appendChild(btnZin); rowTop.appendChild(btnC
 const rowBot = document.createElement("div");
 rowBot.className = "hud-row";
 rowBot.appendChild(btnWave); rowBot.appendChild(btnRally); rowBot.appendChild(btnNest); rowBot.appendChild(btnPause);
+const rowNest = document.createElement("div");
+rowNest.className = "hud-row";
+rowNest.appendChild(btnIn); rowNest.appendChild(btnOut);
 hudEl.appendChild(rowTop);
 hudEl.appendChild(rowBot);
+hudEl.appendChild(rowNest);
+rowNest.hidden = true;
 hudEl.hidden = true;
 
 // zoom: pinça faz zoom-IN quando os dedos afastam; a RODA do PC faz zoom-out
@@ -312,13 +321,22 @@ function updateModeBtn() {
 updateModeBtn();
 
 // Estado visível do HUD: só na expedição; rótulo da pausa segue o jogo.
-let hudShown = false, pauseShown = null, modeShown = false, modeSmart = null;
+let hudShown = false, pauseShown = null, modeShown = false, modeSmart = null, nestShown = null;
 function hudTick() {
   requestAnimationFrame(hudTick);
   const inRun = G.screen === "RUN" && !!G.run;
   if (inRun !== hudShown) {
     hudShown = inRun;
     hudEl.hidden = !inRun;
+  }
+  // formigueiro aberto: a fileira da BOCA substitui as demais (o rodapé da
+  // cena de dentro, desenhado no canvas, já traz os mesmos comandos)
+  const inNest = inRun && !!(G.run && G.run.baseOpen);
+  if (inNest !== nestShown) {
+    nestShown = inNest;
+    rowNest.hidden = !inNest;
+    rowTop.hidden = inNest;
+    rowBot.hidden = inNest;
   }
   if (inRun) {
     const p = isPaused();

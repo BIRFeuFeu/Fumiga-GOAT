@@ -5,7 +5,7 @@
 import { UNITS, QUEEN, START, LEVEL_HP, LEVEL_DMG } from "./config.js";
 import { mods, G } from "./state.js";
 import { world, nearestPile, nearestNode, collide, smashProps } from "./world.js";
-import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance } from "./utils.js";
+import { SpatialGrid, rand, irand, dist, dist2, clamp, lerp, angLerp, nextId, chance, TAU } from "./utils.js";
 import { spawnPart, burst, scent, floatText, ring, impact, critBurst, healPulse, bloodSplatter, dustPoof } from "./particles.js";
 import { triggerAntVFX, spawnMemoryCrystal } from "./lore_vfx.js";
 import { shake } from "./camera.js";
@@ -19,11 +19,229 @@ import {
 
 export { resetColony };
 
-export const allies = [];          // formigas aliadas
+export const allies = [];          // formigas aliadas (todas — dentro e fora)
 allies.queen = null;               // atalho para a rainha
+allies.inside = [];                // ROSTER REAL de quem está DENTRO da boca
 export const eggs = [];            // fila de chocagem
 let grid = new SpatialGrid(56);
 let resourceList = [];           // recursos disponíveis no frame (ver brain.js)
+
+// ============================================================== PORTA ========
+// REWORK DO FORMIGUEIRO (2026): a colônia ganhou uma BOCA de verdade.
+// Antes, abrir o formigueiro espelhava TODAS as formigas para dentro
+// (`syncAnts(true)` no nest.js) e o mundo congelava. Agora só entra quem chega
+// na boca — e o lado de fora continua vivendo enquanto o jogador está dentro,
+// o que dá as duas telas ao mesmo tempo (dentro + "OLHO LÁ FORA").
+// Inspirações: SimAnt (duas vistas da mesma colônia), Empires of the
+// Undergrowth (a entrada do ninho transfere a formiga entre superfície e
+// subsolo) e Pikmin/Onion (só quem entrou pela boca está dentro).
+export const DOOR_R = 38;      // raio da boca: aqui a formiga mergulha
+export const EXIT_R = 104;     // onde quem sai pisa no mundo (fora da cratera)
+const DIVE_T = 0.42;           // duração do mergulho na boca
+const INSIDE_MAX = 12;         // teto de moradoras do turno interno
+const INSIDE_SHARE = 0.25;     // fração de cada casta pacífica que fica dentro
+const ROT_CD = 4.5;            // intervalo entre rodízios (segundos)
+const SHELTER_SEEK = 620;      // só quem está perto do ninho procura abrigo
+const PACIFIC = { worker: 1, gatherer: 1, scout: 1, healer: 1, weaver: 1 };
+const ROT = { t: 6 };
+
+/** Formigas vivas (= roster de fora, quando a cena de dentro não está aberta). */
+export function aliveAnts() {
+  return allies.filter((a) => !a.dead && !a.dying && a.type !== "queen");
+}
+
+/** Quantas formigas desta casta estão dentro / fora do formigueiro. */
+export function insideCount(typeId) {
+  let n = 0;
+  for (const a of allies.inside) {
+    if (a.dead || a.dying) continue;
+    if (!typeId || a.type === typeId) n++;
+  }
+  return n;
+}
+
+export function outsideCount(typeId) {
+  let n = 0;
+  for (const a of allies) {
+    if (a.dead || a.dying || a.inside || a.type === "queen") continue;
+    if (!typeId || a.type === typeId) n++;
+  }
+  return n;
+}
+
+function nearestFoeNear(a, foes, maxD) {
+  const m2 = maxD * maxD;
+  for (const f of foes) {
+    if (f.dead || f.dying) continue;
+    if (dist2(a.x, a.y, f.x, f.y) < m2) return f;
+  }
+  return null;
+}
+
+/** Quem PROCURA a boca: pacíficas em pânico e guerreiras feridas em retirada. */
+function wantsShelter(a, foes) {
+  if (a.type === "queen" || a.inside || a.doorT > 0) return false;
+  if (a.def.attack === false) {
+    if (a.state === "flee") return true;
+    if (a.carry > 0) return false;                  // com carga: entrega primeiro
+    return !!nearestFoeNear(a, foes, 150);
+  }
+  if (a.hp / a.maxHp < 0.35) {                      // retirada tática
+    if (a.brain && a.brain.recovering) return true;
+    return !!nearestFoeNear(a, foes, 170);
+  }
+  return false;
+}
+
+/** Manda a formiga caminhar até a boca e mergulhar nela. */
+export function antEnterNest(a, why) {
+  if (!a || a.type === "queen" || a.inside || a.doorT > 0) return false;
+  a.enteredByThreat = why !== "rodizio";
+  a.enterT = 0;
+  a.state = "enter";
+  a.target = null; a.forcedTarget = null;
+  a.pile = null; a.node = null; a.cmdPos = null; a.healTarget = null;
+  const D = world.anthill.door;
+  a.tx = D.x; a.ty = D.y;
+  return true;
+}
+
+function startDive(a) {
+  const D = world.anthill.door;
+  a.state = "enter";
+  a.doorT = DIVE_T;
+  a.enterT = 0;
+  a.vx = 0; a.vy = 0;
+  a.x = D.x; a.y = D.y;                            // a boca "engole" a formiga
+  if (a.selected) { a.selected = false; }
+  dustPoof(a.x, a.y - 4, 5);
+  scent(D.x, D.y, "#ffd479");
+}
+
+function finishEntrance(a) {
+  a.doorT = 0;
+  a.inside = true;
+  a.insideT = 0;
+  a.state = "idle";
+  a.x = world.anthill.door.x; a.y = world.anthill.door.y;
+  a.vx = 0; a.vy = 0;
+  if (!allies.inside.includes(a)) allies.inside.push(a);
+}
+
+/** Tira a formiga do ninho: ela sobe pela boca e pisa no mundo. */
+export function antExitNest(a) {
+  if (!a || !a.inside) return false;
+  const A = world.anthill, D = A.door;
+  const i = allies.inside.indexOf(a);
+  if (i >= 0) allies.inside.splice(i, 1);
+  a.inside = false;
+  a.insideT = 0;
+  a.enteredByThreat = false;
+  a.doorT = 0;
+  const ang = rand(0, TAU), d = EXIT_R + rand(-8, 24);
+  a.x = D.x + Math.cos(ang) * d;
+  a.y = D.y + Math.sin(ang) * d;
+  a.spawnT = 0.34;                                 // brota da terra ao sair
+  a.state = "idle";
+  a.target = null; a.forcedTarget = null;
+  a.pile = null; a.node = null; a.cmdPos = null; a.healTarget = null;
+  a.tx = a.ty = null;
+  a.fleeT = 0;
+  if (a.brain) a.brain.recovering = false;
+  if (a.def.attack !== false) a.guardPos = { x: a.x, y: a.y };
+  dustPoof(a.x, a.y - 4, 4);
+  return true;
+}
+
+/**
+ * A cada frame: quem quer abrigo mergulha; quem foi escalado caminha à boca.
+ * Retorna true quando a formiga está indo para dentro (a IA de fora para).
+ */
+function doorTick(a, dt, foes) {
+  if (a.type === "queen" || a.doorT > 0 || a.inside) return false;
+  const D = world.anthill.door;
+  const d = Math.hypot(a.x - D.x, a.y - D.y);
+  if (a.state === "enter") {
+    a.enterT += dt;
+    const arrived = moveToward(a, D.x, D.y, dt, 1.15);
+    if (arrived || d < DOOR_R * 0.85) startDive(a);
+    else if (a.enterT > 7) { a.state = "idle"; a.enterT = 0; }   // sem caminho
+    return true;
+  }
+  if (d > SHELTER_SEEK) return false;              // longe do ninho: nem checa
+  if (d < DOOR_R && wantsShelter(a, foes)) { startDive(a); return true; }
+  return false;
+}
+
+/**
+ * RODÍZIO: mantém um turno de formigas trabalhando DENTRO do ninho e troca
+ * esse turno com o lado de fora — a colônia respira entre as duas telas.
+ */
+function rotationTick(dt, foes) {
+  for (let i = allies.inside.length - 1; i >= 0; i--) {
+    const a = allies.inside[i];
+    if (a.dead || a.dying || a.doorT > 0) {
+      if (a.dead || a.dying) { allies.inside.splice(i, 1); a.inside = false; }
+      continue;
+    }
+    a.insideT += dt;
+  }
+  ROT.t -= dt;
+  if (ROT.t > 0) return;
+  ROT.t = ROT_CD * rand(0.85, 1.2);
+
+  const A = world.anthill;
+  let threat = 0;
+  for (const f of foes) {
+    if (f.dead || f.dying) continue;
+    if (dist2(f.x, f.y, A.x, A.y) < 620 * 620) threat++;
+  }
+
+  // ---- saídas: susto passou, vida recuperou ou o turno terminou
+  for (let i = allies.inside.length - 1; i >= 0; i--) {
+    const a = allies.inside[i];
+    const wounded = a.hp < a.maxHp * 0.75;
+    const minStay = a.enteredByThreat ? 12 : 15;
+    if (a.insideT < minStay) continue;
+    if (wounded && a.insideT < 32) continue;        // deixa a cura terminar
+    if (threat > 0 && a.insideT < 34 && a.enteredByThreat) continue;
+    antExitNest(a);
+  }
+
+  // ---- entradas: repõe o turno (fração por casta, teto global)
+  const crews = {};
+  for (const a of allies) {
+    if (a.dead || a.dying || a.type === "queen") continue;
+    if (!PACIFIC[a.type]) continue;
+    const c = crews[a.type] || (crews[a.type] = { in: 0, out: [] });
+    if (a.inside) c.in++;
+    else c.out.push(a);
+  }
+  const types = Object.keys(crews);
+  for (let i = types.length - 1; i > 0; i--) {              // embaralha barato
+    const j = irand(0, i);
+    const t = types[i]; types[i] = types[j]; types[j] = t;
+  }
+  for (const type of types) {
+    if (insideCount() >= INSIDE_MAX) break;
+    const c = crews[type];
+    if (c.in >= 3) continue;
+    const total = c.in + c.out.length;
+    const want = Math.min(3, Math.round(total * INSIDE_SHARE));
+    if (c.in >= want) continue;
+    // candidata: quem está parada (não fugindo, sem carga) e mais perto da boca
+    const D = A.door;
+    let best = null, bd = Infinity;
+    for (const a of c.out) {
+      if (a.state === "flee" || a.state === "enter" || a.carry > 0) continue;
+      const d = dist2(a.x, a.y, D.x, D.y);
+      if (d < bd) { bd = d; best = a; }
+    }
+    if (best && bd < 900 * 900) antEnterNest(best, "rodizio");
+  }
+}
+
+export { PACIFIC };
 
 // ------------------------------------------------------------------ rainha --
 export function spawnQueen() {
@@ -129,6 +347,9 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     healTarget: null, healFxT: 0,
     bob: rand(0, 6.28), hitT: 0, stunT: 0, slowT: 0, weakT: 0,
     lunge: 0, spawnT: opts.spawnT || 0,
+    // PORTA DO FORMIGUEIRO: inside = está na cena de dentro (allies.inside),
+    // doorT = mergulhando na boca, insideT = tempo de permanência lá dentro
+    inside: !!opts.inside, doorT: 0, insideT: 0, enterT: 0, enteredByThreat: false,
     // cérebro individual: traços estáveis + foco atual (ver brain.js)
     brain: newBrain(typeId),
     selected: false, pack: 0,
@@ -318,9 +539,9 @@ export function updateAllies(dt, foes) {
 
   hatchTick(dt);
 
-  // grade espacial
+  // grade espacial (só quem está do lado de fora participa da colisão/IA)
   grid.clear();
-  for (const a of allies) if (!a.dead) grid.insert(a);
+  for (const a of allies) if (!a.dead && !a.inside && a.doorT <= 0) grid.insert(a);
 
   // ------------------------------------------------------- pulso do cérebro
   // A colônia mede as próprias necessidades e o feromônio evapora. A lista de
@@ -343,7 +564,19 @@ export function updateAllies(dt, foes) {
     const a = allies[i];
     if (a.dying) {
       a.dying -= dt;
-      if (a.dying <= 0) allies.splice(i, 1);
+      if (a.dying <= 0) {
+        if (a.inside) { a.inside = false; const k = allies.inside.indexOf(a); if (k >= 0) allies.inside.splice(k, 1); }
+        allies.splice(i, 1);
+      }
+      continue;
+    }
+    // quem está DENTRO do formigueiro é atualizado pela cena de dentro
+    // (nest.js) — aqui ela nem colide nem pensa no mundo lá fora
+    if (a.inside) continue;
+    // mergulhando na boca: sem colisão e sem IA, só a animação de entrar
+    if (a.doorT > 0) {
+      a.doorT -= dt;
+      if (a.doorT <= 0) finishEntrance(a);
       continue;
     }
     // colossos não são empurrados pelo mato: arrancam a vegetação ao passar
@@ -356,6 +589,9 @@ export function updateAllies(dt, foes) {
     }
     updateAnt(a, dt, foes, m);
   }
+
+  // a colônia respira entre as duas telas: turno interno + quem procura abrigo
+  rotationTick(dt, foes);
 }
 
 function moveToward(a, tx, ty, dt, speedMult = 1) {
@@ -542,7 +778,7 @@ function applyWish(a, wish) {
       // fica perto da irmã mais próxima (fome coletiva)
       let best = null, bd = Infinity;
       for (const o of allies) {
-        if (o === a || o.dead || o.dying) continue;
+        if (o === a || o.dead || o.dying || o.inside) continue;
         const d = dist2(a.x, a.y, o.x, o.y);
         if (d < bd) { bd = d; best = o; }
       }
@@ -609,7 +845,11 @@ function updateAnt(a, dt, foes, m) {
     }
   }
 
+  // indo para a boca: a IA de fora para aqui (o cérebro não pode desviar a
+  // formiga do caminho da porta — senão ela nunca entra)
+  if (a.state === "enter") { doorTick(a, dt, foes); return; }
   brainTick(a, dt, foes, m);
+  if (doorTick(a, dt, foes)) return;
 
   if (role === "worker") updateWorker(a, dt, foes, true, m, G.run);
   else if (role === "healer") updateHealer(a, dt, foes, m);
@@ -908,7 +1148,7 @@ function updateHealer(a, dt, foes, m) {
   // sem feridos: segue a combatente mais próxima do combate
   let leader = null, bd = Infinity;
   for (const o of allies) {
-    if (o === a || o.dead || o.dying) continue;
+    if (o === a || o.dead || o.dying || o.inside) continue;
     const r = o.def && o.def.role;
     if (r === "fighter" || r === "ranged") {
       const d = dist2(a.x, a.y, o.x, o.y);
@@ -1046,7 +1286,7 @@ function spitAt(a, tgt, m) {
 export function selectInRect(x0, y0, x1, y1, additive) {
   let n = 0;
   for (const a of allies) {
-    if (a.dead || a.dying) continue;
+    if (a.dead || a.dying || a.inside) continue;     // quem está no ninho não é selecionável
     const inside = a.x >= Math.min(x0, x1) && a.x <= Math.max(x0, x1) &&
                    a.y >= Math.min(y0, y1) && a.y <= Math.max(y0, y1);
     if (!additive) a.selected = false;
@@ -1059,7 +1299,7 @@ export function selectInRect(x0, y0, x1, y1, additive) {
 export function selectTypeOnScreen(typeId, rect) {
   let n = 0;
   for (const a of allies) {
-    if (a.dead || a.dying) continue;
+    if (a.dead || a.dying || a.inside) continue;
     const onScreen = a.x >= rect.x0 && a.x <= rect.x1 && a.y >= rect.y0 && a.y <= rect.y1;
     a.selected = onScreen && a.type === typeId;
     if (a.selected) n++;
@@ -1069,12 +1309,12 @@ export function selectTypeOnScreen(typeId, rect) {
 }
 
 export function clearSelection() { for (const a of allies) a.selected = false; }
-export function selectedCount() { let n = 0; for (const a of allies) if (a.selected && !a.dead) n++; return n; }
+export function selectedCount() { let n = 0; for (const a of allies) if (a.selected && !a.dead && !a.inside) n++; return n; }
 
 export function orderSelected(wx, wy, worldQueries) {
   let n = 0;
   for (const a of allies) {
-    if (!a.selected || a.dead || a.dying) continue;
+    if (!a.selected || a.dead || a.dying || a.inside) continue;
     n++;
     a.forcedTarget = null;
     a.target = null;
@@ -1112,6 +1352,9 @@ export function rallyDefenders(anthill) {
   let n = 0;
   for (const a of allies) {
     if (a.dead || a.dying || a.def.role === "worker") continue;
+    // O RALI CHAMA A COLÔNIA PARA FORA: guerreira que está no ninho sobe pela
+    // boca antes de formar o anel (o jogador vê a colônia saindo do buraco).
+    if (a.inside) antExitNest(a);
     const ang = (n * 2.4) + 0.6;
     a.guardPos = { x: anthill.x + Math.cos(ang) * 220, y: anthill.y + Math.sin(ang) * 220 };
     a.tx = a.guardPos.x; a.ty = a.guardPos.y;

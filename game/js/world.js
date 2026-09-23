@@ -12,7 +12,12 @@ export const world = {
   seed: 0,
   mapIdx: 0,
   def: null,        // definição do bioma ativo (config.MAPS[i])
-  anthill: { x: WORLD_W / 2, y: WORLD_H / 2, r: 96 },
+  // A BOCA do formigueiro é a porta da colônia: o buraco central do sprite
+  // (desenhado em A.y + 8 — ver drawNest). Toda formiga entra e sai por aqui.
+  anthill: {
+    x: WORLD_W / 2, y: WORLD_H / 2, r: 96,
+    door: { x: WORLD_W / 2, y: WORLD_H / 2 + 8, r: 26 },
+  },
   props: [],        // {x,y,img,scale,shadowR,collR,flip,tint}
   statics: null,    // grade espacial de colisores
   piles: [],        // {kind:'food', x,y, amount,max,r, sprite}
@@ -39,6 +44,7 @@ export function genWorld(seed, mapIdx = 0) {
 
   const A = world.anthill;
   A.x = WORLD_W / 2; A.y = WORLD_H / 2;
+  A.door.x = A.x; A.door.y = A.y + 8;      // a boca acompanha o ninho
   const distA = (x, y) => Math.hypot(x - A.x, y - A.y);
   const margin = 90;
   // MEGA LORE: Eras - mundo muda por Era (mais trilhas, seda, portas)
@@ -235,9 +241,11 @@ function buildStatics() {
       }
     }
   }
-  // formigueiro
+  // formigueiro: a COLINA é caminhável (as formigas descem a cratera até a
+  // boca), mas o buraco central é sólido — ninguém fica parado dentro dele.
+  // A boca (world.anthill.door) é a porta por onde a colônia entra e sai.
   const A = world.anthill;
-  world.statics.insert({ x: A.x, y: A.y, collR: 70 });
+  world.statics.insert({ x: A.door.x, y: A.door.y, collR: 20 });
   // portais não colidem
 }
 
