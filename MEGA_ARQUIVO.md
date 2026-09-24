@@ -29,6 +29,234 @@ repetições, datas, branches, checklists e notas históricas foram preservados.
 > Divergências permanecem visíveis, sem apagar conteúdo. O que efetivamente
 > funciona deve ser confirmado por testes e inspeção no preview.
 
+## Preparação para PR — árvore concluída, maçãs e santuários pendentes (2026-09-24)
+
+**Escopo enviado para revisão:** a Árvore Ancestral ao Crepúsculo descrita abaixo,
+com restauração de cores, sete patamares, rebalanceamento dos 49 nós principais,
+compatibilidade de saves e interface compartilhada PC/mobile. O usuário aprovou
+esse resultado. A solicitação atual é **abrir uma pull request** da branch
+`arena/01a0d4b1-fumiga-goat` para `main`, deixando-a aberta para revisão, sem merge.
+
+**Follow-up ainda não implementado:** sete maçãs douradas estilizadas por mapa e
+as respectivas telas com a direção **Santuário do bioma**. Foram escolhidas as
+bases visuais da Planície (maçã: opção 1; cenário: opção 2), mas a geração seguinte
+foi interrompida e atingiu o limite de imagens daquele turno. Os arquivos dessas
+novas artes não estão disponíveis no checkout atual; nenhum asset ou renderer de
+maçãs/santuários foi integrado. Os frutos existentes continuam em uso. Essa
+pendência não deve ser confundida com a árvore já concluída nem anunciada como
+parte funcional desta PR.
+
+**Próximos passos do follow-up:** recuperar/concluir as artes em lotes menores,
+integrar os sete temas, mostrar os resultados e validar PC/mobile. Preservar os
+poderes, custos, saves e bloqueios atuais; Pálida/mundo 7 continuam futuros.
+
+**Revalidação antes do envio:**
+- `npm run test:quick`: **22/22**.
+- `npm test`: **25/25**.
+- `npm run inspect`: **30 cenas PC/mobile**, sem erros JS, HTTP 404 ou glifos.
+- `npm run inspect:ui`: páginas/replay em PC/mobile e ninho, comandos da boca,
+  pausa/retomada e invocação por toque aprovados.
+- As inspeções específicas da árvore, arte, gestos e layout do registro abaixo
+  permanecem como evidência da implementação; não foram repetidas nesta etapa,
+  que não altera o código de produção.
+
+## Entrega — Árvore Ancestral ao Crepúsculo e sete patamares (2026-09-24)
+
+**Status: implementado e verificado no escopo aprovado.** Este registro substitui
+o desenho procedural da árvore, a antiga fila de frutos na copa e os preços/valores
+anteriores dos **49 nós principais**. Preserva o histórico abaixo, os 18 legados e
+os 70 poderes novos dos frutos. **Não implementa o sétimo mapa nem a Pálida.**
+
+### Escolhas confirmadas e referências
+
+- Direção **Ancestral ao Crepúsculo**, no mesmo estilo das imagens da TITLE.
+- A árvore começa cinza; compras devolvem a cor às regiões correspondentes.
+- Sete patamares ascendentes, com frutos em galhos dispersos. Vencer um mundo
+  abre o próximo galho, com melhorias mais caras e avançadas até a copa.
+- Autorizado **rebalancear custos e efeitos existentes**, sem apagar compras,
+  trocar IDs ou alterar os 70 poderes dos frutos. Arte escolhida: **opção 2 de 2**.
+- Referência principal: as próprias camadas `game/assets/parallax/menu/`.
+  Apoio pesquisado: profundidade/iluminação da pixel art de **Children of Morta**
+  [3](https://www.gamedeveloper.com/design/postmortem-children-of-morta), ambientação
+  orgânica de **Greenpath / Hollow Knight**
+  [2](https://www.kickstarter.com/projects/11662585/hollow-knight/posts/1228656), e
+  investimentos permanentes graduais da Forja de **Dead Cells**
+  [2](https://guides.gamepressure.com/dead_cells/guide.asp?ID=46067).
+  São referências de direção, não assets copiados desses jogos.
+
+### Arte, interface e desempenho
+
+- `game/assets/ui/tree_ancestral.png`: **768×672, RGBA real, 656.076 bytes**.
+  Original gerado em alta resolução (1552×672); preparo remove apenas o fundo
+  uniforme e as margens vazias, sem reduzir/rescalar/borrar os pixels. Tronco
+  violeta, folhas oliva/âmbar, raízes com formigueiro; nenhuma figura humanoide.
+- `tools/prepare_tree_art.py`: pipeline reproduzível a partir do original
+  aprovado. O original e alternativas ficam fora do Git; Pillow é ferramenta
+  de arte, não dependência do jogo. Só um PNG novo entra no carregamento.
+- `tree_art.js`: acromático verdadeiro no progresso zero. Saturação restaurada
+  localmente com mescla entre regiões, derivada dos níveis comprados. Máscaras
+  e pixels são assados uma vez; o cache só é refeito quando compras mudam, não
+  por frame. Em 100% os pixels opacos coincidem com a arte aprovada.
+- Os níveis principais e frutos obtíveis entram na restauração. Os dez poderes
+  futuros da Pálida **não impedem 100% da arte nesta versão**; seu fruto continua
+  cinza/bloqueado. Abrir um galho por vitória não compra nem colore suas melhorias.
+- `tree_layout.js`: posições exclusivas de apresentação, ancoradas no PNG, quatro
+  unidades de mundo por pixel; frutos alternados e ascendentes de 1 a 7.
+- `meta.js`: cabeçalho compacto, navegação lateral 7→1→raiz, acesso dedicado à
+  primeira compra gratuita, detalhe fixo, VER TUDO, zoom +/−, arrasto/roda/pinça.
+  Selecionar só inspeciona; **EVOLUIR** confirma. Clique/toque no desenho é
+  reconhecido ao soltar sem arrastar. Na visão geral mobile, tocar um nó pequeno
+  primeiro aproxima seu galho. Controles novos têm pelo menos 44px lógicos.
+- Ao focar um galho, preços dos outros recuam e as conexões de pré-requisito
+  aparecem sob demanda. A volta da miniárvore preserva o enquadramento. Fonte
+  grande, alto contraste e efeitos reduzidos continuam disponíveis.
+- Mesmo motor e asset no PC/mobile; nenhuma lógica duplicada em `game/mobile/`.
+  O céu da TITLE é reutilizado discretamente como fundo **estático**. A arte e
+  o parallax da TITLE, as cutscenes e os seis mapas não foram refeitos.
+- `ASSET_V` atualizado para `20260924-tree-ancestral`; preview sem cache.
+
+### Progressão, preços e compatibilidade
+
+`META_STAGES`, `stage` e `META_POWER` em `config.js` são os dados canônicos;
+`treeStageRequirement`/`metaCanBuy` em `state.js` aplicam os bloqueios também fora
+da interface. Todos os mundos anteriores precisam constar como vencidos na campanha.
+
+| Patamar | Disponível após | Nós principais | Preços por nível, em essência |
+|---|---|---:|---|
+| 1 · Planície | início | 8, incluindo a raiz | raiz grátis; 20–95 |
+| 2 · Floresta | mundo 1 | 7 | 105–175 |
+| 3 · Pântano | mundos 1–2 | 7 | 225–405 |
+| 4 · Deserto | mundos 1–3 | 7 | 415–585 |
+| 5 · Outono | mundos 1–4 | 7 | 700–975 |
+| 6 · Gelo | mundos 1–5 | 7 | 1160–1590 |
+| 7 · Copa / Névoa-Mãe | mundos 1–6 | 6 | 1880–2560 |
+
+- Um patamar custa mais que o anterior mesmo comparando seu primeiro nível
+  com o maior preço anterior. Dependências nunca exigem um galho posterior.
+- **Galho e fruto têm gates diferentes:** abrir o galho 2 após a Planície não
+  concede o fruto da Floresta. Cada fruto exige seu próprio chefe de campanha.
+  A copa é comprável após os seis mundos, mas o fruto 7 aguarda a Fase 8; nem
+  `clearedMaps.topo = true` permite comprá-lo enquanto `pending` estiver ativo.
+- Permanecem **49 IDs / 143 níveis principais**, 18 legados e 70 poderes novos:
+  137 definições. As 78 compras de frutos obtíveis conservam custos e efeitos;
+  as dez futuras continuam somente para leitura.
+- Saves antigos conservam níveis e benefícios, usando os valores rebalanceados.
+  Não há cobrança retroativa, reembolso inventado, reset nem inferência de
+  vitórias a partir de compras. Comprar níveis adicionais em galhos altos exige
+  os chefes, mas um bônus já possuído não é desligado pelo novo gate.
+- Potência inicial preservada; reforçados os nós intermediários/avançados.
+  Exemplos: cadência +12%/nível, alcance +20/nível, espinhos 6/nível, regeneração
+  real 3/s/nível; na copa, veneno +35% duração/+40% corrosão por nível,
+  PORTA-VIVA até 69% de redução, CEIFA até 52% mantendo o custo de vida,
+  e Renascimento com **75% da vida** uma vez por expedição. Valores de execução
+  centralizados em `META_POWER`, descrições sincronizadas e trade-offs preservados.
+
+### Verificações e evidências
+
+- Base inicial: `npm run test:quick`, **20/20** antes da mudança.
+- `npm test`: **25/25**, incluindo mobile, todos os bônus, chefes, persistência,
+  novo `tree-progression` e `sim-tree-combos` (árvore principal completa + 60
+  poderes globais obtíveis em combate). O teste novo verifica os 48 efeitos
+  principais, IDs/143 níveis, preços estritamente crescentes, gates, eventos
+  idempotentes, saldo insuficiente e saves antigos.
+- `TREE_MIN_FPS=55 npm run inspect:tree`: **548 detalhes** (137 × duas fontes ×
+  PC/mobile), 78 compras de frutos por perfil persistidas e nenhuma compra ao
+  inspecionar. Mais testes reais da arte: cinza, primeira cor local sem colorir
+  a copa, 100% idêntico ao original, ausência de rebake por frame, navegação nos
+  sete galhos, frutos, retorno, bloqueios, compra explícita e cor após reload.
+  Roda, arrasto e pinça reais não abrem frutos nem compram por acidente.
+- Renascimento de 75% exercitado no consumidor real da expedição no navegador;
+  não apenas validado em um objeto de bônus. Fonte grande/alto contraste e
+  efeitos reduzidos inspecionados. **60 FPS PC e 60 FPS mobile**, 120 frames por
+  perfil na árvore restaurada, gate de 55 aprovado em execução isolada.
+  É diagnóstico em Chromium headless, não promessa para todo aparelho físico.
+- `npm run inspect`: **30 cenas PC/mobile**, incluindo TITLE, árvore, ninho,
+  seis mapas e demais menus, sem erros JS/HTTP/glifos. Capturas abertas para
+  inspeção visual em `/tmp/fumiga-inspect`, `/tmp/fumiga-tree` e
+  `/tmp/fumiga-tree-art`; estes artefatos não entram no Git.
+- `node game/test/layout-browser.mjs --so=ARVORE --extra`: **16 estados**
+  aprovados (PC, mobile, mobile 16:9 e retrato; visão geral/detalhe selecionado;
+  fonte normal/grande). Sem vazamentos, sobreposições ou controles cobrindo a tela.
+  O cenário de detalhe agora seleciona um nó real, não uma coordenada antiga.
+- `npm run inspect:ui`: páginas/replay em PC/mobile; ninho, comandos da boca,
+  pausa/retomada e invocar no mobile aprovados. Durante execuções concorrentes,
+  a fixture que reutilizava a página do replay não encontrou `nestBtn` de forma
+  estável; a repetição isolada passava. A fixture do HUD agora começa em um
+  documento novo, sem callbacks/estado transitório do replay, e espera o botão
+  capturando seu retângulo no mesmo quadro. Revalidada **em paralelo com `npm test`**,
+  também verde. Nenhuma mecânica do ninho/cutscene foi alterada para contornar o teste.
+- Fechamento: `npm test` novamente **25/25**, `git diff --check` limpo, pipeline
+  de preparo reproduzindo o PNG final byte a byte; PC, mobile e asset respondem
+  HTTP 200 no preview.
+- Exibidos no viewer: PNG final, detalhe 3× nearest e capturas aplicadas cinza
+  e restaurada. As demonstrações usam saves de teste, sem alterar o save real;
+  cópias de apresentação em `/home/user/fumiga-art`, fora do Git.
+  Preview ativo `npm run serve`, porta 8000, confirmado em `0.0.0.0`.
+- Seis documentos incorporados permanecem intactos; integridade byte a byte e
+  SHA-256 verificada com `node game/test/docs.mjs`. Sem commit/push nesta entrega.
+
+**Limitações/próximos passos:** jogar em aparelho físico e ajustar a economia a
+partir de campanhas humanas; os testes verificam efeitos e invariantes, não
+provam equilíbrio perfeito entre todas as builds. Implementar mundo 7/Pálida
+somente no escopo da Fase 8. O fechamento não declara concluídas as Fases 4–8.
+
+### Catálogo vigente das 49 melhorias principais
+
+Preços em essência, na ordem dos níveis. Catálogo gerado das definições desta
+entrega; a tabela histórica dos 70 poderes dos frutos abaixo não foi alterada.
+
+| Galho | Melhoria / ID persistente | Custos | Efeito |
+|---|---|---|---|
+| 1 | COLÔNIA ANCESTRAL (`raiz`) | 0 | O coração do formigueiro eterno. Comece aqui: desperte a raiz sem gastar essência. |
+| 1 | MANDÍBULA DE GUERRA (`g_dan`) | 20, 35, 50, 70, 95 | +10% de dano para todas as aliadas por nível. |
+| 1 | CARAPAÇA DURA (`g_vid`) | 20, 35, 50, 70, 95 | +12% de vida para todas as aliadas por nível. |
+| 1 | PATAS ESCAVADORAS (`n_dig`) | 20, 35, 50 | +30% de velocidade de escavação das câmaras por nível. |
+| 1 | NÉCTAR REAL (`r_reg`) | 20, 35, 50 | Intervalo de alimentação da rainha -30% por nível. |
+| 1 | SANGUE REAL (`r_vida`) | 20, 35, 50 | Rainha: +15% de vida máxima por nível. |
+| 1 | FORAGEM (`t_col`) | 20, 35, 50 | +15% de comida por pilha coletada por nível. |
+| 1 | MARCHA RÁPIDA (`t_vel`) | 20, 35, 50 | +10% de velocidade das operárias por nível. |
+| 2 | FÚRIA CEGA (`g_cri`) | 105, 135, 175 | +5% de chance de crítico (dano x2) por nível. |
+| 2 | PATRULHA INICIAL (`g_grd`) | 105, 135 | Começa a expedição com +1 soldado por nível. |
+| 2 | BERÇÁRIO FECUNDO (`n_berco`) | 105, 135, 175 | +20% de velocidade de chocagem no berçário por nível. |
+| 2 | CORREDOR RÁPIDO (`n_corr`) | 105, 135, 175 | +15% de velocidade das formigas dentro do formigueiro por nível. |
+| 2 | ÍNCUBO (`r_ovo`) | 105, 135, 175 | Tempo de chocar -15% por nível. |
+| 2 | BOLSAS PROFUNDAS (`t_carga`) | 105, 135, 175 | Operárias carregam +1 de carga por nível. |
+| 2 | COLHEITA RÁPIDA (`t_rap`) | 105, 135, 175 | +16% de velocidade de coleta em pilhas e veios por nível. |
+| 3 | MANDÍBULAS LONGAS (`g_alc`) | 225, 275, 335 | +20 de alcance para as lutadoras por nível. |
+| 3 | CARAPAÇA BLINDADA (`g_arm`) | 225, 275, 335 | -5% de dano recebido por todas as aliadas por nível. |
+| 3 | CADÊNCIA DE GUERRA (`g_cad`) | 225, 275, 335 | +12% de velocidade de ataque por nível. |
+| 3 | FUNGÁRIO DO NINHO (`n_fung`) | 225, 275, 335 | +2 comida a cada ciclo do fungário por nível. |
+| 3 | SUPERORGANISMO (`r_pop`) | 225, 275, 335, 405 | +5 de população máxima por nível. |
+| 3 | VEIOS DE ÂMBAR (`t_ambar`) | 225, 275 | Cristais de essência rendem +3 por extração por nível. |
+| 3 | PROLE INICIAL (`t_ini`) | 225, 275 | Começa a expedição com +3 operárias por nível. |
+| 4 | PÓLVORA NEGRA (`g_bomb`) | 415, 495, 585 | +25% de raio da explosão da bombeira por nível. |
+| 4 | ESQUIVA (`g_esq`) | 415, 495, 585 | +7% de chance de esquivar por completo de um golpe por nível. |
+| 4 | BRASA CONTÍNUA (`g_fogo`) | 415, 495 | +25% de dano de queimadura por nível. |
+| 4 | PLANTA ECONÔMICA (`n_eco`) | 415, 495, 585 | -10% no custo de escavar/evoluir câmaras por nível. |
+| 4 | POSTURA REAL (`n_ovo`) | 415, 495, 585 | A rainha bota ovos em 14% menos tempo por nível. |
+| 4 | ESTOQUE INICIAL (`t_estoque`) | 415, 495 | Começa a expedição com +40 de comida por nível. |
+| 4 | REDE DE TRILHAS (`t_rede`) | 415, 495, 585 | +8% de velocidade para TODAS as formigas fora do ninho por nível. |
+| 5 | ESPINHOS DE QUITINA (`g_esp`) | 700, 825, 975 | Quem morde uma aliada leva 6 de dano por nível. |
+| 5 | DESPENSA FUNDA (`n_desp`) | 700, 825, 975 | +3 comida em cada entrega dentro do formigueiro por nível. |
+| 5 | ZELO DA COLÔNIA (`n_zelo`) | 700, 825, 975 | 9% de chance por nível da operária sobreviver a um golpe fatal (fica com 1). |
+| 5 | CASCA DA RAINHA (`r_casca`) | 700, 825, 975 | -10% de dano recebido pela rainha por nível. |
+| 5 | ESSÊNCIA ANCESTRAL (`r_essin`) | 700, 825, 975 | Começa a expedição com +45 de essência por nível. |
+| 5 | SABEDORIA DA COLÔNIA (`r_xp`) | 700, 825, 975 | +18% de XP ganho por nível. |
+| 5 | ATALHO (`t_atalho`) | 700, 825, 975 | +12 de essência por invocar uma onda adiantada por nível. |
+| 6 | FERRÃO DA BALA (`k_bala`) | 1160, 1360, 1590 | A poneratoxina da FORMIGA-BALA reforça a ferroada: +0,5s de lentidão por nível. |
+| 6 | JARDIM DA CORTADEIRA (`k_cortadeira`) | 1160, 1360, 1590 | Cada entrega de comida da CORTADEIRA apressa o fungário em +0,6s extra por nível. |
+| 6 | BÁLSAMO DA MATABELE (`k_matabele`) | 1160, 1360, 1590 | A cura da MATABELE é +14% mais forte e a triagem ativa com feridas até +5% mais leves por nível. |
+| 6 | ÂMBAR DA DESPENSA (`k_mel`) | 1160, 1360, 1590 | O POTE-DE-MEL goteja com o estoque até +30 mais alto e 30% mais rápido por nível. |
+| 6 | PASSO DA PRATA (`k_prata`) | 1160, 1360, 1590 | As arrancadas relâmpago da FORMIGA-PRATA ficam 18% mais frequentes por nível. |
+| 6 | ALMA DA COLÔNIA (`r_ess`) | 1160, 1360, 1590 | +22% de toda essência ganha por nível. |
+| 6 | VITALIDADE REAL (`r_regen`) | 1160, 1360, 1590 | A rainha regenera 3 de vida por segundo por nível. |
+| 7 | VENENO DA ACROBATA (`k_acrobata`) | 1880, 2200, 2560 | O borrifo corrosivo da ACROBATA dura +35% e corrói +40% mais forte por nível. |
+| 7 | CEIFA DA ARPÃO (`k_arpao`) | 1880, 2200, 2560 | O limiar da CEIFA sobe +10% por nível (de 22% a 52%), mas TODAS as aliadas perdem 5% de vida por nível. |
+| 7 | CABEÇA DE CEFALOTE (`k_cefalote`) | 1880, 2200, 2560 | A PORTA-VIVA ganha +8% de redução de dano e +45px de raio de guarda por nível (de 45% a 69%). |
+| 7 | FÚRIA DA DINOPONERA (`k_dinoponera`) | 1880, 2200, 2560 | A colosso nasce com +40% de vida por nível, mas cada nível custa +40 de comida extra. |
+| 7 | SEDA DA TECELÃ (`k_tecela`) | 1880, 2200, 2560 | A seda rende mais: os bônus de cada TECELÃ valem +25% mais por nível. |
+| 7 | RENASCIMENTO (`r_ren`) | 1880 | Uma vez por expedição: a rainha renasce com 75% de vida. |
+
 ## Ampliação entregue — sete frutos e miniárvores (2026-09-24)
 
 **Status: implementado e validado no escopo confirmado.** Este registro substitui

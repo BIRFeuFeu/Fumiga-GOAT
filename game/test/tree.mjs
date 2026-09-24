@@ -39,7 +39,7 @@ globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()
 const BASE = new URL("../js/", import.meta.url).pathname;
 await import(BASE + "assets.js");
 await (await import(BASE + "font.js")).loadFonts();   // atlas da fonte p/ desenhar texto
-const { META_NODES, META_BRANCHES } = await import(BASE + "config.js");
+const { META_NODES, META_BRANCHES, MAPS } = await import(BASE + "config.js");
 const { genWorld, world } = await import(BASE + "world.js");
 const { G, loadSave, metaBonus, mods, metaLevel, metaCanBuy, metaBuy } = await import(BASE + "state.js");
 const units = await import(BASE + "units.js");
@@ -71,17 +71,16 @@ while (grew) {
 const lonely = META_NODES.filter((n) => !reach.has(n.id));
 if (lonely.length) bad(`nós inalcançáveis: ${lonely.map((n) => n.id).join(", ")}`);
 else ok(`${META_NODES.length} nós em ${Object.keys(META_BRANCHES).length} ramos, todos alcançáveis a partir da raiz`);
-// sobreposição na grade (o mesmo critério usado para achar o layout)
+// A geometria real está ancorada no PNG, não nas antigas coordenadas do config.
+const { TREE_NODES, TREE_NODE_RADII } = await import(BASE + "tree_layout.js");
 let minD = Infinity, worst = "";
-for (let i = 0; i < META_NODES.length; i++) {
-  for (let j = i + 1; j < META_NODES.length; j++) {
-    const a = META_NODES[i], b = META_NODES[j];
-    const d = Math.hypot(a.x - b.x, (a.y - b.y) * 0.85);
-    if (d < minD) { minD = d; worst = a.id + "/" + b.id; }
-  }
+for (let i = 0; i < TREE_NODES.length; i++) for (let j = i + 1; j < TREE_NODES.length; j++) {
+  const a = TREE_NODES[i], b = TREE_NODES[j];
+  const gap = Math.hypot(a.x - b.x, a.y - b.y) - TREE_NODE_RADII[a.tier || 0] - TREE_NODE_RADII[b.tier || 0];
+  if (gap < minD) { minD = gap; worst = a.id + "/" + b.id; }
 }
-if (minD < 0.95) bad(`nós colados na tela: ${worst} a ${minD.toFixed(2)} de distância`);
-else ok(`nenhum nó colado (menor distância ${minD.toFixed(2)} = ${(minD * 134).toFixed(0)}px na tela)`);
+if (minD < 4) bad(`nós colados na arte: ${worst}, folga ${minD.toFixed(2)}`);
+else ok(`nenhum nó colado na arte (menor folga ${minD.toFixed(2)}px de mundo)`);
 // todos os ramos têm folhas (nós-opção no fim) — árvore com graça
 for (const br of Object.keys(META_BRANCHES)) {
   const howMany = META_NODES.filter((n) => n.br === br).length;
@@ -170,13 +169,13 @@ const worker1 = units.spawnAnt("worker", A.x + 420, A.y + 40);
 const fighter1 = units.spawnAnt("soldier", A.x + 440, A.y - 40);
 const checks = [
   ["vida (+12%/nv)", buffed.st.hp > baseStats.hp],
-  ["alcance (+14/nv)", buffed.st.range > baseStats.range],
-  ["cadência (+8%/nv)", buffed.st.atkCd < baseStats.atkCd],
-  ["área da bomba (+15%/nv)", buffed.st.aoe > baseStats.aoe],
-  ["queimadura (+15%/nv)", buffed.st.burnDps > baseStats.burnDps],
+  ["alcance (+20/nv)", buffed.st.range > baseStats.range],
+  ["cadência (+12%/nv)", buffed.st.atkCd < baseStats.atkCd],
+  ["área da bomba (+25%/nv)", buffed.st.aoe > baseStats.aoe],
+  ["queimadura (+25%/nv)", buffed.st.burnDps > baseStats.burnDps],
   ["armadura", mods().armor > 0],
-  ["velocidade geral (+5%/nv) em quem não é operária", fighter1.st.speed > fighter0.st.speed],
-  ["taxa de coleta (+12%/nv)", worker1.st.gatherRate > worker0.st.gatherRate],
+  ["velocidade geral (+8%/nv) em quem não é operária", fighter1.st.speed > fighter0.st.speed],
+  ["taxa de coleta (+16%/nv)", worker1.st.gatherRate > worker0.st.gatherRate],
 ];
 for (const [label, pass] of checks) {
   if (pass) ok(`bônus chegou na ficha: ${label}`);
@@ -238,6 +237,7 @@ else bad("custo de câmara mudou mesmo sem nenhum nó comprado");
 
 // -------------------------------------- 4) compra de cada nó, um a um ------
 let bought = 0, failed = [];
+G.save.clearedMaps = Object.fromEntries(MAPS.map(m => [m.id, true]));
 for (const n of META_NODES) {
   for (const r of n.requires) G.save.nodes[r] = 1;
   G.save.essence = 99999;

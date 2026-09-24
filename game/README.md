@@ -74,42 +74,66 @@ Entre as ondas, **drafts de mutações** (escolha 1 de 3) moldam a build da expe
 **essência** coletada alimenta a **Árvore da Evolução** permanente (meta-progressão, com preços
 visíveis nos próprios nós).
 
-### Árvore da Evolução — 49 nós nos 4 grupos da colônia
+### Árvore da Evolução — ancestral, sete patamares e frutos
 
-O rework alinhou a árvore com a fileira de formigas: **mesmos grupos, mesmas cores**.
-O fundo da tela banha a região de cada grupo com a sua cor, e a raiz é a própria RAINHA.
+A árvore usa pixel art detalhada no estilo da **TITLE**, começa cinza e ganha cor
+localmente conforme você compra melhorias. **RAIZ ANCESTRAL** abre a primeira compra,
+gratuita; escolher um nó apenas mostra seus detalhes, e **EVOLUIR** confirma o gasto.
+
+São **49 melhorias principais / 143 níveis**, 18 melhorias legadas e 70 poderes novos
+nos frutos: **137 definições**. A Pálida ainda não é jogável; seus dez poderes são uma
+prévia bloqueada. Os 78 poderes de frutos já obtíveis mantêm preços e efeitos anteriores.
+
+| Galho | Abre após | Melhorias principais | Preço por nível (essência) |
+|---|---|---:|---|
+| 1 · Planície | início | 8, incluindo a raiz | raiz grátis; 20–95 |
+| 2 · Floresta | mundo 1 | 7 | 105–175 |
+| 3 · Pântano | mundos 1–2 | 7 | 225–405 |
+| 4 · Deserto | mundos 1–3 | 7 | 415–585 |
+| 5 · Outono | mundos 1–4 | 7 | 700–975 |
+| 6 · Gelo | mundos 1–5 | 7 | 1160–1590 |
+| 7 · Copa / Névoa-Mãe | mundos 1–6 | 6 | 1880–2560 |
+
+Vitórias devem ser na **campanha**. Abrir um galho não concede seu fruto: este exige
+vencer o chefe do próprio mundo. Os frutos numerados ficam em galhos alternados,
+da base à copa. A navegação lateral aproxima cada galho; **VER TUDO** reenquadra.
+Arrasto, roda, botões +/− e pinça funcionam nas versões compartilhadas PC/mobile.
+
+Os ofícios continuam identificados pelos contornos dos nós, não por regiões fixas:
 
 | Grupo | Cor | Foco |
 |-------|-----|------|
-| **⚔️ GUERRA** | vermelho | dano, vida, cadência, alcance, bombas, armadura, esquiva, espinhos |
-| **🍃 COLETA** | verde | comida, essência, carga, ritmo de coleta, estoque, escavação do mundo |
-| **🏥 CRIAÇÃO** | azul | o que acontece dentro do formigueiro: escavação, berçário, despensa, fungário |
-| **👑 REAL** | dourado | a rainha: vida, regeneração, alimentação, XP, renascimento e a colosso |
+| **GUERRA** | vermelho | dano, vida, cadência, alcance, bombas, armadura, esquiva, espinhos |
+| **COLETA** | verde | comida, essência, carga, coleta e estoque |
+| **CRIAÇÃO** | azul | escavação, berçário, despensa, fungário e suporte |
+| **REAL** | dourado | rainha, população, XP, renascimento e a colosso |
 
-#### Raridades
+#### Raridades e keystones de espécie
 
-Quanto mais raro o nó, maior e mais rebuscado: **COMUM** (círculo, cor do grupo),
-**RARO** (anel duplo ciano) e **LENDÁRIO** (hexágono dourado com o **sprite da espécie**
-desenhado dentro). Trilhos para lendários são dourados e mais grossos.
-
-#### Keystones de espécie (lendários, 10 novos)
+Comuns têm contorno facetado; raros ganham aro ciano e lendários, hexágono dourado.
+Conexões de pré-requisito aparecem no galho em foco ou ao inspecionar uma melhoria;
+as outras regiões recuam visualmente para não cobrir a arte de preços.
 
 | Keystone | Espécie | Efeito por nível (máx. 3) |
 |----------|---------|---------------------------|
-| FERRÃO DA BALA | Paraponera | ferroada da Bala com +0,35s de lentidão |
-| CEIFA DA ARPÃO ⚠️ | Odontomachus | limiar da CEIFA +8% (22→46%), mas TODAS com −5% de vida |
-| VENENO DA ACROBATA | Crematogaster | veneno +20% de duração e +25% de corrosão |
-| CABEÇA DE CEFALOTE | Cephalotes | PORTA-VIVA +5% de redução e +30px de raio (45→60%) |
-| PASSO DA PRATA | Cataglyphis | arrancadas 10% mais frequentes |
-| ÂMBAR DA DESPENSA | Myrmecocystus | mel goteja com estoque +20 mais alto e 20% mais rápido |
-| JARDIM DA CORTADEIRA | Atta | cada entrega apressa o fungário +0,3s extra |
-| SEDA DA TECELÃ | Oecophylla | bônus de cada Tecelã +15% melhores |
-| BÁLSAMO DA MATABELE | Megaponera | cura +8% e triagem ativa com feridas até +4% mais leves |
-| FÚRIA DA DINOPONERA ⚠️ | Dinoponera | colosso +25% de vida, mas custa +40 de comida |
+| FERRÃO DA BALA | Paraponera | ferroada com +0,5s de lentidão |
+| CEIFA DA ARPÃO | Odontomachus | limiar +10% (22→52%), mas todas com −5% de vida |
+| VENENO DA ACROBATA | Crematogaster | veneno +35% de duração e +40% de corrosão |
+| CABEÇA DE CEFALOTE | Cephalotes | PORTA-VIVA +8% de redução e +45px de raio (45→69%) |
+| PASSO DA PRATA | Cataglyphis | arrancadas 18% mais frequentes |
+| ÂMBAR DA DESPENSA | Myrmecocystus | estoque +30 mais alto e gotejo 30% mais rápido |
+| JARDIM DA CORTADEIRA | Atta | entrega apressa o fungário +0,6s extra |
+| SEDA DA TECELÃ | Oecophylla | bônus de cada Tecelã +25% melhores |
+| BÁLSAMO DA MATABELE | Megaponera | cura +14% e triagem com feridas até +5% mais leves |
+| FÚRIA DA DINOPONERA | Dinoponera | colosso +40% de vida, mas custa +40 de comida |
 
-São **143 níveis compráveis**. Todo nó tem efeito de verdade — quem garante é o `test/tree.mjs`
-(inclusive os trade-offs ⚠️ estilo *Path of Exile 2*). A tela abre enquadrando a árvore, tem
-**VER TUDO**, legenda com o progresso de cada grupo e as raridades, e roda do mouse para o zoom.
+Renascimento, na copa, volta com **75% de vida** uma vez por expedição. Compras
+antigas permanecem ativas, sem cobrança retroativa; novos níveis respeitam os gates.
+A cor é reconstruída do save, sem armazenar imagens no localStorage. O fruto futuro
+não impede atingir 100% da restauração visual desta versão.
+
+Validação: `npm run inspect:tree` (548 detalhes + arte, gestos e save no navegador),
+`test/tree.mjs` e `test/tree-progression.mjs` (todos os bônus, preços e desbloqueios).
 
 ### Depois do final — o fator replay (Eras, Ascensão e Profecias)
 

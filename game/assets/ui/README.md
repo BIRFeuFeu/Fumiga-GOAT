@@ -44,3 +44,24 @@ O gerador pinta um master 4× na grade e reduz com nearest, sem blur. Para expor
 as fontes de alta resolução fora do jogo: `--master /caminho/externo`.
 Só os cinco PNGs otimizados são carregados pelo jogo (~9 KiB no total).
 Pillow não é dependência de execução; o jogo continua JS puro, sem build.
+
+## Árvore Ancestral ao Crepúsculo — 2026-09-24
+
+`tree_ancestral.png`: **768×672 RGBA**, 656.076 bytes, sem texto/ícones embutidos.
+Arte nova gerada em alta resolução com as camadas da TITLE como referência,
+aprovada pelo usuário entre duas opções (opção 2). Não é um dos atlas procedurais acima.
+O original aprovado mede 1552×672; o preparo remove o fundo uniforme e recorta apenas
+as margens vazias, sem reduzir/rescalar nem borrar os pixels:
+
+```bash
+python3 tools/prepare_tree_art.py ORIGINAL_APROVADO.png game/assets/ui/tree_ancestral.png
+```
+
+O original de geração e as opções descartadas ficam fora do Git. Pillow é apenas
+ferramenta de arte. O único asset novo carregado no jogo é o PNG final.
+
+`tree_layout.js` ancora os nós/frutos nos galhos, em quatro unidades de mundo por
+pixel. `tree_art.js` assa uma versão acromática e restaura saturação por região conforme
+os níveis comprados (incluindo os frutos obtíveis). Mescla suave entre regiões; cache
+reconstruído somente quando níveis mudam. A imagem aprovada volta integralmente em
+100%; fonte grande, alto contraste e efeitos reduzidos não alteram compras/progresso.

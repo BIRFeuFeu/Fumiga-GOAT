@@ -11,7 +11,7 @@
     "test": "node game/test/run-all.mjs",
     "test:quick": "node game/test/run-all.mjs --quick",
     "inspect": "node game/test/inspect.mjs",
-    "inspect:tree": "node game/test/tree-browser.mjs",
+    "inspect:tree": "node game/test/tree-browser.mjs && node game/test/tree-art-browser.mjs",
     "inspect:ui": "node game/test/ui-navigation-browser.mjs",
     "inspect:hud": "node game/test/lorehud-browser.mjs",
     "inspect:layout": "node game/test/layout-browser.mjs",

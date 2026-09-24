@@ -5,7 +5,7 @@ import { fruitSight } from "./fruit_effects.js";
 import {
   VIEW_W, VIEW_H, WORLD_W, WORLD_H, PAL, UNITS, START, MAPS, CHAMBERS,
   MUTATIONS, RARITY, HELP_GOAL, HELP_CONTROLS, HELP_CONTROLS_TOUCH, HELP_TIPS, CALM_START, MAX_MUTS, xpForLevel,
-  ASC_MAX, ascMods, ascLabel, PROPHECIES, ERA_LINES,
+  ASC_MAX, ascMods, ascLabel, PROPHECIES, ERA_LINES, META_POWER,
 } from "./config.js";
 import { fogReset, fogUpdate, fogDraw, fogVisible, fogExplored, fogDrawMini } from "./fog.js";
 import {
@@ -597,7 +597,7 @@ function updateOptions(dt) {
 
 function updateTreeScreen(dt) {
   updateTree(dt);
-  if (mouse.justDown && mouse.y > 90 && !uiCapture()) treeClick();
+  if (mouse.justUp && !uiCapture()) treeClick();
   if (pressed.Escape) {
     SFX.uiClick();
     if(treeBack())return;
@@ -836,7 +836,7 @@ function updateRun(dt) {
     }
     if (metaBonus().rebirth && !run.rebirthUsed) {
       run.rebirthUsed = true;
-      q.hp = q.maxHp * 0.5;
+      q.hp = q.maxHp * META_POWER.r_ren;
       q.flash = 0.4;
       SFX.rebirth();
       ring(world.anthill.x, world.anthill.y, { r0: 14, r1: 260, life: 0.9, color: "#c77dff", width: 6 });

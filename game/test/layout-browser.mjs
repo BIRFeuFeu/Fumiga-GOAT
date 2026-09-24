@@ -36,7 +36,14 @@ const S = {
   arvore: async (M) => { window.FUMIGA.go("TREE"); },
   arvoreDica: async (M) => {
     window.FUMIGA.go("TREE");
-    const { mouse } = await M("input.js"); mouse.x = 480; mouse.y = 308;
+    const tree = await M("meta.js"), { mouse } = await M("input.js");
+    tree.treeFocusNode("k_arpao");
+    const p = tree.treeNodePosition("k_arpao");
+    mouse.x = mouse.clickX = p.x; mouse.y = mouse.clickY = p.y;
+    mouse.down = mouse.justDown = true;
+    await new Promise(r => requestAnimationFrame(r));
+    mouse.down = mouse.justDown = false; mouse.justUp = true;
+    await new Promise(r => requestAnimationFrame(r)); mouse.justUp = false;
   },
   ajuda: async (M) => { window.FUMIGA.go("HELP"); },
   profecias: async (M) => { window.FUMIGA.go("PROPHECY"); },
@@ -169,7 +176,7 @@ const STATES = [
   ["NINHO", S.ninho], ["CUTSCENE", S.cutscene, 2600],
 ];
 // fonte grande (acessibilidade) nas telas que mais têm texto
-const BIG = new Set(["TITULO", "AJUDA", "MODO", "OPCOES-ABA0", "OPCOES-ABA3", "RUN", "RUN-EXPANDIDO", "RUN-PAUSA", "RUN-DRAFT", "RUN-DERROTA", "NINHO", "MEMORIAS", "PROFECIAS", "RUN-TUTORIAL"]);
+const BIG = new Set(["ARVORE", "ARVORE-DICA", "TITULO", "AJUDA", "MODO", "OPCOES-ABA0", "OPCOES-ABA3", "RUN", "RUN-EXPANDIDO", "RUN-PAUSA", "RUN-DRAFT", "RUN-DERROTA", "NINHO", "MEMORIAS", "PROFECIAS", "RUN-TUTORIAL"]);
 
 fs.mkdirSync(OUT, { recursive: true });
 const server = process.env.BASE_URL ? null : await startServer();
