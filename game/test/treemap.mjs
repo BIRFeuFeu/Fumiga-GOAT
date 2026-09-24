@@ -2,9 +2,11 @@
 // CONSTANTES REAIS de game/js/config.js (META_NODES/META_BRANCHES) e das
 // constantes de enquadramento de game/js/meta.js.
 // É só inspeção visual — o jogo de verdade roda no preview.
-// Uso: node test/treemap.mjs  ->  /home/user/arvore-layout.png  (TREEMAP_OUT muda o destino)
+// Uso: node test/treemap.mjs  ->  <tmp>/arvore-layout.png  (TREEMAP_OUT muda o destino)
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 // caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório
 const GAME = decodeURIComponent(new URL("..", import.meta.url).pathname);
@@ -124,7 +126,7 @@ ids.forEach((id, i) => {
 textC(VIEW_W / 2, VIEW_H - 26, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA OU VER TUDO: ZOOM (" + Math.round(zoom * 100) + "%)", 10, "#a99fc4");
 textR(VIEW_W - 12, VIEW_H - 14, "layout real: " + nodes.length + " nós • zoom " + zoom.toFixed(2) + " • " + SP + "px de respiro", 9, "#6f6590");
 
-const out = process.env.TREEMAP_OUT || "/home/user/arvore-layout.png";   // fora do repo (é só inspeção)
+const out = process.env.TREEMAP_OUT || path.join(tmpdir(), "arvore-layout.png");   // fora do repo (é só inspeção)
 execFileSync("convert", ["-size", `${VIEW_W}x${VIEW_H}`, "xc:#120d1e", ...A, "-quality", "92", out]);
 const per = {};
 for (const n of nodes) per[n.br] = (per[n.br] || 0) + 1;

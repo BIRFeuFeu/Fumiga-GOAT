@@ -2,9 +2,11 @@
 // partir das CONSTANTES REAIS de game/js/nest.js e das medidas da janela
 // "OLHO LÁ FORA" (PIP em render.js). É só inspeção visual — o jogo de verdade
 // roda no preview.
-// Uso: node test/nestmap.mjs  ->  /home/user/formigueiro-layout.png  (NESTMAP_OUT muda o destino)
+// Uso: node test/nestmap.mjs  ->  <tmp>/formigueiro-layout.png  (NESTMAP_OUT muda o destino)
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 // caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório
 const GAME = decodeURIComponent(new URL("..", import.meta.url).pathname);
@@ -102,7 +104,7 @@ btn(430, 196, "CHAMAR P/ DENTRO (P)", "#7fd6a0");
 textC(VIEW_W / 2, BOTTOM + 54, "CLIQUE NUMA CAMARA PARA ESCAVAR  -  CLIQUE NA ENTRADA PARA ABRIR A BOCA", 11, "#b7a9d6");
 textC(VIEW_W / 2, BOTTOM + 72, "O MUNDO LA FORA CONTINUA VIVO AGORA MESMO - E O QUE MOSTRA O OLHO LA FORA", 11, "#8a7a5e");
 
-const out = process.env.NESTMAP_OUT || "/home/user/formigueiro-layout.png";   // fora do repo
+const out = process.env.NESTMAP_OUT || path.join(tmpdir(), "formigueiro-layout.png");   // fora do repo
 execFileSync("convert", ["-size", `${VIEW_W}x${VIEW_H}`, "xc:#0b0704", ...A, out]);
 console.log("salas:", rooms.length, "| tuneis:", edges.length,
   "| olho la fora:", PIP.w + "x" + PIP.h, "em (" + PIP.x + "," + PIP.y + ") ->", out);

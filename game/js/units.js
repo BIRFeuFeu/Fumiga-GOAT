@@ -138,6 +138,9 @@ function finishEntrance(a) {
  */
 export function requestNestExit(a) {
   if (!a || !a.inside || a.dead || a.dying || a.doorT > 0) return false;
+  // Pedido repetido (ex.: ralis seguidos) não zera o cronômetro: sem isso, a
+  // rede de segurança de 25s (rotationTick) nunca dispara e ninguém sai.
+  if (a.exitRequested) return true;
   a.exitRequested = true;
   a.exitReqT = 0;
   return true;

@@ -1,10 +1,6 @@
 # FUMIGA — CI: a bateria de testes roda em TODO push (qualquer branch).
 #
-# ⚠ ARQUIVO PRONTO, AINDA INATIVO. Para ligar, ele precisa estar em
-#   .github/workflows/testes.yml. O app do GitHub usado pelo agente não tem a
-#   permissão "workflows", então quem ativa é o dono do repositório:
-#   GitHub → Add file → Create new file → nome ".github/workflows/testes.yml"
-#   → colar este conteúdo → Commit. (Ou conceder a permissão ao app.)
+# Este arquivo vive em .github/workflows/testes.yml e está ATIVO.
 # O fluxo "salvar no GitHub" (Regra 11) espera este check ficar verde antes
 # do merge:  gh pr checks <n> --watch --fail-fast && gh pr merge <n> --merge
 # (as verificações ficam presas ao commit, então aparecem no PR também).
@@ -32,7 +28,22 @@ jobs:
       - name: ImageMagick e DejaVu
         run: command -v convert >/dev/null && [ -f /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf ] || (sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick fonts-dejavu-core)
       - name: npm test (19 testes em paralelo)
-        run: node game/test/run-all.mjs
+        run: node game/test/run-all.mjs 2>&1 | tee "${RUNNER_TEMP}/headless.log"; test "${PIPESTATUS[0]}" -eq 0
+      - name: log do headless (se falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-headless
+          path: ${{ runner.temp }}/headless.log
+          retention-days: 7
+      # Espelha as falhas em annotations (visíveis em gh run view e no checks
+      # do commit), para diagnóstico sem precisar baixar o log completo.
+      - name: anunciar falhas (se falhar)
+        if: failure()
+        run: |
+          grep -E '^(FALHOU|✗)' "${RUNNER_TEMP}/headless.log" | head -20 | while IFS= read -r l; do echo "::error::headless: $l"; done
+          grep -A 30 'últimas linhas' "${RUNNER_TEMP}/headless.log" | head -40 | while IFS= read -r l; do echo "::warning::${l:0:300}"; done
+          true
 
   navegador:
     name: inspeção no navegador (Chromium, PC + mobile)
