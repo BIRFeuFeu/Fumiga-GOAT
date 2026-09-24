@@ -28,7 +28,14 @@ jobs:
       - name: ImageMagick e DejaVu
         run: command -v convert >/dev/null && [ -f /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf ] || (sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick fonts-dejavu-core)
       - name: npm test (19 testes em paralelo)
-        run: node game/test/run-all.mjs
+        run: node game/test/run-all.mjs 2>&1 | tee "${RUNNER_TEMP}/headless.log"; test "${PIPESTATUS[0]}" -eq 0
+      - name: log do headless (se falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-headless
+          path: ${{ runner.temp }}/headless.log
+          retention-days: 7
 
   navegador:
     name: inspeção no navegador (Chromium, PC + mobile)
