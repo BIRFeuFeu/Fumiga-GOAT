@@ -155,6 +155,7 @@ const stats = { minFood: Infinity, maxAllies: 0, maxFoes: 0 };
 let drafted = 0;
 const bossesSeen = new Set();
 const MAX_STEPS = 60 * 60 * 90; // até 90 min simulados
+const outside = []; // lista filtrada (!inside), reconstruída a cada passo
 
 try {
   while (simT < 60 * 90 && run.status === "running" && frames < MAX_STEPS) {
@@ -165,9 +166,16 @@ try {
 
     updateDirector(DT);
     updateAllies(DT, foes);
-    updateFoes(DT, allies);
-    if (en.boss) { bossesSeen.add(en.boss.kind); updateBoss(DT, allies); }
-    updateProjectiles(DT, allies, foes);
+    // Contrato igual ao worldTick (game.js): inimigos e projéteis só enxergam
+    // quem está FORA — quem está dentro do ninho é outra cena (nest.js) e fica
+    // inalcançável (sem isso, inimigos cercam a porta para sempre e a onda
+    // nunca termina quando a colônia inteira se abriga).
+    outside.length = 0;
+    for (const a of allies) if (!a.inside) outside.push(a);
+    outside.queen = allies.queen;
+    updateFoes(DT, outside);
+    if (en.boss) { bossesSeen.add(en.boss.kind); updateBoss(DT, outside); }
+    updateProjectiles(DT, outside, foes);
     const g = updateOrbs(DT, world.anthill, queen && !queen.dead);
     if (g > 0) run.essencePool += g;
     updateParticles(DT);
