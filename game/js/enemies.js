@@ -117,7 +117,9 @@ function pickTarget(e, allies) {
   // prefere a aliada mais próxima; GUARDA puxa aggro (taunt)
   let best = null, bs = Infinity;
   for (const a of allies) {
-    if (a.dead || a.dying) continue;
+    // quem está DENTRO do ninho é inalcançável (outra cena): ignorar evita
+    // que a horda cerque a porta para sempre em vez de marchar até a rainha
+    if (a.dead || a.dying || a.inside) continue;
     let d = dist2(e.x, e.y, a.x, a.y);
     if (a.st && a.st.taunt) d *= 0.45; // tanques parecem mais próximos
     if (d < bs) { bs = d; best = a; }
