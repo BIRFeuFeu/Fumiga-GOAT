@@ -2,7 +2,7 @@
 // FUMIGA-GOAT — ÁRVORE DA EVOLUÇÃO (V2 Dead Cells refinada)
 // Visual: dungeon escura, nós com glow, conexões com partículas, UI polida
 // ============================================================================
-import { PAL, META_NODES, META_BRANCHES, VIEW_W, VIEW_H } from "./config.js";
+import { PAL, META_NODES, META_BRANCHES, VIEW_W, VIEW_H, FRUIT_TREES } from "./config.js";
 import { G, metaLevel, metaCanBuy, metaBuy } from "./state.js";
 import { drawText, textWidth, wrapText, fitTextBlock, fontScale, layoutRec } from "./font.js";
 import { IMG } from "./assets.js";
@@ -11,39 +11,22 @@ import { mouse, pressed } from "./input.js";
 import { SFX } from "./audio.js";
 import { clamp, lerp, TAU } from "./utils.js";
 
-// MEGA LORE: Mini-árvores por mapa como frutos da Árvore Real
-export const FRUIT_TREES = [
-  { id: "fruit_planicie", map: "planicie", name: "LIÇÕES DO TAMBORILADOR", color: "#7fd6a0", nodes: [
-    { id: "f_p_1", name: "Pulo Aprendido", desc: "+8% velocidade", cost: [20] },
-    { id: "f_p_2", name: "Tambor Resistente", desc: "+15% vida vs thump", cost: [35] },
-    { id: "f_p_3", name: "Orvalho Coletado", desc: "+10% comida Planície", cost: [50] },
-  ]},
-  { id: "fruit_floresta", map: "floresta", name: "SEDA DA CAÇADORA", color: "#6db7ff", nodes: [
-    { id: "f_f_1", name: "Faro Aguçado", desc: "+12% alcance visão", cost: [30] },
-    { id: "f_f_2", name: "Seda Invisível", desc: "Tecelã +20% speed", cost: [45] },
-    { id: "f_f_3", name: "Musgo Cura", desc: "Mata +10% cura", cost: [60] },
-  ]},
-  { id: "fruit_pantano", map: "pantano", name: "BRUMA DA SOMBRA", color: "#37e6c8", nodes: [
-    { id: "f_pa_1", name: "Asas de Névoa", desc: "Prata +15% speed", cost: [35] },
-    { id: "f_pa_2", name: "Grito Absorvido", desc: "Resistência shriek 20%", cost: [50] },
-    { id: "f_pa_3", name: "Wisp Guia", desc: "+1 essência por orb", cost: [70] },
-  ]},
-  { id: "fruit_deserto", map: "deserto", name: "FÚRIA DA MATRIARCA", color: "#ffb347", nodes: [
-    { id: "f_d_1", name: "Areia Resistente", desc: "+12% dano", cost: [40] },
-    { id: "f_d_2", name: "Prole Rival", desc: "+1 pop cap", cost: [55] },
-    { id: "f_d_3", name: "Calor Ámbar", desc: "+15% essência Deserto", cost: [75] },
-  ]},
-  { id: "fruit_outono", map: "outono", name: "COROA DO GALHADA", color: "#ff9a5c", nodes: [
-    { id: "f_o_1", name: "Folha Dourada", desc: "+12% comida Outono", cost: [45] },
-    { id: "f_o_2", name: "Chifre Quebrado", desc: "+18% vida tanques", cost: [60] },
-    { id: "f_o_3", name: "Tristeza Curada", desc: "Cura +15%", cost: [80] },
-  ]},
-  { id: "fruit_gelo", map: "gelo", name: "MEMÓRIA DO DEVASTADOR", color: "#e8f4ff", nodes: [
-    { id: "f_g_1", name: "Gelo Quebrado", desc: "+20% dano bosses", cost: [60] },
-    { id: "f_g_2", name: "Névoa Revelada", desc: "Vê Pálida no minimapa", cost: [80] },
-    { id: "f_g_3", name: "Topo do Mundo", desc: "Desbloqueia ERA +1", cost: [120] },
-  ]},
-];
+// FASE 3 — ANÉIS AO REDOR DA RAIZ: 6 frutos orbitam a Colônia Ancestral
+const FRUIT_R = 1.35;
+const FRUIT_ANGLES = [30, 90, 150, 210, 270, 330];
+function fruitCenter(idx) {
+  const a = FRUIT_ANGLES[idx % FRUIT_ANGLES.length] * Math.PI / 180;
+  return { x: Math.cos(a) * FRUIT_R, y: Math.sin(a) * FRUIT_R };
+}
+function fruitNodePos(fruitIdx, nodeIdx) {
+  const c = fruitCenter(fruitIdx);
+  const a = FRUIT_ANGLES[fruitIdx % FRUIT_ANGLES.length] * Math.PI / 180;
+  const dir = { x: Math.cos(a), y: Math.sin(a) };
+  const off = 0.32 + nodeIdx * 0.42;
+  return { x: c.x + dir.x * off, y: c.y + dir.y * off };
+}
+function allFruitNodes() { return FRUIT_TREES.flatMap((f, fi) => f.nodes.map((n, ni) => Object.assign({}, n, fruitNodePos(fi, ni), { _fruitIdx: fi, _nodeIdx: ni, _fruit: f })) ); }
+const FRUIT_NODES_CACHE = allFruitNodes();
 
 // rework das raridades: raio por tier (0 comum · 1 raro · 2 lendário)
 const NODE_R = [34, 42, 52];
@@ -138,6 +121,14 @@ export function updateTree(dt) {
     const s = nodeScreen(n);
     if (Math.hypot(mouse.x - s.x, mouse.y - s.y) < NODE_R[n.tier || 0] * zoom + 8) { hoverNode = n; break; }
   }
+  // frutos orbitais — checar hover também
+  if (!hoverNode) {
+    for (const n of FRUIT_NODES_CACHE) {
+      const s = nodeScreen(n);
+      const R = (n.tier === 2 ? 22 : n.tier === 1 ? 18 : 16) * zoom;
+      if (Math.hypot(mouse.x - s.x, mouse.y - s.y) < R + 8) { hoverNode = n; break; }
+    }
+  }
   if (mouse.justDown && !hoverNode) dragStart = { mx: mouse.x, my: mouse.y, px: pan.x, py: pan.y, d: 0 };
   if (mouse.down && dragStart) {
     const dx = mouse.x - dragStart.mx, dy = mouse.y - dragStart.my;
@@ -230,7 +221,101 @@ export function drawTree(ctx, dt) {
   }
   ctx.globalAlpha = 1;
 
-  // nós com RARIDADES: COMUM (círculo, cor do grupo) · RARO (anel duplo
+  // ── ANÉIS DA COLÔNIA ANCESTRAL — 6 frutos orbitam a raiz (Fase 3 escolha aneis_raiz)
+  {
+    const root = META_NODES.find(n=>n.id==="raiz");
+    const rs = root ? nodeScreen(root) : { x: VIEW_W/2, y: centerY() };
+    // anel sutil ao redor da raiz
+    ctx.save();
+    ctx.strokeStyle = "rgba(74,58,110,0.35)";
+    ctx.lineWidth = 1.2 * zoom;
+    if (ctx.setLineDash) ctx.setLineDash([6*zoom, 6*zoom]);
+    ctx.beginPath();
+    ctx.arc(rs.x, rs.y, FRUIT_R * 142 * zoom, 0, Math.PI*2);
+    ctx.stroke();
+    if (ctx.setLineDash) ctx.setLineDash([]);
+    ctx.restore();
+    // raios da raiz até cada centro de fruto + conexões entre nós do fruto
+    for (let fi=0; fi<FRUIT_TREES.length; fi++) {
+      const fruit = FRUIT_TREES[fi];
+      const c = fruitCenter(fi);
+      const cs = nodeScreen(c);
+      const locked = !(G.save.clearedMaps && G.save.clearedMaps[fruit.map]);
+      // raio raiz -> primeiro nó (seiva só se fruto desbloqueado)
+      const first = fruitNodePos(fi, 0);
+      const fs = nodeScreen(first);
+      const hasFirst = metaLevel(fruit.nodes[0].id) > 0;
+      ctx.strokeStyle = locked ? "rgba(44,36,68,0.45)" : hasFirst ? fruit.color : "rgba(90,79,136,0.55)";
+      ctx.lineWidth = hasFirst ? 3.2 * zoom : 1.6 * zoom;
+      ctx.globalAlpha = locked ? 0.35 : hasFirst ? 0.95 : 0.55;
+      ctx.beginPath();
+      ctx.moveTo(rs.x, rs.y);
+      ctx.quadraticCurveTo((rs.x+cs.x)/2, (rs.y+cs.y)/2 - 8*zoom, fs.x, fs.y);
+      ctx.stroke();
+      if (hasFirst) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = fruit.color;
+        ctx.globalAlpha = 0.18 + Math.sin(G.time*2.2 + fi)*0.08;
+        ctx.lineWidth = 5*zoom;
+        ctx.beginPath();
+        ctx.moveTo(rs.x, rs.y);
+        ctx.quadraticCurveTo((rs.x+cs.x)/2, (rs.y+cs.y)/2 - 8*zoom, fs.x, fs.y);
+        ctx.stroke();
+        ctx.restore();
+        const tr = (G.time*0.9 + fi*0.7)%1;
+        const qx = rs.x + (fs.x - rs.x)*tr;
+        const qy = rs.y + (fs.y - rs.y)*tr;
+        ctx.fillStyle = fruit.color;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath(); ctx.arc(qx, qy, 2.4*zoom, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      // cadeia entre os 3 nós do fruto
+      for (let ni=0; ni<fruit.nodes.length-1; ni++) {
+        const a = fruitNodePos(fi, ni);
+        const b = fruitNodePos(fi, ni+1);
+        const as = nodeScreen(a), bs = nodeScreen(b);
+        const ownedA = metaLevel(fruit.nodes[ni].id) > 0;
+        const ownedB = metaLevel(fruit.nodes[ni+1].id) > 0;
+        const owned = ownedA && ownedB;
+        ctx.strokeStyle = locked ? "rgba(44,36,68,0.45)" : owned ? fruit.color : ownedA ? "rgba(90,79,136,0.7)" : "rgba(44,36,68,0.6)";
+        ctx.lineWidth = owned ? 2.8*zoom : 1.4*zoom;
+        ctx.globalAlpha = locked ? 0.3 : owned ? 0.9 : 0.5;
+        ctx.beginPath();
+        ctx.moveTo(as.x, as.y);
+        ctx.lineTo(bs.x, bs.y);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // nome do fruto próximo ao centro orbital (rico por bioma)
+      ctx.save();
+      ctx.globalAlpha = locked ? 0.45 : 0.95;
+      const label = fruit.name;
+      const tw = label.length * 5.2 * zoom + 12*zoom;
+      ctx.fillStyle = locked ? "rgba(10,8,16,0.55)" : "rgba(10,8,16,0.75)";
+      ctx.fillRect(cs.x - tw/2, cs.y - 20*zoom - 8*zoom, tw, 12*zoom);
+      ctx.strokeStyle = locked ? "rgba(74,58,110,0.4)" : fruit.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cs.x - tw/2, cs.y - 20*zoom - 8*zoom, tw, 12*zoom);
+      if (!locked) {
+        const px = cs.x + Math.cos(G.time*0.6 + fi)*14*zoom;
+        const py = cs.y + Math.sin(G.time*0.6 + fi)*8*zoom - 14*zoom;
+        ctx.fillStyle = fruit.color;
+        ctx.globalAlpha = 0.55 + Math.sin(G.time*1.4 + fi)*0.25;
+        ctx.beginPath(); ctx.arc(px, py, 2.2*zoom, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = locked ? 0.45 : 0.95;
+      }
+      ctx.globalAlpha = locked ? 0.55 : 0.95;
+      drawText(ctx, label, cs.x, cs.y - 20*zoom, { color: locked ? "#6b5a8a" : fruit.color, align: "center", scale: 0.58 * zoom });
+      if (locked) {
+        drawText(ctx, "VENCA " + fruit.map.toUpperCase(), cs.x, cs.y - 10*zoom, { color: "#4a3a6e", align: "center", scale: 0.48 * zoom });
+      }
+      ctx.restore();
+    }
+  }
+
+    // nós com RARIDADES: COMUM (círculo, cor do grupo) · RARO (anel duplo
   // ciano) · LENDÁRIO (hexágono dourado com o sprite da espécie)
   for (const n of META_NODES) {
     const s = nodeScreen(n);
@@ -394,6 +479,147 @@ export function drawTree(ctx, dt) {
     }
   }
 
+  // ── FRUTOS: nós orbitais ao redor da raiz (mecanica unica + visual rico por bioma)
+  for (const n of FRUIT_NODES_CACHE) {
+    const fruit = n._fruit;
+    const locked = !(G.save.clearedMaps && G.save.clearedMaps[fruit.map]);
+    const s = nodeScreen(n);
+    const lvl = metaLevel(n.id);
+    const chk = metaCanBuy(n.id);
+    const hot = hoverNode === n;
+    const br = META_BRANCHES[n.br] || { color: fruit.color, name: fruit.name };
+    const tier = n.tier || 0;
+    const R = (tier === 2 ? 22 : tier === 1 ? 18 : 16) * zoom;
+
+    // aura pulsante se desbloqueado e comprável
+    if (chk.ok && !locked) {
+      const pulse = 0.45 + Math.sin(G.time * 3.5 + n._fruitIdx)*0.3;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = fruit.color;
+      ctx.globalAlpha = pulse * 0.5;
+      ctx.lineWidth = 2 + tier;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R + 9 + Math.sin(G.time*3.5)*2, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = pulse * 0.18;
+      ctx.fillStyle = fruit.color;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R+14, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+    // sombra
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath(); ctx.arc(s.x + 2*zoom, s.y + 3*zoom, R, 0, Math.PI*2); ctx.fill();
+
+    // corpo
+    const grad = ctx.createRadialGradient(s.x - R*0.2, s.y - R*0.3, R*0.2, s.x, s.y, R);
+    if (lvl > 0) {
+      grad.addColorStop(0, lighten(fruit.color, 0.35));
+      grad.addColorStop(0.5, fruit.color);
+      grad.addColorStop(1, darken(fruit.color, 0.45));
+    } else if (locked) {
+      grad.addColorStop(0, "#1e1830");
+      grad.addColorStop(1, "#14101d");
+    } else {
+      grad.addColorStop(0, "#2c2444");
+      grad.addColorStop(1, "#1a1628");
+    }
+    ctx.fillStyle = grad;
+    nodePath(ctx, s.x, s.y, R, tier);
+    ctx.fill();
+
+    // borda
+    if (locked) {
+      ctx.strokeStyle = "rgba(74,58,110,0.5)";
+      ctx.lineWidth = 1.5;
+      if (ctx.setLineDash) ctx.setLineDash([4*zoom, 4*zoom]);
+      nodePath(ctx, s.x, s.y, R, tier);
+      ctx.stroke();
+      if (ctx.setLineDash) ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = tier === 2 ? (lvl > 0 ? "#ffd479" : chk.ok ? "#b99a4f" : "#5a4a2e") : lvl > 0 ? fruit.color : chk.ok ? fruit.color : "#3a3054";
+      ctx.lineWidth = hot ? 3.5 : lvl > 0 ? 2.8 : 1.8;
+      nodePath(ctx, s.x, s.y, R, tier);
+      ctx.stroke();
+    }
+    if (tier === 1 && !locked) {
+      ctx.strokeStyle = lvl > 0 ? "#6ee7ff" : "#3d5a7a";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R + 4*zoom, 0, Math.PI*2); ctx.stroke();
+    }
+    if (lvl > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,0.22)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R - 2.5*zoom, 0, Math.PI*2); ctx.stroke();
+    }
+    // ícone
+    const spr = n.sprite && IMG[n.sprite] ? IMG[n.sprite] : null;
+    const icon = spr || IMG["i_" + n.icon];
+    if (icon) {
+      ctx.imageSmoothingEnabled = false;
+      if (lvl === 0 && !chk.ok) ctx.globalAlpha = locked ? 0.25 : 0.35;
+      const size = (spr ? 28 : 22) * zoom;
+      if (lvl > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = fruit.color;
+        ctx.beginPath(); ctx.arc(s.x, s.y, size*0.55, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = lvl === 0 && !chk.ok ? 0.35 : 1;
+      }
+      ctx.drawImage(icon, s.x - size/2, s.y - size/2, size, size);
+      ctx.globalAlpha = 1;
+    }
+    // cadeado se bloqueado
+    if (locked) {
+      ctx.fillStyle = "rgba(10,8,16,0.72)";
+      ctx.fillRect(s.x - 7*zoom, s.y - 7*zoom, 14*zoom, 14*zoom);
+      ctx.strokeStyle = "#4a3a6e";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(s.x - 7*zoom, s.y - 7*zoom, 14*zoom, 14*zoom);
+      drawText(ctx, "X", s.x, s.y - 4*zoom, { color: "#6b5a8a", align: "center", scale: 0.7*zoom });
+    }
+    // pips e preço (com culling topUI / bordas igual aos nós principais)
+    if (!locked) {
+      if (lvl > 0) {
+        ctx.fillStyle = fruit.color;
+        ctx.fillRect(s.x - 4*zoom, s.y + R + 7*zoom, 8*zoom, 4*zoom);
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.fillRect(s.x - 4*zoom, s.y + R + 7*zoom, 8*zoom, 1.2*zoom);
+      } else if (chk.ok) {
+        ctx.strokeStyle = fruit.color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(s.x - 4*zoom + 0.5, s.y + R + 7*zoom + 0.5, 8*zoom -1, 4*zoom -1);
+      }
+      if (lvl === 0) {
+        const price = n.cost[0];
+        const afford = G.save.essence >= price;
+        const py = s.y + R + 14*zoom;
+        const label = String(price);
+        const tw = textWidth(label, { scale: zoom }) + 14*zoom;
+        const th = Math.max(12*zoom, 14 * fontScale() * zoom * 0.75 + 4*zoom);
+        const hx0 = s.x - tw/2 -1, hx1 = s.x + tw/2 +1;
+        if (py < topUI() - 2 || py + th > VIEW_H - 40 || hx0 < 2 || hx1 > VIEW_W - 2) {
+          // pula etiqueta fora da área visível (mesmo critério dos nós principais)
+        } else {
+          ctx.fillStyle = "rgba(10,8,16,0.85)";
+          ctx.fillRect(s.x - tw/2 -1, py -1, tw+2, th);
+          ctx.strokeStyle = afford ? "rgba(199,125,255,0.5)" : "rgba(163,46,70,0.4)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(s.x - tw/2 -0.5, py-0.5, tw+1, th-1);
+          ctx.fillStyle = afford ? "#c77dff" : "#a32e46";
+          ctx.fillRect(s.x - tw/2 + 3*zoom, py + (th - 6*zoom)/2, 6*zoom, 6*zoom);
+          drawText(ctx, label, s.x - tw/2 + 12*zoom, py + (th - 14*zoom)/2, { color: afford ? "#efe9ff" : "#ff8a96", scale: 0.75*zoom });
+        }
+      } else {
+        const my2 = s.y + R + 14*zoom;
+        if (my2 >= topUI() -2 && my2 <= VIEW_H - 60 && s.x > 30 && s.x < VIEW_W -30) {
+          drawText(ctx, "MAX", s.x, my2, { color: "#ffd479", align: "center", scale: 0.65*zoom });
+        }
+      }
+    }
+  }
+
   // tooltip
   layoutRec.layer = "ui";
   if (hoverNode) drawNodeTip(ctx, hoverNode);
@@ -501,23 +727,39 @@ function drawTreeHUD(ctx) {
   drawText(ctx, "NÓS " + owned + "/" + META_NODES.length, 328, 74, { color: "#efe9ff", scale: 0.7, maxWidth: 134 });
   drawText(ctx, "ÁRVORE " + pct + "%", 328, 90, { color: "#c77dff", scale: 0.7, maxWidth: 134 });
 
-  // frutos = mini-árvores liberadas por mapa (lore)
+  // frutos = mini-árvores por mapa — FASE 3 anéis orbitais (desbloqueio por vitória)
   panel(ctx, 478, 10, 238, HUD_ROW1, { border: "#4a3a6e" });
-  const fruitCap = wrapText("Frutos = mini-árvores por mapa", 222, { scale: 0.7 });
+  const fruitCap = wrapText("FRUTOS ORBITAM A RAIZ", 222, { scale: 0.7 });
   fruitCap.forEach((L, i) => drawText(ctx, L, 486, 16 + i * Math.ceil(13 * 0.7 * FS), { color: "#6b5a8a", scale: 0.7, maxWidth: 222 }));
   FRUIT_TREES.forEach((fruit, i) => {
-    const mapSeen = G.save.cutscenes && G.save.cutscenes[fruit.map];
-    const hasNode = G.save.nodes && Object.keys(G.save.nodes).some((k) => k.startsWith(fruit.id));
-    const cx = 494 + i * 24, cy = 10 + HUD_ROW1 - 22;
-    ctx.globalAlpha = mapSeen ? 0.9 : 0.35;
-    ctx.fillStyle = mapSeen ? fruit.color : "#2a2340";
-    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
-    if (hasNode) {                       // brilho se a mini-árvore já tem nó
-      ctx.fillStyle = "#ffd479";
-      ctx.globalAlpha = 0.55;
-      ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+    const unlocked = G.save.clearedMaps && G.save.clearedMaps[fruit.map];
+    const ownedCount = fruit.nodes.filter(n=> (G.save.nodes[n.id]|0) > 0).length;
+    const total = fruit.nodes.length;
+    const cx = 494 + i * 24 + 12, cy = 10 + HUD_ROW1 - 28;
+    ctx.globalAlpha = unlocked ? 0.9 : 0.35;
+    ctx.fillStyle = unlocked ? fruit.color : "#2a2340";
+    ctx.beginPath(); ctx.arc(cx, cy, ownedCount ? 7 : 5, 0, Math.PI * 2); ctx.fill();
+    if (unlocked && ownedCount) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = fruit.color;
+      ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = unlocked ? 0.95 : 0.28;
+      ctx.strokeStyle = "#ffd479";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(cx, cy, 9, -Math.PI/2, -Math.PI/2 + (ownedCount/total)*Math.PI*2); ctx.stroke();
+    }
+    if (!unlocked) {
+      ctx.fillStyle = "rgba(10,8,16,0.7)";
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#4a3a6e";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    drawText(ctx, ownedCount + "/" + total, cx, cy + 14, { color: unlocked ? fruit.color : "#4a3a6e", align: "center", scale: 0.5, maxWidth: 24 });
   });
 
   // botões em grade 2x2 no canto: em fila única (como antes) eles cobriam o
@@ -620,7 +862,11 @@ function drawNodeTip(ctx, n) {
   const s = nodeScreen(n);
   const lvl = metaLevel(n.id);
   const max = n.cost.length;
-  const br = META_BRANCHES[n.br];
+  // frutos orbitais usam a cor do fruto quando br não existe
+  const fruitInfo = n._fruit || null;
+  const br = META_BRANCHES[n.br] || { color: (fruitInfo ? fruitInfo.color : "#8f6fd6"), name: fruitInfo ? fruitInfo.name : "FRUTO" };
+  const isFruit = !!fruitInfo;
+  const lockedFruit = isFruit && !(G.save.clearedMaps && G.save.clearedMaps[fruitInfo.map]);
   const FS = fontScale();
 
   // A altura da caixa é CALCULADA a partir do que vai dentro: com FONTE GRANDE
@@ -629,9 +875,10 @@ function drawNodeTip(ctx, n) {
   const w = 340;
   const descStep = Math.ceil(18 * FS);
   const lines = wrapText(n.desc, w - 28, { font: "small", scale: 1 });
-  const lvlTxt = br.name + "  —  NÍVEL " + lvl + "/" + max;
+  const lvlTxt = isFruit ? (fruitInfo.name + " — " + (lockedFruit ? "BLOQUEADO" : "NÍVEL " + lvl + "/" + max)) : br.name + "  —  NÍVEL " + lvl + "/" + max;
   const tierTxt = TIER_NAME[n.tier || 0];
   const tierOwnLine = textWidth(lvlTxt, {}) + textWidth(tierTxt, {}) + 30 > w - 28;
+  const lockedH = lockedFruit ? Math.ceil(18 * FS) + 4 : 0;
   const chipWidths = [];
   for (let i = 0; i < max; i++) chipWidths.push(textWidth(String(n.cost[i]), {}) + 34);
   let chipRows = 1, used = 0;
@@ -639,7 +886,7 @@ function drawNodeTip(ctx, n) {
   const chipsH = chipRows * 24;
   const nameH = Math.round(31 * FS) + 8;
   const lvlH = Math.round(20 * FS) + (tierOwnLine ? Math.round(20 * FS) : 0) + 4;
-  const h = 10 + nameH + lvlH + 6 + lines.length * descStep + 10 + chipsH + 8;
+  const h = 10 + nameH + lvlH + lockedH + 6 + lines.length * descStep + 10 + chipsH + 8;
   let x = clamp(s.x - w / 2, 12, VIEW_W - w - 12);
   let y = s.y - NODE_R[n.tier || 0] * zoom - h - 20;
   if (y < 80) y = s.y + NODE_R[n.tier || 0] * zoom + 22;
@@ -665,14 +912,18 @@ function drawNodeTip(ctx, n) {
   drawText(ctx, n.name, x + 14, ty, { font: "big", scale: 1, color: br.color, maxWidth: w - 28 });
   ty += nameH;
   if (tierOwnLine) {
-    drawText(ctx, lvlTxt, x + 14, ty, { color: PAL.textDim, scale: 0.85, maxWidth: w - 28 });
+    drawText(ctx, lvlTxt, x + 14, ty, { color: lockedFruit ? "#ff8a96" : PAL.textDim, scale: 0.85, maxWidth: w - 28 });
     ty += Math.round(20 * FS);
     drawText(ctx, tierTxt, x + w - 14, ty, { color: TIER_COLOR[n.tier || 0], align: "right", scale: 0.85, maxWidth: 160 });
   } else {
-    drawText(ctx, lvlTxt, x + 14, ty, { color: PAL.textDim, scale: 0.85, maxWidth: w - 28 - textWidth(tierTxt, {}) - 12 });
+    drawText(ctx, lvlTxt, x + 14, ty, { color: lockedFruit ? "#ff8a96" : PAL.textDim, scale: 0.85, maxWidth: w - 28 - textWidth(tierTxt, {}) - 12 });
     drawText(ctx, tierTxt, x + w - 14, ty, { color: TIER_COLOR[n.tier || 0], align: "right", scale: 0.85, maxWidth: 160 });
   }
   ty += Math.round(20 * FS) + 4;
+  if (lockedFruit) {
+    drawText(ctx, "VENCA " + fruitInfo.map.toUpperCase() + " NA CAMPANHA PARA DESBLOQUEAR", x + 14, ty, { color: "#ff8a96", scale: 0.7, maxWidth: w - 28 });
+    ty += lockedH;
+  }
   lines.forEach((L, i) => drawText(ctx, L, x + 14, ty + i * descStep, { color: PAL.text, maxWidth: w - 28 }));
   ty += lines.length * descStep + 10;
 
@@ -707,9 +958,16 @@ export function treeClick() {
   if (hoverNode) {
     const chk = metaCanBuy(hoverNode.id);
     if (chk.ok) {
+      const wasFruit = !!hoverNode._fruit;
+      const fruitColor = hoverNode._fruit ? hoverNode._fruit.color : null;
       metaBuy(hoverNode.id);
       SFX.buy();
-      SFX.chime();
+      // feedback rico por bioma: cor do fruto + chime dourado nos lendários
+      if (hoverNode.tier === 2) SFX.chime();
+      else if (SFX.type) SFX.type();
+      if (wasFruit && fruitColor) {
+        // flash de seiva é visual no próximo frame via owned=true
+      }
     } else {
       SFX.deny();
     }

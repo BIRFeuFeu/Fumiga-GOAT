@@ -323,7 +323,7 @@ function computeAntStats(typeId) {
     }
   } catch(e) {}
   return {
-    hp: Math.round(b.hp * m.hpAll * (typeId === "giant" ? m.dinoHp : 1) * lvHp),
+    hp: Math.round(b.hp * m.hpAll * (typeId === "giant" ? m.dinoHp : 1) * (typeId === "tank" ? 1 + (m.fruitTankHp||0) : 1) * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
     speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
     range: b.range + m.rangeBonus, atkCd,

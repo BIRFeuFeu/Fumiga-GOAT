@@ -2,8 +2,8 @@
 // FUMIGA — inimigos (colônia rival + predadores) e chefes de mapa
 // Chefes: hare (mapa 1) · fox (2) · grouse (3) · matriarch (4) · deer (5) · boar (6)
 // ============================================================================
-import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS, ascMods } from "./config.js";
-import { mods, G } from "./state.js";
+import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS, ascMods, MAPS } from "./config.js";
+import { mods, G, persistSave } from "./state.js";
 import { world, collide, smashProps } from "./world.js";
 import { rand, dist, dist2, clamp, angLerp, nextId, TAU, easeOutCubic } from "./utils.js";
 import { burst, ring, scent, floatText, spawnPart, impact, bloodSplatter, explosion, dustPoof, levelUpBurst } from "./particles.js";
@@ -44,6 +44,12 @@ export function spawnEnemy(typeId, x, y, wave) {
     takeDamage(dmg, from, proj) {
       if (this.dead || this.dying) return;
       const mm = mods();
+      {
+        const m = mods();
+        if (m.fruitBossDmg && arguments[2] && arguments[2].type) {
+          dmg = Math.round(dmg * (1 + m.fruitBossDmg));
+        }
+      }
       this.hp -= dmg;
       this.hitT = 0.12;
       this.revealT = 5; // golpeado: fica marcado no fog of war por 5s
@@ -298,7 +304,20 @@ export function spawnBoss(kind, wave) {
 function killBoss(b) {
   b.dead = true; b.dying = 2.2;
   const run = G.run;
-  if (run) { run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); run.mapsCleared++; }
+  if (run) {
+    run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); run.mapsCleared++;
+    // FASE 3: libera fruto do bioma vencido (auto na vitória)
+    try {
+      const mapId = MAPS[run.mapIdx] && MAPS[run.mapIdx].id;
+      if (mapId && run.mode === "campanha") {
+        G.save.clearedMaps = G.save.clearedMaps || {};
+        if (!G.save.clearedMaps[mapId]) {
+          G.save.clearedMaps[mapId] = true;
+          persistSave();
+        }
+      }
+    } catch(e) {}
+  }
   dropOrb(b.x, b.y, b.def.ess);
   shake(1.2);
   explosion(b.x, b.y, 140, "#ffd479");
@@ -353,7 +372,11 @@ export function updateBoss(dt, allies) {
     } else if (b.kind === "fox") {
       b.invisibleT = p2.invisibleDur;
     } else if (b.kind === "grouse" && G.run) {
-      G.run.invertT = p2.invertDur;
+      {
+        const m = mods();
+        const dur = p2.invertDur * (1 - (m.fruitShriekResist || 0));
+        G.run.invertT = dur;
+      }
       floatText(world.anthill.x, world.anthill.y - 100, "CONTROLES INVERTIDOS!", { color: "#a8c8e8", life: 1.2, scale: 1.5 });
     } else if (b.kind === "matriarch") {
       // frenesi imediato
@@ -532,8 +555,10 @@ function updateHare(b, dt, allies, q, A) {
       for (const a of allies) {
         if (a.dead || a.dying) continue;
         if (dist2(b.x, b.y, a.x, a.y) < D.thumpRange * D.thumpRange) {
-          a.takeDamage(D.thumpDmg, "enemy", b);
-          a.stunT = Math.max(a.stunT, 0.75);
+          const m = mods();
+          const dmg = Math.round(D.thumpDmg * (1 - (m.fruitThumpResist || 0)));
+          a.takeDamage(dmg, "enemy", b);
+          a.stunT = Math.max(a.stunT, 0.75 * (1 - (m.fruitThumpResist || 0) * 0.5));
         }
       }
     }
