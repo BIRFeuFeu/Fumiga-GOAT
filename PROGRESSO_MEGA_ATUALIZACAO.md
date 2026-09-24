@@ -1,3 +1,204 @@
+# PROGRESSO — AMPLIAÇÃO: SETE FRUTOS / 70 NOVOS PODERES (2026-09-24)
+
+**Entrega posterior ao registro de Fase 3 abaixo.** Escolhas confirmadas pelo
+usuário: poderes novos **globais**, combináveis entre mapas; preparar a sétima
+árvore sem implementar agora o Topo/Pálida. Branch mantida:
+`arena/01a0d3f5-fumiga-goat`; nenhuma mudança de branch, commit ou push solicitado.
+
+- Sete portas na copa da árvore literal; cada uma abre sua própria miniárvore
+  com dez melhorias distintas, três caminhos e um ápice. Seleção mostra detalhes;
+  só EVOLUIR gasta essência. Voltar/Escape permitem retornar à árvore principal.
+- 49 nós base + 18 legados preservados + 70 novos = **137 definições**.
+  As 18 compras antigas ficam na aba LEGADO, com IDs, preços e efeitos locais
+  preservados. As 60 novas melhorias dos seis mapas existentes são obtíveis.
+- A morte do chefe correto na campanha libera só o fruto correspondente.
+  Chefe errado, sobrevivência e vitória no Pico não liberam a Pálida.
+  O sétimo fruto oferece prévia de dez poderes, mas permanece incomprável,
+  inclusive se `clearedMaps.topo` vier marcado em um save alterado.
+- Consumidores reais de dano, projéteis, coleta/depósito, nascimento/morte,
+  vida/barreiras/resgates, cura, visão, experiência e cristais. Contadores por
+  expedição/unidade; limites de frequência e explosões secundárias não recursivas.
+- Catálogo completo das 70 habilidades, custos e temas em `MEGA_ARQUIVO.md`.
+- Testes: **23/23** na bateria completa; 70 efeitos individualmente, seis mortes
+  reais de chefes, coleta/depósito/nascimento/projéteis reais e simulação com 60
+  poderes combinados. Navegador: 548 inspeções de detalhes (137 × duas fontes ×
+  PC/mobile), sete entradas e abas por plataforma; 78 compras persistidas por
+  perfil, com recarga e Era sem duplicação. Inspeção geral: 30 cenas sem erro JS,
+  HTTP ou glifo ausente. HUD isolado: **58,38 FPS**, 1800 frames, limiar 55.
+- Revisão encontrou e corrigiu um multiplicador invertido no intervalo de coleta,
+  preservou dano fracionário quando não há redução plana e ampliou áreas dos
+  cartões/confirmação para 44 px lógicos. Sem substituir a fonte pixel.
+- Limitação: sétimo mapa/Pálida ainda não jogáveis. Balanceamento de longo prazo
+  das novas combinações requer playtest humano; os testes não o substituem.
+- Próxima etapa: validação do usuário e, futuramente, Fase 8 para ligar a vitória
+  legítima da Pálida à árvore preparada. Não declarar essa vitória implementada.
+
+---
+
+# PROGRESSO — FASE 3: ÁRVORE GENEALÓGICA FINALIZADA NO ESCOPO ATUAL (2026-09-24)
+
+**Branch:** `arena/01a0d3f5-fumiga-goat`. **Pedido:** finalizar a Fase 3.
+**Decisões confirmadas nesta sessão:** árvore literal com frutos, substituindo os
+anéis orbitais; cumprir as descrições dos bônus, preservando preços/valores existentes;
+dependências da Pálida explicitamente futuras. Isto substitui a antiga escolha visual
+“anéis ao redor da raiz”, sem apagar o histórico.
+
+## Auditoria antes da implementação
+
+O código já possuía `FRUIT_TREES`, compra com essência, requisitos, save de nós e
+`clearedMaps` por vitória de campanha. Não foi preciso recriar a persistência.
+Porém, vários efeitos não correspondiam às descrições: bônus locais eram globais,
+visão da batedora aumentava alcance de ataque, velocidade da Tecelã alterava chocagem,
+velocidade da Prata alterava frequência de arrancada, +1 essência por cristal virava
++10%, e o bônus contra chefes estava no handler de inimigos comuns.
+
+## Entrega
+
+- **Árvore literal em Canvas:** tronco Real, galhos Guerra/Coleta/Criação, copa de
+  seis frutos, raízes da Colônia Ancestral com névoa, folhagem que muda com compras,
+  seiva dourada nas conexões compradas e chime nos lendários. Desenho determinístico
+  em código, sem PNGs pesados ou novas dependências de produção.
+- `tree_layout.js` separa coordenadas visuais de dados de progressão: **49 nós
+  originais + 18 de frutos = 67**. IDs, pré-requisitos, custos e saves existentes
+  preservados. Teste geométrico cobre os raios dos 67 nós, não apenas o HUD.
+- Panorama VER TUDO inclui copa e raízes. Indicadores de ramos/frutos aproximam suas
+  regiões; arrasto, roda e pinça mantidos. Detalhes fixos com fonte normal/grande.
+- **Compra explícita:** selecionar abre detalhes sem gastar essência; botão EVOLUIR
+  mostra disponibilidade/custo e confirma a compra. Bloqueio por mapa, saldo,
+  pré-requisito e nível máximo continuam no estado, não apenas no desenho.
+- Contagem de progresso inclui os 67 nós. Brilho/contadores dos frutos distinguem
+  desbloqueio e compra. Partículas e animações da árvore respeitam efeitos reduzidos.
+- **Bônus locais corrigidos:** velocidade da Planície (inclusive operárias), resistência
+  ao THUMP, comida; visão das batedoras/velocidade das Tecelãs/cura na Floresta;
+  velocidade da Prata, resistência à inversão e +1 por unidade de cristal no Pântano;
+  dano/população/essência no Deserto; comida/vida dos tanques/cura no Outono;
+  dano contra chefes no Gelo. Removidos vínculos globais incorretos e extras não descritos.
+- Veteranas têm atributos recalculados ao migrar de mapa, preservando proporção de
+  vida. Bônus de cura do Outono também alcança cura da rainha e recuperação de migração.
+- `Névoa Revelada`: efeito antes vago quantificado em **+25% no contraste do feromônio**
+  no Gelo; custo de 80 mantido. **Ver Pálida no minimapa continua futuro (Fase 8)**,
+  indicado na descrição; não foi inventado um chefe para declarar esse efeito pronto.
+- `Topo do Mundo` mantém +1 Era imediata, apenas na primeira compra, custo 120 e
+  requisitos preservados. Recarregar o save não concede Era novamente.
+- **Mobile:** no painel expandido (+) há OLFATO ligado/desligado, equivalente ao H,
+  para que o efeito de Névoa Revelada também possa ser usado por toque. Sem duplicar
+  gameplay nem reintroduzir os seis atalhos redundantes removidos na entrega anterior.
+- Consultas de frutos usam índice `Map` imutável, evitando buscas repetidas por nó.
+
+**Referência:** crescimento visual de progressão permanente em Rogue Legacy 2,
+adaptado à colônia e sem copiar arte:
+[2](https://arstechnica.com/gaming/2022/05/rogue-legacy-2-review-a-perfect-sequel-to-a-great-game/).
+
+## Verificação
+
+- `npm test`: **20/20 passaram**, agora incluindo `fruits.mjs`.
+- `fruits.mjs`: geometria de 67 nós; 18 compras, saldo, requisitos, limites, reload e
+  save antigo; isolamento dos bônus nos seis mapas; atributos reais de unidades;
+  coleta de orbes; THUMP/inversão pelos handlers reais; dano de chefe versus inimigo
+  comum; seis desbloqueios por campanha e ausência de desbloqueio em sobrevivência;
+  recalcular veteranas e +1 Era sem recompra.
+- `npm run inspect:tree`: **268 inspeções de detalhes** (67 × PC/mobile × fonte
+  normal/grande), sem achados de layout nem compra ao apenas selecionar; 18 compras
+  por clique/toque em cada perfil persistiram após reload. Replay do teste também
+  valida OLFATO ligado/desligado por toque. Capturas em `/tmp/fumiga-tree`.
+- Auditoria focada de layout: **16 estados** de Árvore, Ajuda, Opções/Controles e
+  HUD expandido PC/mobile, incluindo fonte grande onde configurada, sem achados.
+- `npm run inspect`: 30 cenas PC/mobile, seis mapas por seleção controlada,
+  nenhum erro JS, HTTP ou glifo faltando.
+- `HUD_MIN_FPS=55 npm run inspect:hud`: seis biomas, H, acessibilidade, vida baixa,
+  zoom, viewports mobile e ninho/onda; **56,70 FPS médios em 1.800 frames**, maior
+  intervalo 50,1 ms. A primeira medição concorrente com outro Chromium deu 46,94 FPS;
+  foi repetida isoladamente. Isso não garante desempenho em todo celular.
+- Detectada falha intermitente anterior no teste mobile: dependia de encontrar uma
+  formiga aleatória ainda na viewport após a introdução. O cenário agora cria um
+  alvo controlado fora do HUD e continua verificando a seleção pelo toque real do motor.
+
+**Limites:** não foi vencida uma campanha completa nem usado celular físico.
+A indicação futura da Pálida não está implementada. Não foram geradas camadas de
+cutscene nem alterado o chefe final. Layout e arte continuam sujeitos à aprovação
+visual do usuário no preview; testes não substituem essa aprovação.
+
+**Próximos passos:** validar o visual com o usuário; depois conferir a Fase 4
+(arenas, chefes/fase 2 e frases) contra o código. Retomar cutscenes da Fase 5 somente
+com confirmação, respeitando a decisão de mantê-las intactas nesta entrega.
+
+---
+
+# PROGRESSO — FECHAMENTO DAS CORREÇÕES DE INTERFACE (2026-09-24)
+
+**Branch:** `arena/01a0d3f5-fumiga-goat`. **Pedido:** concluir as correções de
+interface. **Escolhas confirmadas:** reorganizar mantendo a arte, com texto legível;
+no mobile excluir botões duplicados e ações já atendidas por toque/gestos.
+
+## Estado encontrado e correção do histórico
+
+A consulta anterior se baseou no registro de ferramentas abaixo. Contudo, o checkout
+inicial desta sessão já continha correções em MODO, AJUDA, ÁRVORE, PROFECIAS,
+MEMÓRIAS, fim de expedição, HUD e analisador (sombras/recortes). A auditoria ANTES de
+editar código passou nos **88 estados PC/mobile**. Portanto, os **750 achados** do
+registro antigo não descrevem este checkout. Não atribuir essas correções anteriores
+à implementação desta sessão. Este registro substitui a pendência genérica de
+“correções de UI vêm a seguir”, preservando o histórico.
+
+## Implementado nesta entrega
+
+- **Memórias:** dois cartões por linha, quatro por página; duas páginas cobrem as
+  oito memórias. Títulos e descrições quebram linhas sem redução automática para
+  caber nos cartões. Fonte grande mantém seu aumento. Navegação Anterior/Próxima,
+  contador de página, retorno à árvore e replay preservados.
+- **Profecias:** quatro cartões por página e quatro páginas cobrem os 16 vaticínios,
+  com descrições completas, recompensas separadas e fonte grande sem encolhimento
+  automático nos cartões. Nenhuma alteração de recompensas ou progressão.
+- **Mobile:** removidos seis botões DOM redundantes: Zoom +/− (pinça), Onda
+  (Invocar no canvas), Ninho (Entrar no canvas), Chamar/Soltar (rodapé do ninho).
+  Permanecem Centro, Rali e Pausa. Dentro do ninho a camada extra fica oculta:
+  Escape ali significa sair, não pausar. Comandos de sair/chamar/soltar permanecem
+  nos botões do próprio jogo.
+- **Entrada do ninho no mobile reativada no canvas:** antes era ocultada por
+  `!isTouchUI()` em favor do atalho DOM. Sua reativação impede perda de acesso
+  após remover a duplicata. Validada por toque real, não apenas presença visual.
+- **Legibilidade mobile:** rótulos dos três atalhos visíveis também na faixa lateral,
+  ícones em texto sem dependência de glifos emoji, nomes acessíveis; dicas de toque
+  no ninho e remoção da dica de teclado H no painel expandido mobile.
+- **Enquadramento:** mantida proporção 16:9; no mobile paisagem sem letterbox suficiente,
+  reserva mínima lateral impede os atalhos de cobrirem o canvas. Retrato continua
+  com orientação recomendada para paisagem; não é um redesign vertical do jogo.
+- **Testes:** `mobile.mjs` verifica apenas três atalhos e preserva cobertura de pinça;
+  `layout-browser.mjs` cobre páginas adicionais e aceita `--extra` (960×540 e
+  390×844). Novo `npm run inspect:ui` exercita cliques/toques reais e verifica que
+  todos os títulos das oito memórias e 16 profecias continuam acessíveis.
+
+**Referência pesquisada:** acessibilidade de Dead Cells (tamanho de HUD/textos),
+adaptada à arte existente do FUMIGA, sem gerar novos assets:
+[2](https://dead-cells.com/patchnotes/29).
+
+## Verificação e limites
+
+- `npm test`: **19/19 passaram**, incluindo boot, layout, mobile, assets, simulação,
+  árvore, profecias, UI e sobrevivência.
+- Auditoria ampliada `node game/test/layout-browser.mjs --extra`: **208 estados
+  sem achados**, PC 1280×720, mobile 844×390, mobile 960×540 e retrato 390×844,
+  com os estados de fonte grande configurados na suíte. Após os últimos ajustes
+  no ninho/HUD/dicas, reexecutados os **57 estados RUN/NINHO nos três perfis mobile**:
+  também sem achados. A suíte não cobre toda combinação possível de opções.
+- `npm run inspect:ui`: navegação em todas as páginas, ida/volta, fonte normal/grande,
+  replay da segunda página, ninho (entrar/comandos/sair), pausa/retomada e invocação
+  de onda por toque no canvas. Sem erros JS/rede.
+- `npm run inspect`: **30 cenas PC/mobile**, seis mapas por seleção controlada,
+  sem erros JS, HTTP ou glifos ausentes. Última execução mobile: 60 FPS médios por
+  mapa no ambiente headless; não é garantia para todo aparelho.
+- Capturas de Memórias/Profecias com fonte grande, RUN 16:9/retrato e NINHO
+  inspecionadas visualmente. Relatórios/capturas em `/tmp/layout-final`,
+  `/tmp/layout-touch-final` e `/tmp/fumiga-inspect`, fora do Git.
+- Não foi jogada uma campanha completa nem testado um celular físico. Nenhuma arte
+  de cutscene, boss, balanceamento ou lógica dos frutos foi alterada.
+
+**Próximo passo:** retomar a Fase 3 (compra/desbloqueio/persistência dos frutos e
+polimento da árvore), após conferir as pendências contra o código e confirmar a direção.
+MEGA ARQUIVO atualizado nesta mesma entrega conforme a Regra 12.
+
+---
+
 # PROGRESSO — AUDITORIA DE LAYOUT, FASE 1: FERRAMENTAS DE MEDIÇÃO (2026-09-24)
 
 **Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar as telas de todo o jogo e ajustar

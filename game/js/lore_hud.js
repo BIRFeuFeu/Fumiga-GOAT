@@ -1,4 +1,4 @@
-import { G } from "./state.js";
+import { G, metaBonus } from "./state.js";
 import { drawText, layoutBox } from "./font.js";
 import { MAPS } from "./config.js";
 import { assetUrl, loadImage, LOAD_CFG } from "./assets.js";
@@ -469,6 +469,7 @@ function fogStamp(index) {
 
 let fogLayer, fogTime = -Infinity, fogX, fogY, fogZoom, fogOX, fogOY;
 export function drawPheromoneOverlay(ctx, cam, VIEW_W, VIEW_H, worldToScreen, foodTrailAt, dangerAt, time) {
+  const contrast = metaBonus().fruitSeePalida ? 1.25 : 1;
   const step = 32, foodStamp = fogStamp(0), dangerStamp = fogStamp(1);
   if (!fogLayer) fogLayer = document.createElement("canvas");
   if (fogLayer.width !== VIEW_W/2 || fogLayer.height !== VIEW_H/2) {
@@ -482,13 +483,13 @@ export function drawPheromoneOverlay(ctx, cam, VIEW_W, VIEW_H, worldToScreen, fo
       const wy=cam.y+(sy-VIEW_H/2-(cam.offsetY||0))/cam.zoom;
       const food=foodTrailAt(wx,wy), danger=dangerAt(wx,wy);
       if (food>0.08) {
-        c.globalAlpha=Math.min(0.65,food*1.2); c.drawImage(foodStamp,sx/2-16,sy/2-16,32,32);
+        c.globalAlpha=Math.min(0.65,food*1.2)*contrast; c.drawImage(foodStamp,sx/2-16,sy/2-16,32,32);
         if (!reducedFX() && (sx+sy)%96===0) {
           c.fillStyle="#bfffa8"; c.fillRect(sx/2,(sy-Math.floor(time*8)%16)/2,1,1);
         }
       }
       if (danger>0.08) {
-        c.globalAlpha=Math.min(0.7,danger*1.3); c.drawImage(dangerStamp,sx/2-16,sy/2-16,32,32);
+        c.globalAlpha=Math.min(0.7,danger*1.3)*contrast; c.drawImage(dangerStamp,sx/2-16,sy/2-16,32,32);
       }
     }
     fogTime=time; fogX=cam.x; fogY=cam.y; fogZoom=cam.zoom; fogOX=cam.offsetX; fogOY=cam.offsetY;

@@ -20,6 +20,11 @@ ctx.imageSmoothingEnabled = false;
 function fit() {
   const w = window.innerWidth, h = window.innerHeight;
   let s = Math.min(w / VIEW_W, h / VIEW_H);
+  // O shell mobile precisa acomodar os três atalhos sem cobrir o canvas,
+  // inclusive em 16:9 exato. Em telas com letterbox suficiente nada muda.
+  if (document.getElementById("touch-hud") && w >= h && (w - VIEW_W * s) / 2 < 74) {
+    s = Math.min((w - 148) / VIEW_W, h / VIEW_H);
+  }
   if (s >= 2.1) s = Math.floor(s);
   canvas.style.width = Math.floor(VIEW_W * s) + "px";
   canvas.style.height = Math.floor(VIEW_H * s) + "px";

@@ -170,6 +170,19 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - Não deixar o PR aberto aguardando merge manual — salvo pedido explícito em contrário.
 - Não deletar o branch da sessão após o merge (a sessão continua associada a ele).
 
+## Regra 12 — Manter o MEGA ARQUIVO atualizado 📚
+
+> **Sempre atualizar `MEGA_ARQUIVO.md` conforme o jogo for implementado ou atualizado.**
+
+- Registrar na mesma entrega a data, o escopo, as decisões, o que mudou, os testes
+  executados e seus resultados, as limitações e os próximos passos.
+- Diferenciar planejado, implementado e verificado; não declarar conclusão sem evidência.
+- Preservar o histórico e indicar explicitamente quando um registro novo substitui
+  uma pendência ou decisão anterior.
+- Ao editar um dos seis documentos incorporados, sincronizar seu bloco integral e
+  tamanho/SHA-256 no MEGA ARQUIVO; validar com `node game/test/docs.mjs`.
+- A atualização documental faz parte da entrega, não fica para uma sessão futura.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -182,7 +195,8 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 7. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
 8. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
 9. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
-10. SALVAR    → “salvar no GitHub” = CREATE PR + MERGE PR juntos (Regra 11)
+10. DOCUMENTAR → atualizar MEGA_ARQUIVO com mudanças, verificações e pendências (Regra 12)
+11. SALVAR    → “salvar no GitHub” = CREATE PR + MERGE PR juntos (Regra 11)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,

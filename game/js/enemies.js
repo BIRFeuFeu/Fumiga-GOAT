@@ -1,9 +1,10 @@
+import { fruitWorld, fruitEnemyDamage, fruitKill } from "./fruit_effects.js";
 // ============================================================================
 // FUMIGA — inimigos (colônia rival + predadores) e chefes de mapa
 // Chefes: hare (mapa 1) · fox (2) · grouse (3) · matriarch (4) · deer (5) · boar (6)
 // ============================================================================
 import { ENEMIES, ENEMY_SCALE, BOSSES, WORLD_W, WORLD_H, XP_KILL_FRAC, XP_BOSS, ascMods, MAPS } from "./config.js";
-import { mods, G, persistSave } from "./state.js";
+import { mods, G, persistSave, unlockFruitForBoss } from "./state.js";
 import { world, collide, smashProps } from "./world.js";
 import { rand, dist, dist2, clamp, angLerp, nextId, TAU, easeOutCubic } from "./utils.js";
 import { burst, ring, scent, floatText, spawnPart, impact, bloodSplatter, explosion, dustPoof, levelUpBurst } from "./particles.js";
@@ -44,12 +45,7 @@ export function spawnEnemy(typeId, x, y, wave) {
     takeDamage(dmg, from, proj) {
       if (this.dead || this.dying) return;
       const mm = mods();
-      {
-        const m = mods();
-        if (m.fruitBossDmg && arguments[2] && arguments[2].type) {
-          dmg = Math.round(dmg * (1 + m.fruitBossDmg));
-        }
-      }
+      dmg = fruitEnemyDamage(this, dmg, from, proj);
       this.hp -= dmg;
       this.hitT = 0.12;
       this.revealT = 5; // golpeado: fica marcado no fog of war por 5s
@@ -87,6 +83,7 @@ function killEnemy(e) {
   if (e.dying) return;
   e.dead = true;
   e.dying = 0.4;
+  fruitKill(e);
   bloodSplatter(e.x, e.y, e.bodyR > 15 ? "#a32e46" : "#ff4d5a");
   burst(e.x, e.y, {
     n: e.bodyR > 15 ? 24 : 14,
@@ -113,7 +110,7 @@ function tickBurn(u, dt, onDeath) {
         life: rand(0.3, 0.6), size: rand(1.4, 2.6), sizeEnd: 0.4,
         color: Math.random() < 0.6 ? "#ff9a3d" : "#ff5a2a", glow: true, drag: 1 });
     }
-    if (u.hp <= 0) { onDeath(u); return true; }
+    if (u.hp <= 0) { u.fruitBurnDeath=true; onDeath(u); return true; }
   }
   return false;
 }
@@ -281,8 +278,10 @@ export function spawnBoss(kind, wave) {
     burnT: 0, burnDps: 0,
     dead: false, dying: 0, summonMarks: 0,
     hitT: 0, stunT: 0, slowT: 0, weakT: 0,
-    takeDamage(dmg) {
+    takeDamage(dmg, from="ally", attacker) {
       if (this.dead || this.dying) return;
+      dmg = fruitEnemyDamage(this, dmg, from, attacker);
+      dmg *= 1 + mods().fruitBossDmg;
       this.hp -= dmg;
       this.hitT = 0.12;
       this.revealT = 5; // golpeado: a colônia marca sua posição (fog of war)
@@ -303,20 +302,15 @@ export function spawnBoss(kind, wave) {
 
 function killBoss(b) {
   b.dead = true; b.dying = 2.2;
+  fruitKill(b);
   const run = G.run;
   if (run) {
     run.kills++; run.xp += Math.round(XP_BOSS * mods().xpGain); run.mapsCleared++;
-    // FASE 3: libera fruto do bioma vencido (auto na vitória)
-    try {
-      const mapId = MAPS[run.mapIdx] && MAPS[run.mapIdx].id;
-      if (mapId && run.mode === "campanha") {
-        G.save.clearedMaps = G.save.clearedMaps || {};
-        if (!G.save.clearedMaps[mapId]) {
-          G.save.clearedMaps[mapId] = true;
-          persistSave();
-        }
-      }
-    } catch(e) {}
+    const mapId = MAPS[run.mapIdx]?.id;
+    if (unlockFruitForBoss(mapId, b.kind, run.mode)) {
+      floatText(b.x, b.y - 110, "FRUTO DESPERTADO!", { color:"#ffd479", life:3, scale:1.5 });
+      SFX.chime();
+    }
   }
   dropOrb(b.x, b.y, b.def.ess);
   shake(1.2);
@@ -558,7 +552,7 @@ function updateHare(b, dt, allies, q, A) {
           const m = mods();
           const dmg = Math.round(D.thumpDmg * (1 - (m.fruitThumpResist || 0)));
           a.takeDamage(dmg, "enemy", b);
-          a.stunT = Math.max(a.stunT, 0.75 * (1 - (m.fruitThumpResist || 0) * 0.5));
+          a.stunT = Math.max(a.stunT, 0.75);
         }
       }
     }
@@ -967,3 +961,5 @@ function boarSummon(b) {
   }
   ring(b.x, b.y, { r0: 10, r1: 130, life: 0.6, color: "#a32e46", width: 4 });
 }
+
+fruitWorld.foes = foes;

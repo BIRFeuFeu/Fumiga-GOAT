@@ -45,6 +45,10 @@ const { START, MAPS } = await import("../js/config.js");
 
 // ---------------------------------------------------------------- setup -----
 loadSave();
+if (process.env.FRUIT_POWERS) {
+  const { NEW_FRUIT_NODES } = await import("../js/fruit_skills.js");
+  for (const n of NEW_FRUIT_NODES) if (n.map !== "topo") G.save.nodes[n.id]=1;
+}
 genWorld(123456, 0);
 
 const run = {

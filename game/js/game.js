@@ -1,3 +1,4 @@
+import { fruitSight } from "./fruit_effects.js";
 // ============================================================================
 // FUMIGA — orquestrador V3: PRETITLE -> TITLE -> MODE -> OPTIONS -> RUN + Planície Viva
 // ============================================================================
@@ -38,7 +39,7 @@ import {
   drawModeSelect, drawModeCards, startTransition, updateTransition, drawTransition, hasTransition,
   transitionFx, notePointer, drawTitleLogo
 } from "./render.js";
-import { enterTree, updateTree, drawTree, treeClick } from "./meta.js";
+import { enterTree, updateTree, drawTree, treeClick, treeBack } from "./meta.js";
 import { colony, foodTrailAt, dangerAt } from "./brain.js";
 import { BIOME_HUD, drawBiomeTexture, drawGasterBar, drawPheromoneOverlay, drawPheromoneLegend, drawFoodIcon, drawEssenceCrystal, drawTrailAnt, trailProgress, drawTreeRings, drawScentMinimap, drawWoodBanner, drawKitIcon, hudBiome } from "./lore_hud.js";
 import { startCutscene, updateCutscene, drawCutscene, handleCutsceneInput, isCutsceneActive, startLoadingCutscene, getCutsceneDefs } from "./cutscenes.js";
@@ -382,9 +383,10 @@ function advanceMap() {
   cam.x = A.x; cam.y = A.y;
 
   nextMapCalm();
+  recomputeAllies(); // remove/aplica atributos de frutos ao mudar de bioma
 
   if (q && !q.dead) {
-    q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.4);
+    q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.4 * mods().allHealing);
     healPulse(A.x, A.y);
     burst(A.x, A.y, { n: 30, color: ["#ffd479", "#7fd6a0", "#fff"], spMin: 30, spMax: 160, life: 0.8, glow: true });
   }
@@ -598,6 +600,7 @@ function updateTreeScreen(dt) {
   if (mouse.justDown && mouse.y > 90 && !uiCapture()) treeClick();
   if (pressed.Escape) {
     SFX.uiClick();
+    if(treeBack())return;
     backFromTree();
   }
 }
@@ -667,7 +670,7 @@ function worldTick(simDt, run) {
     else beings.push({ x: world.anthill.x, y: world.anthill.y, sight: 240 });
     for (const a of allies) {
       if (a.dead || a.dying || a.type === "queen" || a.inside) continue;
-      beings.push({ x: a.x, y: a.y, sight: a.def.sight || SIGHT[a.def.role] || 240 });
+      beings.push({ x: a.x, y: a.y, sight: (a.def.sight || SIGHT[a.def.role] || 240) * fruitSight() * (a.type === "scout" ? 1 + metaBonus().fruitVision : 1) });
     }
     if (boss && !boss.dead && (boss.revealT || 0) > 0) beings.push({ x: boss.x, y: boss.y, sight: 320 });
     fogUpdate(beings);
@@ -1799,7 +1802,11 @@ function drawHUD() {
     needBar("GUERRA", n.defense, "#ff4d5a");
     needBar("CURA", n.medical, "#7fd6a0");
     drawText(ctx, "COLETA " + hc.gather + " • EXPLORAÇÃO " + hc.explore, 20, cy + 28, { color: bh.border, scale: 0.8, maxWidth: 300 });
-    drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 28 + Math.ceil(18 * 0.8 * fontScale()), { color: PAL.textDim, scale: 0.75, maxWidth: 300 });
+    if (isTouchUI()) {
+      if (button(ctx, { x:20, y:cy+46, w:280, h:22, compact:true, label:keys.KeyH ? "OLFATO: LIGADO" : "OLFATO: DESLIGADO", id:"touchScent", scale:0.7, accent:bh.accent })) keys.KeyH = !keys.KeyH;
+    } else {
+      drawText(ctx, "[H] SEGURE PARA VER FEROMÔNIOS", 20, cy + 28 + Math.ceil(18 * 0.8 * fontScale()), { color: PAL.textDim, scale: 0.75, maxWidth: 300 });
+    }
     leftStackBottom = ey + eph + 6;
   }
 
@@ -1934,9 +1941,9 @@ function drawHUD() {
     tipLines.forEach((L, li) => drawText(ctx, L, 20, tb + 52 + li * 16, { color: PAL.text, scale: 0.85 }));
   }
 
-  // No MOBILE este canto é do botão 🏠 do HUD de toque (mesma ação): desenhar
-  // os dois aqui só criava dois botões sobrepostos embaixo do dedo.
-  if (!isTouchUI()) {
+  // Uma única entrada do ninho no canvas, compartilhada por PC e toque.
+  // A duplicata DOM foi removida da camada mobile.
+  {
     const nw = 142, nx2 = VIEW_W - 10 - nw;
     drawBiomeTexture(ctx, nx2, footY, nw, 64, biomeId, G.time*0.12);
     const rNest = iconButton(ctx, { x: nx2, y: footY, w: nw, h: 64, id: "nestBtn", frame: bh.accent });
@@ -1964,7 +1971,7 @@ function drawHUD() {
       gelo: "GASTER DE GELO"
     };
     drawText(ctx, nestNames[biomeId] || "FORMIGUEIRO", nx2 + nw / 2, footY + 22, { color: PAL.text, align: "center", scale: 0.9, maxWidth: nw - 16 });
-    drawText(ctx, "ENTRAR (B)", nx2 + nw / 2, footY + 42, { color: bh.accent, align: "center", scale: 0.85, maxWidth: nw - 8 });
+    drawText(ctx, isTouchUI() ? "ENTRAR" : "ENTRAR (B)", nx2 + nw / 2, footY + 42, { color: bh.accent, align: "center", scale: 0.85, maxWidth: nw - 8 });
     if (live && rNest.clicked) {
       openNest(run);
       return;
@@ -2422,7 +2429,9 @@ function backFromTree() {
 }
 
 // ------------------------------------------- PÓS-FINAL: tela de PROFECIAS ----
+let prophecyPage = 0;
 function openProphecies() {
+  prophecyPage = 0;
   notePointer(mouse.x, mouse.y);
   SFX.uiClick();
   checkProphecies(null, false, null);   // concede as de estado acumulado
@@ -2468,27 +2477,24 @@ function renderProphecyScreen() {
     backFromProphecies();
   }
 
-  // 4 colunas x 4 linhas: 16 profecias com nome + descrição + prêmio precisam de
-  // mais área do que as 2 colunas antigas, onde o valor passava por cima da
-  // descrição da coluna vizinha.
-  const cols = 4, gapX = 12, x0 = 16, y0 = 104;
-  const colW = Math.floor((VIEW_W - 2 * x0 - (cols - 1) * gapX) / cols);
-  const rows = Math.ceil(PROPHECIES.length / cols);
-  const step = Math.floor((VIEW_H - y0 - 34) / rows);
-  const cardH = step - 5;
-  PROPHECIES.forEach((p, i) => {
-    const col = i % cols, row = Math.floor(i / cols);
-    const x = x0 + col * (colW + gapX), y = y0 + row * step;
-    const ok = !!(G.save.prophecies || {})[p.id];
-    panel(ctx, x, y, colW, cardH, { border: ok ? "#7fd6a0" : "#3a3054", fill: ok ? "rgba(26,42,32,0.75)" : "rgba(16,12,26,0.75)" });
-    const kitP = drawKitIcon(ctx, ok ? 0 : 1, x + 8, y + 5, 12);
-    const nameX = x + 8 + (kitP ? 16 : 0);
-    const fit = Math.min(1, (colW - 20) / Math.max(1, textWidth(p.name, {})));
-    drawText(ctx, p.name, nameX, y + 5, { color: ok ? "#7fd6a0" : "#6ee7ff", scale: fit, maxWidth: colW - 20 });
-    const blk = fitTextBlock(p.desc, colW - 18, cardH - 48, { scale: 0.8, minScale: 0.62, lineStep: 17 });
-    blk.lines.forEach((L, li) => drawText(ctx, L, x + 9, y + 28 + li * blk.step, { color: ok ? PAL.textDim : PAL.text, scale: blk.scale, maxWidth: colW - 18 }));
-    drawText(ctx, "+" + p.reward + " ESSÊNCIA", x + 9, y + cardH - 18, { color: "#c77dff", scale: 0.75, maxWidth: colW - 18 });
+  // Quatro cartões por página: fonte grande cresce de verdade, não é
+  // reduzida para esconder colisões. Todos os vaticínios continuam acessíveis.
+  const pages = Math.ceil(PROPHECIES.length / 4);
+  prophecyPage = clamp(prophecyPage, 0, pages - 1);
+  PROPHECIES.slice(prophecyPage * 4, prophecyPage * 4 + 4).forEach((p, i) => {
+    const x = 20 + (i % 2) * 466, y = 108 + Math.floor(i / 2) * 170;
+    const w = 454, h = 158, ok = !!(G.save.prophecies || {})[p.id];
+    panel(ctx, x, y, w, h, { border: ok ? "#7fd6a0" : "#3a3054" });
+    drawKitIcon(ctx, ok ? 0 : 1, x + 12, y + 12, 13);
+    const names = wrapText(p.name, w - 56, { scale: 0.95 });
+    const step = Math.ceil(18 * FS);
+    names.forEach((line, j) => drawText(ctx, line, x + 34, y + 10 + j * step, { scale: 0.95, color: ok ? "#7fd6a0" : "#6ee7ff" }));
+    const descY = y + 16 + names.length * step;
+    wrapText(p.desc, w - 28, { scale: 0.9 }).forEach((line, j) =>
+      drawText(ctx, line, x + 14, descY + j * step, { scale: 0.9, color: PAL.text }));
+    drawText(ctx, "+" + p.reward + " ESSÊNCIA", x + 14, y + h - 27, { color: "#c77dff", scale: 0.85 });
   });
+  prophecyPage = drawPageControls("prophecy", prophecyPage, pages, 454);
 
   const foot = (isTouchUI() ? "TOQUE EM VOLTAR" : "ESC: VOLTAR") + " • " + done + "/" + PROPHECIES.length + " CUMPRIDAS • A ESSÊNCIA LEMBRA";
   drawText(ctx, foot, VIEW_W / 2, VIEW_H - 26, { color: PAL.textDim, align: "center", maxWidth: VIEW_W - 60 });
@@ -2607,10 +2613,12 @@ function drawEnd(run) {
 
 
 // ------------------------------------------- MEGA LORE: Biblioteca Memórias da Colônia ----
+let memoryPage = 0;
 let memoryHover = -1;
 let memoryRects = [];
 
 function openMemories() {
+  memoryPage = 0;
   notePointer(mouse.x, mouse.y);
   SFX.uiClick();
   memoryHover = -1;
@@ -2639,6 +2647,13 @@ function updateMemoryScreen(dt) {
   }
 }
 
+function drawPageControls(id, page, pages, y) {
+  if (page > 0 && button(ctx, { x: 48, y, w: 180, h: 44, label: "ANTERIOR", id: id + "Prev" })) page--;
+  if (page < pages - 1 && button(ctx, { x: 732, y, w: 180, h: 44, label: "PRÓXIMA", id: id + "Next" })) page++;
+  drawText(ctx, (page + 1) + "/" + pages, 280, y + 12, { color: PAL.textDim, scale: 0.85 });
+  return page;
+}
+
 function renderMemoryScreen() {
   drawSolidMenuBg(ctx, "#0a0812");
   ctx.fillStyle = "rgba(10,8,16,0.78)";
@@ -2647,52 +2662,32 @@ function renderMemoryScreen() {
   const PX=24, PY=16, PW=VIEW_W-48, PH=VIEW_H-32;
   dialogBox(ctx, PX, PY, PW, PH, { border: "#ffd479", accent: "#7fd6a0" });
   drawText(ctx, "MEMÓRIAS DA COLÔNIA", VIEW_W/2, PY+16, { font:"big", scale:2, color:"#ffd479", align:"center", maxWidth: PW-40 });
-  // subtítulo: 101 caracteres numa linha só (auto-reduzido) — em duas linhas ele
-  // comia 40px da grade e, com FONTE GRANDE, o cartão ficava sem espaço para o
-  // texto do subtítulo da cutscene
-  const subY = PY + 92;
-  drawText(ctx, "Biblioteca de cutscenes HQ Dead Cells — 8 layers parallax 320x180 • Auto primeira vez + rever aqui",
-    VIEW_W/2, subY, { color:"#9a8fc0", align:"center", scale:0.62, maxWidth: PW-60 });
-
+  drawText(ctx, "REVEJA AS MEMÓRIAS DESCOBERTAS PELA COLÔNIA", VIEW_W/2, 96,
+    { color: PAL.textDim, align: "center", scale: 0.85 });
   const defs = getCutsceneDefs();
   const ids = Object.keys(defs).filter((id) => !id.startsWith("loading_"));
+  const pages = Math.ceil(ids.length / 4);
+  memoryPage = clamp(memoryPage, 0, pages - 1);
   memoryRects = [];
-  // grade calculada: 3 colunas de 300px não cabiam dentro da caixa (672+300=972)
-  const cols = 3, gap = 12, innerX = PX + 24, innerW = PW - 48;
-  const cw = Math.floor((innerW - (cols-1)*gap) / cols);
-  const y0 = subY + 20, areaBottom = VIEW_H - 96 - 14;
-  const rows = Math.max(1, Math.ceil(ids.length / cols));
-  const step = Math.floor((areaBottom - y0) / rows);
-  const ch = step - 8;
-  ids.forEach((id, i) => {
-    const def = defs[id];
-    const seen = G.save.cutscenes && G.save.cutscenes[id];
-    const isHover = memoryHover === i;
-    const x = innerX + (i % cols) * (cw + gap), y = y0 + Math.floor(i / cols) * step;
-    const border = seen ? (isHover ? "#ffd479" : "#4a3a6e") : "#2a2340";
-    const fill = seen ? (isHover ? "rgba(255,212,121,0.12)" : "rgba(20,14,32,0.85)") : "rgba(10,8,16,0.5)";
-    panel(ctx, x, y, cw, ch, { border, fill });
-    const kitM = drawKitIcon(ctx, seen ? 0 : 1, x+10, y+6, 13);
-    if (!kitM) drawText(ctx, seen ? "✓ " : "○ ", x+10, y+7, { color: seen ? "#ffd479" : "#5a4f78", scale:0.9 });
-    const iconW = kitM ? 17 : 0;
-    // título em 1 linha com auto-redução: quebrar "DEGRAU 4 — DESERTO
-    // CALCINADO" em duas linhas deixava o cartão sem espaço para o subtítulo
-    drawText(ctx, def.title, x+10+iconW, y+7, { color: seen ? "#ffd479" : "#5a4f78", scale:0.95, maxWidth: cw-20-iconW });
-    const blk = fitTextBlock(def.subtitle, cw-20-26, ch-62, { scale:0.75, minScale:0.62, lineStep:14 });
-    blk.lines.forEach((L, li) => drawText(ctx, L, x+10, y+38 + li*blk.step, { color: seen ? PAL.textDim : "#3a3054", scale:blk.scale, maxWidth: cw-20-26 }));
-    // rodapé do cartão: contagem à esquerda, marcador de "rever" à direita.
-    // O rótulo "VER" (3 caracteres) empurrava o subtítulo para baixo do
-    // cabeçalho — virou um ▶ no canto, do tamanho da seta.
-    drawText(ctx, def.panels.length + " painéis • " + (def.biome||""), x+10, y+ch-18, { color:"#6b5a8a", scale:0.7, maxWidth: cw-72 });
-    if (seen) {
-      if (isHover) { ctx.fillStyle = "#ffd479"; ctx.fillRect(x+cw-32, y+ch-22, 22, 18); }
-      drawText(ctx, "▶", x+cw-21, y+ch-20, { color: isHover ? "#000" : "#ffd479", align:"center", scale:0.9 });
-    }
-    memoryRects.push({ x, y, w:cw, h:ch, id });
+  ids.slice(memoryPage * 4, memoryPage * 4 + 4).forEach((id, i) => {
+    const def = defs[id], seen = G.save.cutscenes && G.save.cutscenes[id];
+    const x = 48 + (i % 2) * 438, y = 124 + Math.floor(i / 2) * 158;
+    const w = 426, h = 150, step = Math.ceil(16 * FS);
+    const hot = memoryHover === i;
+    panel(ctx, x, y, w, h, { border: hot ? "#ffd479" : "#4a3a6e" });
+    drawKitIcon(ctx, seen ? 0 : 1, x + 12, y + 10, 13);
+    const titles = wrapText(def.title, w - 52, { scale: 0.9 });
+    titles.forEach((line, j) => drawText(ctx, line, x + 32, y + 8 + j * step, { scale: 0.9, color: seen ? "#ffd479" : PAL.textDim }));
+    const descY = y + 16 + titles.length * step;
+    wrapText(def.subtitle, w - 28, { scale: 0.85 }).forEach((line, j) =>
+      drawText(ctx, line, x + 14, descY + j * step, { scale: 0.85, color: PAL.textDim }));
+    drawText(ctx, def.panels.length + " PAINÉIS • " + (seen ? "REVER" : "NÃO DESCOBERTA"), x + 14, y + h - 26,
+      { scale: 0.8, color: seen ? "#ffd479" : PAL.textDim });
+    memoryRects.push({ x, y, w, h, id });
   });
+  memoryPage = drawPageControls("memory", memoryPage, pages, 446);
 
-  const mobile = isMobileLayout();
-  if (button(ctx, { x: VIEW_W/2-110, y: VIEW_H-96, w: mobile?240:220, h: 40, label:"VOLTAR ÁRVORE", id:"memBack", accent:"#8f6fd6" })) {
+  if (button(ctx, { x: VIEW_W/2-120, y: 446, w: 240, h: 44, label:"VOLTAR ÁRVORE", id:"memBack", accent:"#8f6fd6" })) {
     notePointer(mouse.x, mouse.y);
     startTransition("auto", "MEMORY", "TREE", 0, () => { G.screen = "TREE"; });
   }

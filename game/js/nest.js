@@ -17,7 +17,7 @@ import { G, mods } from "./state.js";
 import { IMG, rotFrame, rotDrawSize } from "./assets.js";
 import { drawOutsideEye, PIP } from "./render.js";
 import { drawText, textWidth, wrapText, fitTextBlock, fontScale } from "./font.js";
-import { button, panel, bar, pointInRect } from "./ui.js";
+import { button, panel, bar, pointInRect, isTouchUI } from "./ui.js";
 import { world } from "./world.js";
 import { SFX } from "./audio.js";
 import {
@@ -715,7 +715,7 @@ export function nestDraw(ctx) {
     } else if (!st.maxed && st.lvl === 0) {
       drawText(ctx, st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESS" : ""),
         cx, r.y + r.h - 22, { color: st.afford ? "#ffd479" : "#8a6a4a", align: "center", maxWidth: r.w - 12 });
-      drawText(ctx, "CLIQUE PARA ESCAVAR", cx, r.y + r.h - 42,
+      drawText(ctx, isTouchUI() ? "TOQUE PARA ESCAVAR" : "CLIQUE PARA ESCAVAR", cx, r.y + r.h - 42,
         { color: st.afford ? PAL.text : "#6b5a3e", align: "center", maxWidth: r.w - 12 });
     } else if (!st.maxed) {
       drawText(ctx, "MELHORAR: " + st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESS" : ""),
@@ -1017,20 +1017,20 @@ function drawNestHud(ctx) {
   ctx.strokeStyle = "#4a3a6e";
   ctx.beginPath(); ctx.moveTo(0, BOTTOM + 0.5); ctx.lineTo(VIEW_W, BOTTOM + 0.5); ctx.stroke();
 
-  if (button(ctx, { x: 16, y: BOTTOM + 10, w: 210, h: 34, label: "VOLTAR À COLÔNIA (B)", id: "nestBack", accent: "#37e6c8" })) {
+  if (button(ctx, { x: 16, y: BOTTOM + 10, w: 210, h: 34, label: isTouchUI() ? "VOLTAR À COLÔNIA" : "VOLTAR À COLÔNIA (B)", id: "nestBack", accent: "#37e6c8" })) {
     return "back";
   }
   // segunda fileira de botões: a BOCA — soltar/chamar formigas pela porta
-  if (button(ctx, { x: 238, y: BOTTOM + 10, w: 186, h: 34, label: "SAIR PELA BOCA (L)", id: "nestOut", accent: "#ffd479" })) {
+  if (button(ctx, { x: 238, y: BOTTOM + 10, w: 186, h: 34, label: isTouchUI() ? "SAIR PELA BOCA" : "SAIR PELA BOCA (L)", id: "nestOut", accent: "#ffd479" })) {
     return "out";
   }
-  if (button(ctx, { x: 430, y: BOTTOM + 10, w: 196, h: 34, label: "CHAMAR P/ DENTRO (P)", id: "nestIn", accent: "#7fd6a0" })) {
+  if (button(ctx, { x: 430, y: BOTTOM + 10, w: 196, h: 34, label: isTouchUI() ? "CHAMAR P/ DENTRO" : "CHAMAR P/ DENTRO (P)", id: "nestIn", accent: "#7fd6a0" })) {
     return "in";
   }
   // as duas dicas do rodapé em 2 linhas de passo calculado: com FONTE GRANDE a
   // segunda linha saía do canvas (e as duas se sobrepunham)
   const hintStep = Math.ceil(18 * 0.75 * FS);
-  drawText(ctx, "CLIQUE NUMA CÂMARA PARA ESCAVAR  —  CLIQUE NA ENTRADA PARA ABRIR A BOCA",
+  drawText(ctx, isTouchUI() ? "TOQUE NUMA CÂMARA PARA ESCAVAR — TOQUE NA ENTRADA PARA ABRIR A BOCA" : "CLIQUE NUMA CÂMARA PARA ESCAVAR  —  CLIQUE NA ENTRADA PARA ABRIR A BOCA",
     VIEW_W / 2, BOTTOM + 50, { color: PAL.textDim, align: "center", scale: 0.75, maxWidth: VIEW_W - 40 });
   drawText(ctx, "O MUNDO LÁ FORA CONTINUA VIVO AGORA MESMO — É O QUE MOSTRA O OLHO LÁ FORA",
     VIEW_W / 2, BOTTOM + 50 + hintStep, { color: "#8a7a5e", align: "center", scale: 0.75, maxWidth: VIEW_W - 40 });

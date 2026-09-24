@@ -7,6 +7,7 @@
 //   node game/test/layout-browser.mjs            PC + mobile (= npm run inspect:layout)
 //   node game/test/layout-browser.mjs --pc       só PC   ·  --mobile  só mobile
 //   node game/test/layout-browser.mjs --so=OPCOES,RUN   estados que começam assim
+//   --extra                                   inclui mobile 16:9 exato e retrato
 //   LAYOUT_OUT=/outra/pasta  ·  BASE_URL=http://host:porta
 // Requer tools/setup-dev.sh (Playwright + Chromium).
 import fs from "node:fs";
@@ -21,7 +22,11 @@ const only = soArg ? soArg.slice(5).toUpperCase().split(",") : null;
 const profiles = [
   { id: "pc", path: "/game/", ctx: { viewport: { width: 1280, height: 720 } } },
   { id: "mobile", path: "/game/mobile/", ctx: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
-].filter((p) => !(args.includes("--pc") && p.id !== "pc") && !(args.includes("--mobile") && p.id !== "mobile"));
+  ...(args.includes("--extra") ? [
+    { id: "mobile-16x9", path: "/game/mobile/", ctx: { viewport: { width: 960, height: 540 }, isMobile: true, hasTouch: true } },
+    { id: "mobile-retrato", path: "/game/mobile/", ctx: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+  ] : []),
+].filter((p) => !(args.includes("--pc") && p.id !== "pc") && !(args.includes("--mobile") && !p.id.startsWith("mobile")));
 
 // Cada estado: [nome, função executada NA PÁGINA (recebe M = importador de módulo)]
 // As funções viram texto (page.evaluate), então só usam o que recebem.
@@ -134,9 +139,29 @@ const S = {
   },
 };
 
+function pagedState(screen, id, count) {
+  return `async (M) => {
+    window.FUMIGA.go("${screen}");
+    for (let i = 0; i < ${count}; i++) {
+      await new Promise(r => setTimeout(r, 80));
+      const { uiButtons } = await M("ui.js"), { mouse } = await M("input.js");
+      const b = uiButtons().find(x => x.id === "${id}Next");
+      if (!b) throw new Error("Próxima página ausente: ${id}");
+      mouse.x = b.x + b.w/2; mouse.y = b.y + b.h/2;
+      mouse.down = mouse.justDown = true;
+      await new Promise(r => requestAnimationFrame(r));
+      mouse.down = mouse.justDown = false; mouse.justUp = true;
+      await new Promise(r => requestAnimationFrame(r)); mouse.justUp = false;
+    }
+    const { mouse } = await M("input.js"); mouse.x = -50; mouse.y = -50;
+  }`;
+}
+
 const STATES = [
   ["TITULO", S.titulo], ["MODO", S.modo], ["ARVORE", S.arvore], ["ARVORE-DICA", S.arvoreDica],
   ["AJUDA", S.ajuda], ["PROFECIAS", S.profecias], ["MEMORIAS", S.memorias],
+  ["MEMORIAS-P2", pagedState("MEMORY", "memory", 1)],
+  ...[1, 2, 3].map(p => ["PROFECIAS-P" + (p + 1), pagedState("PROPHECY", "prophecy", p)]),
   ...[0, 1, 2, 3, 4].flatMap((t) => [["OPCOES-ABA" + t, S.opcoes(t, false)], ["OPCOES-ABA" + t + "-FIM", S.opcoes(t, true)]]),
   ["RUN-FAIXA", S.run, 1200], ["RUN", S.runLimpo], ["RUN-EXPANDIDO", S.runExpandido], ["RUN-FORMIGAS", S.runFormigas],
   ["RUN-TUTORIAL", S.tutorial], ["RUN-CHEFE", S.chefe], ["RUN-DRAFT", S.draft], ["RUN-PAUSA", S.pausa],
@@ -156,7 +181,7 @@ const t0 = Date.now();
 for (const profile of profiles) {
   for (const big of [false, true]) {
     for (const [name, fn, waitMs] of STATES) {
-      if (big && !BIG.has(name)) continue;
+      if (big && !BIG.has(name) && !/^(MEMORIAS|PROFECIAS)-P/.test(name)) continue;
       const label = name + (big ? "+FONTE" : "");
       if (only && !only.some((o) => label.startsWith(o))) continue;
       const context = await browser.newContext(profile.ctx);

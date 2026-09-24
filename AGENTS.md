@@ -6,6 +6,10 @@ perguntar → implementar → mostrar arte → mobile → check-in → jogar →
 Lore e planejamento: [`LORE.md`](LORE.md) e [`MEGA_ARQUIVO.md`](MEGA_ARQUIVO.md). **Não leia
 o MEGA_ARQUIVO inteiro** (120 KB); abra só a seção que interessa.
 
+**Regra 12:** a cada implementação ou atualização, atualizar também `MEGA_ARQUIVO.md`
+na mesma entrega: mudanças, decisões, testes/resultados, limitações e próximos passos.
+Preservar o histórico; sincronizar blocos e hashes dos originais editados.
+
 ## 1. Começo de sessão (sempre)
 
 ```bash
@@ -20,6 +24,8 @@ npm run test:quick          # ~10 s: confirma que a base está verde
 | `node game/test/run-all.mjs --only=sim,tree` | só alguns testes | — |
 | `npm run inspect` | **joga no navegador**: PC + mobile, todas as telas, 6 mapas; erros JS, 404, glifos “?”, FPS | ~100 s |
 | `node game/test/inspect.mjs --pc --telas=TREE,RUN-MAPA3` | inspeção focada | ~10 s |
+| `npm run inspect:tree` | 67 detalhes PC/mobile, fonte normal/grande, compra dos frutos e reload do save | ~2 min |
+| `npm run inspect:ui` | cliques/toques reais: páginas de Memórias/Profecias, replay, ninho, pausa e invocar | ~15 s |
 | `npm run inspect:hud` | HUD orgânico nos 6 biomas, tecla H, acessibilidade | ~40 s |
 | `npm run inspect:layout` | **auditoria de layout**: todas as telas PC + mobile, com e sem FONTE GRANDE — texto fora da tela, colidindo, vazando da caixa, botões sobrepostos, toque cobrindo o canvas | ~4 min |
 | `npm run serve` | servidor do preview **sem cache**, 0.0.0.0:8000 (use com `start_process`) | — |

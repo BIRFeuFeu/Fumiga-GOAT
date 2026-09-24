@@ -1,3 +1,4 @@
+import { fruitProjectile, fruitOrbSpeed, fruitOrbExtra } from "./fruit_effects.js";
 // ============================================================================
 // FUMIGA-GOAT — projéteis e orbes de essência V2 com efeitos visuais
 // ============================================================================
@@ -17,7 +18,8 @@ export const orbs = [];
 export function clearCombat() { projectiles.length = 0; orbs.length = 0; }
 
 export function spawnProj(o) {
-  projectiles.push({
+  projectiles.push(fruitProjectile({
+    isProjectile:true, originX:o.x, originY:o.y, owner:o.owner,
     x: o.x, y: o.y,
     vx: o.vx, vy: o.vy,
     dmg: o.dmg,
@@ -35,7 +37,7 @@ export function spawnProj(o) {
     life: 2.2,
     size: o.size || 2.5,
     trail: [],
-  });
+  }));
 }
 
 export function updateProjectiles(dt, allies, foes) {
@@ -200,11 +202,11 @@ export function updateOrbs(dt, anthill, queenAlive) {
     if (!queenAlive) continue;
     const dx = anthill.x - o.x, dy = anthill.y - o.y;
     const d = Math.hypot(dx, dy) || 1;
-    const sp = Math.min(620, 120 + o.t * o.t * 1100);
+    const sp = Math.min(620, 120 + o.t * o.t * 1100) * fruitOrbSpeed();
     o.x += (dx / d) * sp * dt;
     o.y += (dy / d) * sp * dt;
     if (d < 40) {
-      gained += o.amt;
+      gained += o.amt * (1 + mods().fruitEssOrb + fruitOrbExtra());
       essenceCollect(o.x, o.y);
       spawnPart({ x: o.x, y: o.y, life: 0.5, size: 3, sizeEnd: 0.4, color: "#c77dff", glow: true, drag: 1, shape: "circle" });
       orbs.splice(i, 1);
