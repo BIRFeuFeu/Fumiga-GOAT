@@ -19,6 +19,13 @@ const CHARS =
 /** Glifos disponíveis no atlas (ordem da grade). Usado pelo teste de texto. */
 export const FONT_CHARS = CHARS;
 
+/**
+ * Caracteres pedidos a drawText que não existem no atlas (viram "?" na tela),
+ * com o texto onde apareceram. Lido pelo modo debug e por test/inspect.mjs:
+ * pega o que o scanner estático não vê (textos montados em tempo de execução).
+ */
+export const missingGlyphs = new Map();
+
 export const FONT = {
   big:   { src: "assets/font/font_big.png",   cw: 22, ch: 30, adv: 13, lh: 36 },
   small: { src: "assets/font/font_small.png", cw: 20, ch: 18, adv: 11, lh: 22 },
@@ -134,7 +141,11 @@ function lineCanvas(text, fname, scale, color) {
   c.imageSmoothingEnabled = false;
   for (let i = 0; i < text.length; i++) {
     let gi = CHARS.indexOf(text[i]);
-    if (gi < 0) gi = CHARS.indexOf("?");
+    if (gi < 0) {
+      gi = CHARS.indexOf("?");
+      // só no caminho sem cache: custo zero por frame
+      if (text[i] !== "?" && missingGlyphs.size < 64) missingGlyphs.set(text[i], text);
+    }
     const sx = (gi % 12) * F.cw, sy = Math.floor(gi / 12) * F.ch;
     c.drawImage(img, sx, sy, F.cw, F.ch, i * F.adv * scale, 0, F.cw * scale, F.ch * scale);
   }

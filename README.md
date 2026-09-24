@@ -67,17 +67,29 @@ entregam comida, cuidam das larvas e a Rainha põe ovos.
 
 ## 🧪 Testes
 
-A bateria headless do projeto roda sem navegador:
+A bateria headless do projeto roda sem navegador e sem dependências:
 
 ```bash
-cd game
-node test/boot.mjs && node test/docs.mjs && \
-node test/assets.mjs && node test/tree.mjs && node test/stuck.mjs && \
-node test/layout.mjs && node test/uitest.mjs && node test/attack.mjs && \
-node test/endless.mjs && node test/prophecy.mjs
+npm test              # os 19 testes EM PARALELO, com resumo e tempos (~45 s)
+npm run test:quick    # só os rápidos, para iterar (~10 s)
+node game/test/run-all.mjs --only=sim,tree   # só alguns
 
-FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
+FORCE=3 node game/test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 ```
+
+**No navegador de verdade** (Chromium headless, só para desenvolvimento):
+
+```bash
+bash tools/setup-dev.sh   # instala Playwright + Chromium (uma vez por máquina/sessão)
+npm run inspect           # PC + mobile: todas as telas e os 6 mapas — erros de JS, 404,
+                          # glifos que viram "?", FPS e capturas em /tmp/fumiga-inspect
+```
+
+O **CI** (GitHub Actions) está pronto em [`tools/ci/testes.yml`](tools/ci/testes.yml): copiado para
+`.github/workflows/`, ele roda as duas coisas em todo push e guarda as capturas como artefato.
+Para depurar, abra o jogo com **`?debug`** (ex.: `game/?debug&tela=RUN&mapa=3&seed=42&invencivel`):
+save separado, atalhos direto para qualquer tela e overlay de FPS (F3). Detalhes em
+[`AGENTS.md`](AGENTS.md).
 
 > A simulação completa (sem `FORCE`) joga os 6 mapas de uma vez e pode **empatar** por azar do
 > autopiloto — por isso a verificação usa os chefes 1, 3 e 6, que são rápidos e determinísticos.
@@ -95,10 +107,13 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 | Caminho | O que é |
 |---------|---------|
 | [`index.html`](index.html) | Página inicial do site: leva para `game/` (é o endereço do Pages) |
-| [`game/`](game/) | **O jogo** — HTML, CSS, 24 módulos ES e sprites |
+| [`AGENTS.md`](AGENTS.md) | **Mapa rápido para desenvolver**: comandos, modo debug, arquitetura, receitas e armadilhas |
+| [`game/`](game/) | **O jogo** — HTML, CSS, módulos ES e sprites |
 | [`game/js/nest.js`](game/js/nest.js) | A cena de dentro do formigueiro (câmaras, túneis, IA das formigas) |
 | [`game/js/brain.js`](game/js/brain.js) | **Cérebro da colônia**: cada formiga decide sozinha (IA de utilidade) sob necessidades da colônia, cotas por tarefa e feromônio (estigmergia) |
-| [`game/test/`](game/test/) | Auditorias de assets, layout, árvore, travamentos e simulação |
+| [`game/test/`](game/test/) | Auditorias de assets, layout, árvore, travamentos e simulação · `run-all.mjs` (paralelo) · `inspect.mjs` (navegador) |
+| [`game/js/debug.js`](game/js/debug.js) | Modo debug (`?debug`): só carrega com o parâmetro na URL |
+| [`tools/setup-dev.sh`](tools/setup-dev.sh) | Prepara Playwright + Chromium para os testes de navegador |
 | [`tools/prepare_assets.sh`](tools/prepare_assets.sh) | Regenera os sprites a partir das artes-fonte |
 | [`tools/fix_title_parallax.py`](tools/fix_title_parallax.py) | Repara as 4 camadas de parallax do TITLE (matte do recorte, paleta) e as deixa no tamanho exato de desenho |
 | `animais/`, `arvores/`, `arbustos/`, `pedras/`, `cristais/`, `cenarios/`, `icones/` | Artes-fonte |
@@ -106,9 +121,8 @@ FORCE=3 node test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 ## 💻 Rodar localmente
 
 ```bash
-cd game
-python3 -m http.server 8080
-# abra http://localhost:8080
+npm run serve        # servidor sem cache em http://localhost:8000 — abra /game/
+# (ou, sem Node: cd game && python3 -m http.server 8080)
 ```
 
 (Módulos ES exigem um servidor HTTP — abrir o `index.html` direto pelo disco não funciona.)

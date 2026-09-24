@@ -1564,6 +1564,28 @@ Cada layer: alta resolução, pixel art detalhado, paleta violeta/âmbar, sem hu
 **Arquivo de origem:** [PROGRESSO_MEGA_ATUALIZACAO.md](PROGRESSO_MEGA_ATUALIZACAO.md)
 
 <!-- INICIO ORIGINAL: PROGRESSO_MEGA_ATUALIZACAO.md -->
+# PROGRESSO — FERRAMENTAS DE DESENVOLVIMENTO (2026-09-23)
+
+**Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar e implementar o que acelera o desenvolvimento.
+Escopo aprovado: itens 1–7 (navegador, modo debug, testes paralelos, correções de teste, CI, AGENTS.md).
+Cutscenes mantidas como estão. CI bloqueia o merge até ficar verde.
+
+| # | Item | Status | Onde |
+|---|------|--------|------|
+| 1 | Chromium headless no sandbox (CDN bloqueado → Chromium via npm) | ✅ | `tools/setup-dev.sh`, `game/test/lib/browser.mjs` |
+| 2 | Inspeção no navegador PC+mobile, 30 cenas, erros/404/glifos/FPS | ✅ | `game/test/inspect.mjs` (`npm run inspect`) |
+| 3 | Modo debug `?debug` (save isolado, telas diretas, seed, overlay F3) | ✅ | `game/js/debug.js`, ganchos em `main.js`/`game.js`/`state.js`/`font.js` |
+| 4 | Bateria em paralelo + modo rápido | ✅ | `game/test/run-all.mjs`, `package.json` (`npm test`) |
+| 5 | `treemap.mjs` consertado; `assets.mjs` checa literais de `drawText`; bug `▼`→`?` corrigido | ✅ | `game/test/treemap.mjs`, `game/test/assets.mjs`, `game/js/render.js` |
+| 6 | CI GitHub Actions (headless + navegador + capturas) | ⚠️ pronto, inativo | `tools/ci/testes.yml` — o app do agente não tem a permissão `workflows`; o dono copia para `.github/workflows/` |
+| 7 | Mapa do código para agentes | ✅ | `AGENTS.md` |
+
+Achados da inspeção, ainda sem correção (pedem decisão do usuário): textos sobrepostos em
+MEMÓRIAS, COMO JOGAR e no cabeçalho da ÁRVORE; no mobile, botões de toque cobrindo o
+botão ENTRAR (B) e dicas de teclado visíveis na expedição.
+
+---
+
 # PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
 
 **Data:** 2026-09-22 (continuação)
@@ -1957,7 +1979,7 @@ parte dos blocos originais.
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
-| `PROGRESSO_MEGA_ATUALIZACAO.md` | 7782 | `308b60262d478b650659da247f62a0541f02631acb03768c6aefb04ae818243b` |
+| `PROGRESSO_MEGA_ATUALIZACAO.md` | 9400 | `b1c03c70c3261035e884f460c4fad7a30a6b820a577618a2d7e1e79a1d018356` |
 | `DOCUMENTO_FASES_IMPLEMENTACAO.md` | 16113 | `065f79996d7ee89b3445cd231217067471be5b58792c36699c66146ed7a3965b` |
 
 **Conferência reproduzível:** `node game/test/docs.mjs`.
@@ -2022,3 +2044,22 @@ Chromium headless: PC e mobile do boot à expedição, introdução pulada pelo 
 real; cinco requisições únicas dos atlas, promessa reutilizada, sete temas
 renderizados, sem erros JS/HTTP. Capturas do HUD inspecionadas. Preview :8000 ativo.
 Este registro resolve a pendência de `lorehud.mjs` citada na entrega anterior.
+
+## Registro — ferramentas de desenvolvimento (2026-09-23, branch arena/01a0d13b)
+
+Pedido: analisar o que instalar ou implementar para acelerar o desenvolvimento.
+Escolhas (ask_user): itens 1–7, cutscenes intactas, merge só com CI verde.
+
+- Navegador: o CDN do Playwright e o apt estão bloqueados no sandbox; o Chromium 153 do
+  pacote npm `@sparticuz/chromium` roda com as libs NSS que ele traz
+  (`tools/setup-dev.sh`, ~10 s por sessão, fora do Git). Isso fecha a limitação
+  "sem binário de navegador" registrada acima.
+- `game/test/inspect.mjs`: 30 cenas (PC+mobile, 7 telas, formigueiro, 6 mapas) sem erro JS,
+  404 ou glifo faltando; 60 fps, ~1 ms de CPU por frame. `lorehud-browser.mjs` volta a rodar.
+- Modo debug `?debug` (`game/js/debug.js`, import dinâmico, save `_debug`).
+- `run-all.mjs`: 19 testes em ~44 s (em série: 102 s). `treemap.mjs` voltou (49 nós).
+- Bug achado pelo navegador: seta "▼" fora do atlas virava "?" na tela inicial; agora é
+  desenhada em blocos, e o `assets.mjs` checa todo literal passado a `drawText`.
+- CI pronto em `tools/ci/testes.yml`: o push de `.github/workflows/` foi recusado porque o app
+  do agente não tem a permissão `workflows`, e quem ativa é o dono. Mapa operacional em `AGENTS.md`.
+

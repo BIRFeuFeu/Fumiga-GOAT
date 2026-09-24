@@ -1,3 +1,25 @@
+# PROGRESSO — FERRAMENTAS DE DESENVOLVIMENTO (2026-09-23)
+
+**Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar e implementar o que acelera o desenvolvimento.
+Escopo aprovado: itens 1–7 (navegador, modo debug, testes paralelos, correções de teste, CI, AGENTS.md).
+Cutscenes mantidas como estão. CI bloqueia o merge até ficar verde.
+
+| # | Item | Status | Onde |
+|---|------|--------|------|
+| 1 | Chromium headless no sandbox (CDN bloqueado → Chromium via npm) | ✅ | `tools/setup-dev.sh`, `game/test/lib/browser.mjs` |
+| 2 | Inspeção no navegador PC+mobile, 30 cenas, erros/404/glifos/FPS | ✅ | `game/test/inspect.mjs` (`npm run inspect`) |
+| 3 | Modo debug `?debug` (save isolado, telas diretas, seed, overlay F3) | ✅ | `game/js/debug.js`, ganchos em `main.js`/`game.js`/`state.js`/`font.js` |
+| 4 | Bateria em paralelo + modo rápido | ✅ | `game/test/run-all.mjs`, `package.json` (`npm test`) |
+| 5 | `treemap.mjs` consertado; `assets.mjs` checa literais de `drawText`; bug `▼`→`?` corrigido | ✅ | `game/test/treemap.mjs`, `game/test/assets.mjs`, `game/js/render.js` |
+| 6 | CI GitHub Actions (headless + navegador + capturas) | ⚠️ pronto, inativo | `tools/ci/testes.yml` — o app do agente não tem a permissão `workflows`; o dono copia para `.github/workflows/` |
+| 7 | Mapa do código para agentes | ✅ | `AGENTS.md` |
+
+Achados da inspeção, ainda sem correção (pedem decisão do usuário): textos sobrepostos em
+MEMÓRIAS, COMO JOGAR e no cabeçalho da ÁRVORE; no mobile, botões de toque cobrindo o
+botão ENTRAR (B) e dicas de teclado visíveis na expedição.
+
+---
+
 # PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
 
 **Data:** 2026-09-22 (continuação)

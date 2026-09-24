@@ -1544,8 +1544,16 @@ export function drawPreTitle(ctx, time) {
   drawText(ctx, txt, cx, baseY + 180, { font: "big", scale: 1, color: "#ffd479", align: "center" });
 
   // seta animada
-  const arrowY = baseY + 210 + Math.sin(time * 3) * 4;
-  drawText(ctx, "▼", cx, arrowY, { font: "small", scale: 1, color: "#37e6c8", align: "center", alpha: clickAlpha });
+  // (desenhada em blocos: "▼" não existe no atlas da fonte e virava "?")
+  const arrowY = Math.round(baseY + 212 + Math.sin(time * 3) * 4);
+  ctx.globalAlpha = clickAlpha;
+  for (let r = 0; r < 4; r++) {
+    const half = (3 - r) * 2 + 1;
+    ctx.fillStyle = "rgba(10,8,18,0.9)";
+    ctx.fillRect(cx - half + 1, arrowY + r * 2 + 1, half * 2, 2);
+    ctx.fillStyle = "#37e6c8";
+    ctx.fillRect(cx - half, arrowY + r * 2, half * 2, 2);
+  }
 
   ctx.globalAlpha = 1;
 

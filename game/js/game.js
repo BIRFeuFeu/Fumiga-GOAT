@@ -182,9 +182,10 @@ function optSetVolume(sl, x, silent) {
 function isMobileLayout() { return isTouchUI(); }
 
 // ------------------------------------------------------------------ run -----
-function newRun(mode = null) {
+function newRun(mode = null, seedOverride = null) {
   const mSel = mode || selectedMode;
-  const seed = (Math.random() * 0xffffffff) >>> 0;
+  // seedOverride: só o modo debug (?seed=) — mesmo mapa gerado toda vez
+  const seed = seedOverride != null ? seedOverride >>> 0 : (Math.random() * 0xffffffff) >>> 0;
   resetDirector();
   const startMap = mSel.mapIdx || 0;
   genWorld(seed, startMap);
@@ -2575,3 +2576,24 @@ export function boot() {
   initInput(canvas);
   applyScanlines();
 }
+
+// ---------------------------------------------------- gancho do MODO DEBUG ---
+// Usado só por js/debug.js (carregado apenas com ?debug na URL): pula os menus
+// e cai direto numa tela ou expedição, pelos MESMOS caminhos dos botões.
+export const __debug = {
+  modes: () => GAME_MODES.map((m) => m.id),
+  startRun({ mode = "campanha", map = 0, seed = null } = {}) {
+    const base = GAME_MODES.find((m) => m.id === mode) || GAME_MODES[0];
+    const idx = Math.max(0, Math.min(MAPS.length - 1, map | 0));
+    return newRun(Object.assign({}, base, { mapIdx: idx }), seed);
+  },
+  openScreen(name) {
+    if (name === "TREE") { enterTree(); treeReturn = "TITLE"; }
+    else if (name === "OPTIONS") { optionsReturn = "TITLE"; optionsTab = 0; optionsScroll = 0; optGrab = null; }
+    else if (name === "HELP") helpReturn = "TITLE";
+    else if (name === "MEMORY") memoryHover = -1;
+    else if (name === "PROPHECY") checkProphecies(null, false, null);
+    G.screen = name;
+  },
+  openNest() { if (G.run && G.screen === "RUN") openNest(G.run); },
+};
