@@ -1,0 +1,63 @@
+# FUMIGA — CI: a bateria de testes roda em TODO push (qualquer branch).
+#
+# ⚠ ARQUIVO PRONTO, AINDA INATIVO. Para ligar, ele precisa estar em
+#   .github/workflows/testes.yml. O app do GitHub usado pelo agente não tem a
+#   permissão "workflows", então quem ativa é o dono do repositório:
+#   GitHub → Add file → Create new file → nome ".github/workflows/testes.yml"
+#   → colar este conteúdo → Commit. (Ou conceder a permissão ao app.)
+# O fluxo "salvar no GitHub" (Regra 11) espera este check ficar verde antes
+# do merge:  gh pr checks <n> --watch --fail-fast && gh pr merge <n> --merge
+# (as verificações ficam presas ao commit, então aparecem no PR também).
+name: testes
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headless:
+    name: bateria headless (node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # treemap/nestmap desenham com ImageMagick + DejaVu (costumam vir na imagem)
+      - name: ImageMagick e DejaVu
+        run: command -v convert >/dev/null && [ -f /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf ] || (sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick fonts-dejavu-core)
+      - name: npm test (19 testes em paralelo)
+        run: node game/test/run-all.mjs
+
+  navegador:
+    name: inspeção no navegador (Chromium, PC + mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: npm run inspect (todas as telas e os 6 mapas)
+        run: node game/test/inspect.mjs
+        env:
+          INSPECT_OUT: ${{ runner.temp }}/fumiga-inspect
+      - name: HUD orgânico (6 biomas, H, acessibilidade)
+        run: node game/test/lorehud-browser.mjs
+        env:
+          HUD_SHOTS: ${{ runner.temp }}/fumiga-inspect/hud
+      - name: capturas de tela para revisão
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-fumiga
+          path: ${{ runner.temp }}/fumiga-inspect
+          retention-days: 14
