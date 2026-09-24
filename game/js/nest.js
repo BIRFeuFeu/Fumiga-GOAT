@@ -16,7 +16,7 @@ import { CHAMBERS, MAPS, PAL, VIEW_W, VIEW_H } from "./config.js";
 import { G, mods } from "./state.js";
 import { IMG, rotFrame, rotDrawSize } from "./assets.js";
 import { drawOutsideEye, PIP } from "./render.js";
-import { drawText, wrapText } from "./font.js";
+import { drawText, textWidth, wrapText, fitTextBlock, fontScale } from "./font.js";
 import { button, panel, bar, pointInRect } from "./ui.js";
 import { world } from "./world.js";
 import { SFX } from "./audio.js";
@@ -677,41 +677,49 @@ export function nestDraw(ctx) {
   for (const n of nest.ants) drawNestAnt(ctx, n);
 
   // ------------------------------------------------------------ rótulos -----
+  // Rótulo, dica e custo ficam DENTRO da câmara: quebram em 2 linhas e o passo
+  // é calculado com o tamanho real do texto, então nada invade a câmara vizinha
+  // nem sai do canvas com FONTE GRANDE (era o caso de "BERÇO DE SEDA DA TECELÃ").
+  const labFS = fontScale();
   for (const r of ROOMS) {
     const cx = r.x + r.w / 2;
-    const cy = r.y + r.h / 2;
     if (r.id === "entrance") {
-      drawText(ctx, "ENTRADA", cx, r.y + 8, { color: "#ffd479", align: "center" });
-      drawText(ctx, "COMIDA VINDO DE FORA", cx, r.y + r.h - 18, { color: PAL.textDim, align: "center" });
+      drawText(ctx, "ENTRADA", cx, r.y + 6, { color: "#ffd479", align: "center", maxWidth: r.w - 12 });
+      const ent = fitTextBlock("Comida vindo de fora", r.w - 14, 34, { scale: 0.8, minScale: 0.7, lineStep: 15 });
+      ent.lines.forEach((L, i) => drawText(ctx, L, cx, r.y + r.h - 22 - (ent.lines.length - 1 - i) * ent.step,
+        { color: PAL.textDim, align: "center", scale: ent.scale, maxWidth: r.w - 14 }));
       continue;
     }
     if (r.id === "royal") {
-      drawText(ctx, "CÂMARA REAL", cx, r.y + 6, { color: "#ffd479", align: "center" });
+      drawText(ctx, "CÂMARA REAL", cx, r.y + 6, { color: "#ffd479", align: "center", maxWidth: r.w - 12 });
       continue;
     }
     const st = chamberState(r.id);
     const digging = nest.dig && nest.dig.id === r.id;
-    drawText(ctx, st.def.name, cx, r.y + 6, {
-      color: st.lvl > 0 ? "#ffd479" : st.afford ? PAL.text : "#6b5a3e", align: "center",
+    drawText(ctx, st.def.name, cx, r.y + 4, {
+      color: st.lvl > 0 ? "#ffd479" : st.afford ? PAL.text : "#6b5a3e", align: "center", scale: 0.9, maxWidth: r.w - 14,
     });
-    // pips de nível
-    for (let i = 0; i < st.def.max; i++) {
-      ctx.fillStyle = i < st.lvl ? "#ffd479" : "#2c2414";
-      ctx.fillRect(cx - (st.def.max - 1) * 8 + i * 16 - 6, r.y + r.h - 20, 12, 5);
+    // pips de nível (só quando há nível comprado — sem nível eles não dizem nada
+    // e ocupavam a faixa onde fica o custo)
+    if (st.lvl > 0) {
+      for (let i = 0; i < st.def.max; i++) {
+        ctx.fillStyle = i < st.lvl ? "#ffd479" : "#2c2414";
+        ctx.fillRect(cx - (st.def.max - 1) * 8 + i * 16 - 6, r.y + r.h - 14, 12, 5);
+      }
     }
     if (digging) {
       const frac = clamp(nest.dig.t / nest.dig.total, 0, 1);
       bar(ctx, r.x + 18, r.y + r.h - 40, r.w - 36, 8, frac, { c1: "#ffd479", c2: "#a35a2c", segments: 6 });
-      drawText(ctx, "ESCAVANDO " + Math.floor(frac * 100) + "%", cx, r.y + r.h - 52,
-        { color: "#ffb347", align: "center" });
+      drawText(ctx, "ESCAVANDO " + Math.floor(frac * 100) + "%", cx, r.y + r.h - 60,
+        { color: "#ffb347", align: "center", maxWidth: r.w - 12 });
     } else if (!st.maxed && st.lvl === 0) {
       drawText(ctx, st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESS" : ""),
-        cx, r.y + r.h - 34, { color: st.afford ? "#ffd479" : "#8a6a4a", align: "center" });
-      drawText(ctx, "CLIQUE PARA ESCAVAR", cx, r.y + r.h - 50,
-        { color: st.afford ? PAL.text : "#6b5a3e", align: "center" });
+        cx, r.y + r.h - 22, { color: st.afford ? "#ffd479" : "#8a6a4a", align: "center", maxWidth: r.w - 12 });
+      drawText(ctx, "CLIQUE PARA ESCAVAR", cx, r.y + r.h - 42,
+        { color: st.afford ? PAL.text : "#6b5a3e", align: "center", maxWidth: r.w - 12 });
     } else if (!st.maxed) {
       drawText(ctx, "MELHORAR: " + st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESS" : ""),
-        cx, r.y + r.h - 34, { color: st.afford ? "#ffd479" : "#8a6a4a", align: "center" });
+        cx, r.y + r.h - 40, { color: st.afford ? "#ffd479" : "#8a6a4a", align: "center", maxWidth: r.w - 12 });
     }
   }
 
@@ -736,7 +744,12 @@ export function nestDraw(ctx) {
 
   // -------------------------------------------------- OLHO LÁ FORA (PiP) ----
   // A segunda tela: o mundo rodando de verdade enquanto você está aqui dentro.
-  drawOutsideEye(ctx, VIEW_W - PIP.w - 22, 46, PIP.w, PIP.h);
+  // Com FONTE GRANDE a barra do topo cresce: a janela desce e encurta para não
+  // ficar embaixo dela nem encostar na despensa (y=232).
+  const eyeFS = fontScale();
+  const eyeY = eyeFS > 1 ? 68 : 46;
+  const eyeH = eyeFS > 1 ? PIP.h - 24 : PIP.h;
+  drawOutsideEye(ctx, VIEW_W - PIP.w - 22, eyeY, PIP.w, eyeH);
 
   // -------------------------------------------------------------- HUD -------
   return drawNestHud(ctx);
@@ -869,7 +882,7 @@ function drawPantry(ctx) {
     ctx.fillStyle = i % 3 === 0 ? "#ffe6a8" : "#ffb347";
     ctx.beginPath(); ctx.arc(px, py, 4.5, 0, TAU); ctx.fill();
   }
-  drawText(ctx, "COMIDA GUARDADA", r.x + r.w / 2, r.y + 20, { color: "#ffb347", align: "center" });
+  drawText(ctx, "COMIDA GUARDADA", r.x + r.w / 2, r.y + 26, { color: "#ffb347", align: "center", scale: 0.7, maxWidth: r.w - 14 });
 }
 
 function drawBarracks(ctx) {
@@ -896,8 +909,8 @@ function drawBarracks(ctx) {
   ctx.ellipse(c.x, c.y, r.w*0.5, r.h*0.5, 0, 0, TAU);
   ctx.fill();
   const g = nest.ants.find((n) => n.job === "colossus");
-  if (!g) drawText(ctx, "SEM COLOSSO", c.x, r.y + r.h - 16, { color: PAL.textDim, align: "center" });
-  else drawText(ctx, "DINOPONERA DE FOLGA", c.x, r.y + r.h - 16, { color: "#ffd479", align: "center" });
+  if (!g) drawText(ctx, "SEM COLOSSO", c.x, r.y + 26, { color: PAL.textDim, align: "center", scale: 0.7, maxWidth: r.w - 14 });
+  else drawText(ctx, "DINOPONERA DE FOLGA", c.x, r.y + 26, { color: "#ffd479", align: "center", scale: 0.7, maxWidth: r.w - 14 });
 }
 
 function drawFungus(ctx, time) {
@@ -955,25 +968,48 @@ function drawRefinery(ctx, time) {
 
 function drawNestHud(ctx) {
   const run = runRef();
-  // barra superior: recursos e status do lado de fora
+  const FS = fontScale();
+  // No PC a barra tem 40px; com FONTE GRANDE ela cresce para caber DUAS linhas
+  // (recursos + status) — antes os textos da direita ficavam um sobre o outro e
+  // invadiam o painel OLHO LÁ FORA.
+  const barH = FS > 1 ? 64 : 40;
+  const y1 = FS > 1 ? 10 : 13;
   ctx.fillStyle = "rgba(8,6,4,0.82)";
-  ctx.fillRect(0, 0, VIEW_W, 40);
+  ctx.fillRect(0, 0, VIEW_W, barH);
   ctx.strokeStyle = "#4a3a6e"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, 40.5); ctx.lineTo(VIEW_W, 40.5); ctx.stroke();
-  if (IMG.i_food) ctx.drawImage(IMG.i_food, 16, 11, 18, 18);
-  drawText(ctx, String(run ? run.food : 0), 40, 13, { font: "big", scale: 1, color: "#ffd479" });
-  if (IMG.i_essence) ctx.drawImage(IMG.i_essence, 132, 11, 18, 18);
-  drawText(ctx, String(run ? run.essencePool : 0), 156, 13, { font: "big", scale: 1, color: "#c77dff" });
-  drawText(ctx, "NÍVEL " + (run ? run.level : 0), 250, 13, { font: "big", scale: 1, color: "#6db7ff" });
-  drawText(ctx, "MAPA " + ((run ? run.mapIdx : 0) + 1) + "/" + MAPS.length +
-    "   ONDA " + (run ? run.wave : 0) +
-    "   POP " + popUsed() + "/" + popCapTotal(), 380, 14, { color: PAL.text });
+  ctx.beginPath(); ctx.moveTo(0, barH + 0.5); ctx.lineTo(VIEW_W, barH + 0.5); ctx.stroke();
 
-  // entregas contando: é a comida que as formigas trouxeram para dentro
-  drawText(ctx, "ENTREGUE POR ELAS: +" + nest.deliveries, VIEW_W - 16, 14,
-    { color: "#7fd6a0", align: "right" });
-  drawText(ctx, nest.ants.length + " TRABALHANDO AQUI DENTRO (DE " + insideCount() + " NO NINHO)",
-    VIEW_W - 16, 30, { color: PAL.textDim, align: "right" });
+  // linha 1: recursos medidos (os números crescem durante a partida)
+  let bx = 16;
+  if (IMG.i_food) ctx.drawImage(IMG.i_food, bx, y1 - 2, 18, 18);
+  drawText(ctx, String(run ? run.food : 0), bx + 24, y1, { font: "big", scale: 1, color: "#ffd479", maxWidth: 90 });
+  bx += 24 + Math.max(46, textWidth(String(run ? run.food : 0), { font: "big" })) + 16;
+  if (IMG.i_essence) ctx.drawImage(IMG.i_essence, bx, y1 - 2, 18, 18);
+  drawText(ctx, String(run ? run.essencePool : 0), bx + 24, y1, { font: "big", scale: 1, color: "#c77dff", maxWidth: 90 });
+  bx += 24 + Math.max(46, textWidth(String(run ? run.essencePool : 0), { font: "big" })) + 16;
+  const lvlTxt = "NÍVEL " + (run ? run.level : 0);
+  drawText(ctx, lvlTxt, bx, y1, { font: "big", scale: 1, color: "#6db7ff", maxWidth: 150 });
+  bx += Math.min(150, textWidth(lvlTxt, { font: "big" })) + 18;
+
+  const mapTxt = "MAPA " + ((run ? run.mapIdx : 0) + 1) + "/" + MAPS.length +
+    "   ONDA " + (run ? run.wave : 0) + "   POP " + popUsed() + "/" + popCapTotal();
+  if (FS > 1) {
+    // com FONTE GRANDE o resumo do mapa não cabe na mesma faixa dos números:
+    // ele encosta na direita da linha 1 e as duas frases de status descem
+    drawText(ctx, mapTxt, VIEW_W - 16, y1 + 1, { color: PAL.text, align: "right", maxWidth: VIEW_W - 32 });
+    drawText(ctx, "ENTREGUE POR ELAS: +" + nest.deliveries, 16, 40,
+      { color: "#7fd6a0", scale: 0.8, maxWidth: 330 });
+    drawText(ctx, nest.ants.length + " TRABALHANDO AQUI DENTRO (DE " + insideCount() + " NO NINHO)",
+      VIEW_W - 16, 40, { color: PAL.textDim, align: "right", scale: 0.8, maxWidth: VIEW_W - 370 });
+  } else {
+    // PC normal: exatamente o layout antigo (mapa à esquerda, entregas à
+    // direita em duas linhas) — ele já cabia sem sobreposição
+    drawText(ctx, mapTxt, Math.max(bx, 380), y1 + 1, { color: PAL.text, maxWidth: VIEW_W - 16 - Math.max(bx, 380) });
+    drawText(ctx, "ENTREGUE POR ELAS: +" + nest.deliveries, VIEW_W - 16, 14,
+      { color: "#7fd6a0", align: "right", maxWidth: 330 });
+    drawText(ctx, nest.ants.length + " TRABALHANDO AQUI DENTRO (DE " + insideCount() + " NO NINHO)",
+      VIEW_W - 16, 30, { color: PAL.textDim, align: "right", maxWidth: 330 });
+  }
 
   // rodapé: sair + dica
   ctx.fillStyle = "rgba(8,6,4,0.82)";
@@ -991,28 +1027,33 @@ function drawNestHud(ctx) {
   if (button(ctx, { x: 430, y: BOTTOM + 10, w: 196, h: 34, label: "CHAMAR P/ DENTRO (P)", id: "nestIn", accent: "#7fd6a0" })) {
     return "in";
   }
+  // as duas dicas do rodapé em 2 linhas de passo calculado: com FONTE GRANDE a
+  // segunda linha saía do canvas (e as duas se sobrepunham)
+  const hintStep = Math.ceil(18 * 0.75 * FS);
   drawText(ctx, "CLIQUE NUMA CÂMARA PARA ESCAVAR  —  CLIQUE NA ENTRADA PARA ABRIR A BOCA",
-    VIEW_W / 2, BOTTOM + 50, { color: PAL.textDim, align: "center" });
+    VIEW_W / 2, BOTTOM + 50, { color: PAL.textDim, align: "center", scale: 0.75, maxWidth: VIEW_W - 40 });
   drawText(ctx, "O MUNDO LÁ FORA CONTINUA VIVO AGORA MESMO — É O QUE MOSTRA O OLHO LÁ FORA",
-    VIEW_W / 2, BOTTOM + 64, { color: "#8a7a5e", align: "center" });
+    VIEW_W / 2, BOTTOM + 50 + hintStep, { color: "#8a7a5e", align: "center", scale: 0.75, maxWidth: VIEW_W - 40 });
 
   // tooltip da câmara sob o mouse
   if (nest.hover && nest.hover !== "royal" && nest.hover !== "entrance") {
     const def = CHAMBERS[nest.hover];
     const st = chamberState(nest.hover);
-    const w = 300;
+    const w = 340;
     const lines = wrapText(def.tip + " " + def.per, w - 24, {});
-    const h = 40 + lines.length * 16;
+    const step = Math.ceil(16 * FS);
+    const costTxt = st.maxed ? "" : "CUSTO: " + st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESSÊNCIA" : "");
+    const h = 34 + Math.ceil(20 * FS) + lines.length * step + (costTxt ? Math.ceil(18 * FS) : 0) + 12;
     const r = roomOf(nest.hover);
     let tx = clamp(r.x + r.w / 2 - w / 2, 10, VIEW_W - w - 10);
     let ty = r.y - h - 8;
     if (ty < 46) ty = r.y + r.h + 8;
+    ty = clamp(ty, 46, VIEW_H - h - 10);
     panel(ctx, tx, ty, w, h);
-    drawText(ctx, def.name + "  (NÍVEL " + st.lvl + "/" + def.max + ")", tx + 12, ty + 10, { color: "#ffd479" });
-    lines.forEach((L, i) => drawText(ctx, L, tx + 12, ty + 30 + i * 16, { color: PAL.text }));
-    if (!st.maxed) {
-      drawText(ctx, "CUSTO: " + st.cost.food + " COMIDA" + (st.cost.ess ? " + " + st.cost.ess + " ESSÊNCIA" : ""),
-        tx + 12, ty + h - 18, { color: st.afford ? "#7fd6a0" : "#ff8a96" });
+    drawText(ctx, def.name + "  (NÍVEL " + st.lvl + "/" + def.max + ")", tx + 12, ty + 10, { color: "#ffd479", maxWidth: w - 24 });
+    lines.forEach((L, i) => drawText(ctx, L, tx + 12, ty + 34 + i * step, { color: PAL.text, maxWidth: w - 24 }));
+    if (costTxt) {
+      drawText(ctx, costTxt, tx + 12, ty + h - 26, { color: st.afford ? "#7fd6a0" : "#ff8a96", maxWidth: w - 24 });
     }
   }
 

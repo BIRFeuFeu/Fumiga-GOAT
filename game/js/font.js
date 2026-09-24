@@ -115,8 +115,16 @@ export function lineWidth(len, { font = "small", scale = 1 } = {}) {
   return ((len - 1) * F.adv + F.cw) * scale;
 }
 
+/** Fator da acessibilidade FONTE GRANDE. TODA medida de texto passa por aqui:
+ *  se textWidth ignorasse os +30%, quem calcula coluna por largura medida
+ *  (opções, legenda, preços) erraria a conta e o texto vazaria da caixa. */
+export function fontScale() {
+  return (G && G.save && G.save.accessibility && G.save.accessibility.bigFont) ? 1.3 : 1;
+}
+
+/** Largura REAL ocupada por um texto na tela (já com o FONTE GRANDE). */
 export function textWidth(text, { font = "small", scale = 1 } = {}) {
-  return lineWidth(String(text).length, { font, scale });
+  return lineWidth(String(text).length, { font, scale }) * fontScale();
 }
 
 /** Renderiza (com cache) uma linha de texto e a desenha em ctx. FASE 2: bigFont + highContrast */
@@ -125,10 +133,10 @@ export function drawText(ctx, text, x, y, {
   shadowColor = "rgba(10,8,18,0.9)", alpha = 1, maxWidth = Infinity,
 } = {}) {
   text = String(text).toUpperCase();
-  // FASE 2: acessibilidade bigFont aumenta 30% e highContrast força sombra mais forte
-  if (G && G.save && G.save.accessibility && G.save.accessibility.bigFont) {
-    scale *= 1.3;
-  }
+  // FASE 2: acessibilidade bigFont aumenta 30% — e esse aumento entra ANTES do
+  // corte por maxWidth, senão o texto "limitado" continuava 30% mais largo que
+  // a caixa (era a causa dos vazamentos com FONTE GRANDE ligada).
+  scale *= fontScale();
   if (G && G.save && G.save.accessibility && G.save.accessibility.highContrast) {
     // alto contraste: sombra mais grossa e cor mais viva
     shadow = true;
@@ -188,6 +196,24 @@ function lineCanvas(text, fname, scale, color) {
     cacheCount = cache.size;
   }
   return cv;
+}
+
+/**
+ * Faz um texto caber em uma caixa maxW x maxH: quebra em quantas linhas forem
+ * necessárias e, se ainda sobrar, reduz um pouco o corpo (auto-redução suave).
+ * O texto NUNCA é cortado nem reescrito — é o que as telas densas (profecias,
+ * memórias, tutorial) usam para não invadir o vizinho com FONTE GRANDE ligada.
+ * Devolve { lines, scale, step } — desenhe as linhas com `step` de passo.
+ */
+export function fitTextBlock(text, maxW, maxH, { font = "small", scale = 1, minScale = 0.62, lineStep = 15 } = {}) {
+  const FS = fontScale();
+  for (let s = scale; s >= minScale - 1e-6; s -= 0.05) {
+    const lines = wrapText(text, maxW, { font, scale: s });
+    const step = Math.ceil(lineStep * s * FS);
+    if (lines.length * step <= maxH) return { lines, scale: s, step };
+  }
+  const s = minScale;
+  return { lines: wrapText(text, maxW, { font, scale: s }), scale: s, step: Math.ceil(lineStep * s * FS) };
 }
 
 /** Quebra texto em linhas cabendo em maxW. */

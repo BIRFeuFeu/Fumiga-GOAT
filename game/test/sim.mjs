@@ -131,6 +131,23 @@ function collaboratorArmy(power = 1) {
   spawnAnt("giant", A.x + 260, A.y + 260);   // o colosso vem junto
 }
 
+// --------------------------------------------------------------- semente ----
+// O "jogador" simulado (compras, rali, mutações) e alguns efeitos usam
+// Math.random(): sem semente fixa o desfecho mudava a cada execução e em
+// algumas rodadas a colônia nem vencia nem era derrotada em 90 min simulados —
+// a bateria do CI ficava instável (vermelho sem haver regressão). Com uma
+// semente determinística o teste cobre exatamente os mesmos caminhos e sempre
+// dá o mesmo resultado. SEED=<n> roda com outra semente para investigar.
+const SEED = Number(process.env.SEED || 0x5eed1a) >>> 0;
+let _rng = SEED;
+Math.random = function () {                       // mulberry32
+  _rng = (_rng + 0x6D2B79F5) >>> 0;
+  let t = _rng;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
 // ---------------------------------------------------------------- simul -----
 const DT = 1 / 60;
 let simT = 0, step = 0, frames = 0;

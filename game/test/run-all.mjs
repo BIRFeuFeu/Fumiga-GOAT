@@ -6,6 +6,10 @@
 //   node game/test/run-all.mjs --only=sim,tree   só os escolhidos
 //   node game/test/run-all.mjs -j 2       limita processos simultâneos
 //
+// No GitHub Actions cada teste que falha vira uma ANOTAÇÃO do check (aba
+// "Checks" do PR), com o fim da saída do teste — dá para ler o motivo sem
+// baixar o log do runner.
+//
 // Os testes que precisam de navegador (inspect.mjs, lorehud-browser.mjs) ficam
 // de fora: rodam com `npm run inspect` depois de tools/setup-dev.sh.
 import { spawn } from "node:child_process";
@@ -92,14 +96,24 @@ await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () 
   while (queue.length) await runOne(queue.shift());
 }));
 
+// Comando de workflow do GitHub Actions: escapa o texto e anexa como anotação.
+const ghEscape = (t) => String(t).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
 const failed = results.filter((r) => r.code !== 0);
 for (const f of failed) {
+  const tail = f.out.trim().split("\n").slice(-30).join("\n");
   console.log("\n──── " + f.name + " (código " + f.code + ") — últimas linhas ────");
-  console.log(f.out.trim().split("\n").slice(-30).join("\n"));
+  console.log(tail);
+  if (process.env.GITHUB_ACTIONS) {
+    console.log("::error title=" + f.name + " falhou (código " + f.code + ")::" + ghEscape(tail).slice(0, 3000));
+  }
 }
 const total = Date.now() - t0;
 const serial = results.reduce((a, r) => a + r.ms, 0);
 console.log("\n" + (failed.length ? "✗ " + failed.length + " FALHARAM: " + failed.map((f) => f.name).join(", ")
   : "✓ TODOS OS " + results.length + " TESTES PASSARAM") +
   "  —  " + (total / 1000).toFixed(1) + "s (em série seriam " + (serial / 1000).toFixed(1) + "s)");
+if (process.env.GITHUB_ACTIONS && failed.length) {
+  console.log("::warning title=bateria::" + failed.length + " teste(s) falharam: " + failed.map((f) => f.name).join(", "));
+}
 process.exit(failed.length ? 1 : 0);

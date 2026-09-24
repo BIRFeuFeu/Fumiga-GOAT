@@ -4,9 +4,9 @@
 // ============================================================================
 import { PAL, META_NODES, META_BRANCHES, VIEW_W, VIEW_H } from "./config.js";
 import { G, metaLevel, metaCanBuy, metaBuy } from "./state.js";
-import { drawText, textWidth, wrapText } from "./font.js";
+import { drawText, textWidth, wrapText, fitTextBlock, fontScale, layoutRec } from "./font.js";
 import { IMG } from "./assets.js";
-import { panel, button, pointInRect } from "./ui.js";
+import { panel, button, pointInRect, isTouchUI } from "./ui.js";
 import { mouse, pressed } from "./input.js";
 import { SFX } from "./audio.js";
 import { clamp, lerp, TAU } from "./utils.js";
@@ -53,7 +53,12 @@ const SP = 142;
 const YF = 0.88;
 const MIN_ZOOM = 0.28, MAX_ZOOM = 2.4;
 const TOP_UI = 124, BOTTOM_UI = 48;
-const CY = TOP_UI + (VIEW_H - TOP_UI - BOTTOM_UI) / 2;
+// A moldura do topo (título, essência, frutos, botões e legenda) tem duas
+// linhas fixas: sem isso ela estourava por cima da árvore com FONTE GRANDE.
+const HUD_ROW1 = 100, HUD_GAP = 8;
+function topUI() { return 10 + HUD_ROW1 + HUD_GAP + hudRow2H() + 6; }
+function hudRow2H() { return fontScale() > 1 ? 68 : 46; }
+function centerY() { return topUI() + (VIEW_H - topUI() - BOTTOM_UI) / 2; }
 
 const BOUNDS = (() => {
   const xs = META_NODES.map((n) => n.x), ys = META_NODES.map((n) => n.y);
@@ -87,7 +92,7 @@ function ensureParticles() {
 
 function fitZoom() {
   const zx = (VIEW_W - 90) / BOUNDS.w;
-  const zy = (VIEW_H - TOP_UI - BOTTOM_UI - 18) / BOUNDS.h;
+  const zy = (VIEW_H - topUI() - BOTTOM_UI - 18) / BOUNDS.h;
   return clamp(Math.min(zx, zy) * 0.98, MIN_ZOOM, 1);
 }
 
@@ -116,7 +121,7 @@ export function treeFit() {
 function nodeScreen(n) {
   return {
     x: VIEW_W / 2 + (pan.x + (n.x - BOUNDS.cx) * SP) * zoom,
-    y: CY + (pan.y + (n.y - BOUNDS.cy) * SP * YF) * zoom,
+    y: centerY() + (pan.y + (n.y - BOUNDS.cy) * SP * YF) * zoom,
   };
 }
 
@@ -169,6 +174,12 @@ export function drawTree(ctx, dt) {
     ctx.fillRect(p.x, p.y, p.size, p.size);
   }
   ctx.globalAlpha = 1;
+
+  // O mapa da árvore (nós, etiquetas de preço e nomes de zona) é conteúdo de
+  // MUNDO: pode encostar em si mesmo à vontade, como o campo da expedição. Só o
+  // HUD, a legenda, a dica do nó e o rodapé são interface e entram na auditoria
+  // de sobreposição.
+  layoutRec.layer = "world";
 
   // arestas com glow e fluxo
   for (const n of META_NODES) {
@@ -349,29 +360,42 @@ export function drawTree(ctx, dt) {
       const afford = G.save.essence >= price;
       const py = s.y + R + 20 * zoom;
       const label = String(price);
-      const tw = label.length * 7 * zoom + 22 * zoom;
+      // largura de verdade do texto (a heurística antiga, length*7, dava uma
+      // caixa 40% menor que a tinta e o número saía da moldura)
+      const tw = textWidth(label, { scale: zoom }) + 24 * zoom;
+      const th = Math.max(16 * zoom, 14 * fontScale() * zoom + 6 * zoom);
+
+      // Não desenha o preço que ficaria embaixo do HUD (a moldura do topo e a
+      // dica do rodapé são opacas) nem o que sairia pela borda do canvas —
+      // nós fora de vista não precisam de etiqueta.
+      const hx0 = s.x - tw / 2 - 1, hx1 = s.x + tw / 2 + 1;
+      if (py < topUI() - 2 || py + th > VIEW_H - 40 || hx0 < 2 || hx1 > VIEW_W - 2) continue;
 
       // fundo do preço
       ctx.fillStyle = "rgba(10,8,16,0.85)";
-      ctx.fillRect(s.x - tw / 2 - 1, py - 1, tw + 2, 16 * zoom);
+      ctx.fillRect(s.x - tw / 2 - 1, py - 1, tw + 2, th);
       ctx.strokeStyle = afford ? "rgba(199,125,255,0.5)" : "rgba(163,46,70,0.4)";
       ctx.lineWidth = 1;
-      ctx.strokeRect(s.x - tw / 2 - 0.5, py - 0.5, tw + 1, 16 * zoom - 1);
+      ctx.strokeRect(s.x - tw / 2 - 0.5, py - 0.5, tw + 1, th - 1);
 
       // ícone de essência
       ctx.fillStyle = afford ? "#c77dff" : "#a32e46";
-      ctx.fillRect(s.x - tw / 2 + 4 * zoom, py + 4 * zoom, 8 * zoom, 8 * zoom);
+      ctx.fillRect(s.x - tw / 2 + 4 * zoom, py + (th - 8 * zoom) / 2, 8 * zoom, 8 * zoom);
 
       drawText(ctx, label, s.x - tw / 2 + 16 * zoom, py + 3 * zoom, {
         color: afford ? "#efe9ff" : "#ff8a96",
         scale: zoom
       });
     } else {
-      drawText(ctx, "MAX", s.x, s.y + R + 22 * zoom, { color: "#ffd479", align: "center", scale: zoom });
+      const my2 = s.y + R + 22 * zoom;
+      if (my2 >= topUI() - 2 && my2 <= VIEW_H - 60 && s.x > 30 && s.x < VIEW_W - 30) {
+        drawText(ctx, "MAX", s.x, my2, { color: "#ffd479", align: "center", scale: zoom });
+      }
     }
   }
 
   // tooltip
+  layoutRec.layer = "ui";
   if (hoverNode) drawNodeTip(ctx, hoverNode);
 
   // HUD superior refinado — o retorno do VOLTAR precisa SUBIR: antes o
@@ -379,12 +403,16 @@ export function drawTree(ctx, dt) {
   // então o botão era decorativo e só o ESC funcionava.
   const hud = drawTreeHUD(ctx);
 
-  // dica inferior
-  const hintBg = "rgba(10,8,16,0.7)";
-  ctx.fillStyle = hintBg;
-  ctx.fillRect(0, VIEW_H - 32, VIEW_W, 32);
-  drawText(ctx, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA: ZOOM (" + Math.round(zoom * 100) + "%)  •  ESC: VOLTAR",
-    VIEW_W / 2, VIEW_H - 20, { color: PAL.textDim, align: "center" });
+  // dica inferior: sobe para o texto não sair do canvas com FONTE GRANDE
+  // (a tinta da fonte pequena em 1.3x tem 18px de altura) e ganha largura
+  // máxima para nunca passar da borda
+  ctx.fillStyle = "rgba(10,8,16,0.7)";
+  ctx.fillRect(0, VIEW_H - 40, VIEW_W, 40);
+  const hint = (isTouchUI()
+    ? "TOQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  PINÇA: ZOOM ("
+    : "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA: ZOOM (") + Math.round(zoom * 100) + "%)  •  " +
+    (isTouchUI() ? "VOLTAR" : "ESC: VOLTAR");
+  drawText(ctx, hint, VIEW_W / 2, VIEW_H - 28, { color: PAL.textDim, align: "center", maxWidth: VIEW_W - 40 });
 
   return hud;
 }
@@ -457,98 +485,101 @@ function drawTreeBackground(ctx) {
 }
 
 function drawTreeHUD(ctx) {
+  const FS = fontScale();
   const owned = META_NODES.filter((n) => metaLevel(n.id) > 0).length;
+  const pct = Math.round((owned / META_NODES.length) * 100);
+  const row2Y = 10 + HUD_ROW1 + HUD_GAP;
 
-  // painel título + frutos mini-árvores
-  panel(ctx, 12, 10, 520, 60, { border: "#8f6fd6", accentLine: "#8f6fd6" });
-  // desenha frutos como mini-árvores liberadas por mapa (lore)
-  let fx = 240;
-  for (const fruit of FRUIT_TREES) {
+  // ---------------------------------- linha 1: título | essência | frutos | botões
+  panel(ctx, 12, 10, 300, HUD_ROW1, { border: "#8f6fd6", accentLine: "#8f6fd6" });
+  drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 18, { font: "big", scale: 1, color: "#ffd479", maxWidth: 268 });
+  const subLines = wrapText("Evolua a colônia para sempre", 268, { scale: 0.8 });
+  subLines.forEach((L, i) => drawText(ctx, L, 28, 50 + i * Math.ceil(15 * 0.8 * FS), { color: PAL.textDim, scale: 0.8, maxWidth: 268 }));
+
+  panel(ctx, 320, 10, 150, HUD_ROW1, { border: "#c77dff" });
+  drawEssence(ctx, 328, 14);
+  drawText(ctx, "NÓS " + owned + "/" + META_NODES.length, 328, 74, { color: "#efe9ff", scale: 0.7, maxWidth: 134 });
+  drawText(ctx, "ÁRVORE " + pct + "%", 328, 90, { color: "#c77dff", scale: 0.7, maxWidth: 134 });
+
+  // frutos = mini-árvores liberadas por mapa (lore)
+  panel(ctx, 478, 10, 238, HUD_ROW1, { border: "#4a3a6e" });
+  const fruitCap = wrapText("Frutos = mini-árvores por mapa", 222, { scale: 0.7 });
+  fruitCap.forEach((L, i) => drawText(ctx, L, 486, 16 + i * Math.ceil(13 * 0.7 * FS), { color: "#6b5a8a", scale: 0.7, maxWidth: 222 }));
+  FRUIT_TREES.forEach((fruit, i) => {
     const mapSeen = G.save.cutscenes && G.save.cutscenes[fruit.map];
-    const owned = G.save.nodes && Object.keys(G.save.nodes).some(k => k.startsWith(fruit.id));
-    ctx.fillStyle = mapSeen ? fruit.color : "#2a2340";
+    const hasNode = G.save.nodes && Object.keys(G.save.nodes).some((k) => k.startsWith(fruit.id));
+    const cx = 494 + i * 24, cy = 10 + HUD_ROW1 - 22;
     ctx.globalAlpha = mapSeen ? 0.9 : 0.35;
-    ctx.beginPath();
-    ctx.arc(28 + fx, 38, 10, 0, Math.PI*2);
-    ctx.fill();
-    // brilho se tem nó comprado
-    if (owned) {
+    ctx.fillStyle = mapSeen ? fruit.color : "#2a2340";
+    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+    if (hasNode) {                       // brilho se a mini-árvore já tem nó
       ctx.fillStyle = "#ffd479";
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.arc(28 + fx, 38, 14, 0, Math.PI*2);
-      ctx.fill();
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
-    fx += 28;
-  }
-  drawText(ctx, "FRUTOS = MINI-ÁRVORES POR MAPA", 320, 54, { color: "#6b5a8a", scale: 0.7 });
-  drawText(ctx, "ÁRVORE DA EVOLUÇÃO", 28, 20, { font: "big", scale: 1, color: "#ffd479" });
-  drawText(ctx, "Evolua a colônia para sempre", 28, 44, { color: PAL.textDim });
-  // progresso circular
-  const pct = Math.round((owned / META_NODES.length) * 100);
-  ctx.strokeStyle = "#2c2444"; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(380, 38, 18, 0, TAU); ctx.stroke();
-  ctx.strokeStyle = "#c77dff"; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(380, 38, 18, -Math.PI/2, -Math.PI/2 + (pct/100)*TAU); ctx.stroke();
-  drawText(ctx, pct + "%", 380, 34, { color: "#efe9ff", align: "center" });
-  drawText(ctx, owned + "/" + META_NODES.length, 300, 22, { color: "#efe9ff" });
+  });
 
-  // essência
-  panel(ctx, VIEW_W - 520, 10, 160, 60, { border: "#c77dff" });
-  drawEssence(ctx, VIEW_W - 512, 16);
-
-  // botões - MEGA LORE: biblioteca memórias
-  if (button(ctx, { x: VIEW_W - 640, y: 18, w: 150, h: 40, label: "MEMÓRIAS", id: "treeMemories", font: "small", accent: "#ffd479" })) {
+  // botões em grade 2x2 no canto: em fila única (como antes) eles cobriam o
+  // painel de essência e os frutos, porque a faixa é a mesma
+  const bW = 106, bX = [724, 838], bY = [16, 60], bH = 40;
+  if (button(ctx, { x: bX[0], y: bY[0], w: bW, h: bH, label: "MEMÓRIAS", id: "treeMemories", font: "small", accent: "#ffd479" })) {
     return "memories";
   }
-  if (button(ctx, { x: VIEW_W - 480, y: 18, w: 140, h: 40, label: "PROFECIAS", id: "treeProphecy", font: "small", accent: "#6ee7ff" })) {
+  if (button(ctx, { x: bX[1], y: bY[0], w: bW, h: bH, label: "PROFECIAS", id: "treeProphecy", font: "small", accent: "#6ee7ff" })) {
     return "prophecies";
   }
-  if (button(ctx, { x: VIEW_W - 330, y: 18, w: 140, h: 40, label: "VER TUDO", id: "treeFit", font: "small", accent: "#6db7ff" })) {
+  if (button(ctx, { x: bX[0], y: bY[1], w: bW, h: bH, label: "VER TUDO", id: "treeFit", font: "small", accent: "#6db7ff" })) {
     treeFit();
     SFX.uiClick();
   }
-  if (button(ctx, { x: VIEW_W - 180, y: 18, w: 156, h: 40, label: "VOLTAR", id: "treeBack", font: "small", accent: "#ff4d5a" })) {
+  if (button(ctx, { x: bX[1], y: bY[1], w: bW, h: bH, label: "VOLTAR", id: "treeBack", font: "small", accent: "#ff4d5a" })) {
     return "back";
   }
 
-  drawLegend(ctx, 12, 78);
+  drawLegend(ctx, 12, row2Y);
 }
 
 function drawLegend(ctx, x, y) {
+  const FS = fontScale();
+  const h = hudRow2H();
   const ids = Object.keys(META_BRANCHES);
-  const w = 118, h = 46;
-  panel(ctx, x, y, ids.length * w + 168, h, { border: "#4a3a6e" });
+  const w = 118;
+  panel(ctx, x, y, 760, h, { border: "#4a3a6e" });
   ids.forEach((id, i) => {
     const br = META_BRANCHES[id];
     const nodes = META_NODES.filter((n) => n.br === id);
     const done = nodes.filter((n) => metaLevel(n.id) > 0).length;
     const cx = x + 14 + i * w;
+    const cy = y + (FS > 1 ? 22 : 18);
     // bolinha colorida com glow
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     ctx.fillStyle = br.color;
     ctx.globalAlpha = 0.3;
-    ctx.beginPath(); ctx.arc(cx + 4, y + 18, 8, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 4, cy, 8, 0, TAU); ctx.fill();
     ctx.restore();
     ctx.fillStyle = br.color;
-    ctx.beginPath(); ctx.arc(cx + 4, y + 18, 4, 0, TAU); ctx.fill();
-    drawText(ctx, br.name, cx + 14, y + 14, { color: br.color, font: "small" });
-    drawText(ctx, done + "/" + nodes.length, cx + 14, y + 26, { color: PAL.textDim, font: "small" });
+    ctx.beginPath(); ctx.arc(cx + 4, cy, 4, 0, TAU); ctx.fill();
+    // duas linhas com passo que respeita o tamanho real do texto (com FONTE
+    // GRANDE nome e contagem ficavam um sobre o outro)
+    drawText(ctx, br.name, cx + 14, y + (FS > 1 ? 6 : 8), { color: br.color, font: "small", maxWidth: w - 22 });
+    drawText(ctx, done + "/" + nodes.length, cx + 14, y + (FS > 1 ? 36 : 26), { color: PAL.textDim, font: "small", maxWidth: w - 22 });
   });
-  // raridades: quanto mais raro, maior e mais rebuscado o nó
-  const rx = x + 14 + ids.length * w + 6;
+  // raridades: quanto mais raro, maior e mais rebuscado o nó.
+  // GRADE em uma linha (antes eram 3 linhas de 12px, que se sobrepunham)
+  const rx0 = x + ids.length * w + 16;
   for (let t = 0; t < 3; t++) {
-    const ty = y + 10 + t * 12;
+    const rx = rx0 + t * 88;
+    const cy = y + (FS > 1 ? 22 : 18);
     ctx.fillStyle = TIER_COLOR[t];
     if (t === 2) { // losango do lendário
-      ctx.save(); ctx.translate(rx + 4, ty + 4); ctx.rotate(Math.PI / 4);
+      ctx.save(); ctx.translate(rx + 4, cy); ctx.rotate(Math.PI / 4);
       ctx.fillRect(-3, -3, 6, 6); ctx.restore();
     } else {
-      ctx.beginPath(); ctx.arc(rx + 4, ty + 4, t === 1 ? 4 : 3, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx + 4, cy, t === 1 ? 4 : 3, 0, TAU); ctx.fill();
     }
-    drawText(ctx, TIER_NAME[t], rx + 14, ty, { color: TIER_COLOR[t], font: "small" });
+    drawText(ctx, TIER_NAME[t], rx + 14, cy - 8, { color: TIER_COLOR[t], font: "small", scale: 0.7, maxWidth: 74 });
   }
 }
 
@@ -590,13 +621,31 @@ function drawNodeTip(ctx, n) {
   const lvl = metaLevel(n.id);
   const max = n.cost.length;
   const br = META_BRANCHES[n.br];
+  const FS = fontScale();
 
-  const w = 320;
+  // A altura da caixa é CALCULADA a partir do que vai dentro: com FONTE GRANDE
+  // o nome sobe, o nível ganha linha própria e as fichas de custo podem passar
+  // para uma segunda linha — antes tudo isso estourava a caixa de 320px.
+  const w = 340;
+  const descStep = Math.ceil(18 * FS);
   const lines = wrapText(n.desc, w - 28, { font: "small", scale: 1 });
-  const h = 72 + lines.length * 20 + 28 + 8;
+  const lvlTxt = br.name + "  —  NÍVEL " + lvl + "/" + max;
+  const tierTxt = TIER_NAME[n.tier || 0];
+  const tierOwnLine = textWidth(lvlTxt, {}) + textWidth(tierTxt, {}) + 30 > w - 28;
+  const chipWidths = [];
+  for (let i = 0; i < max; i++) chipWidths.push(textWidth(String(n.cost[i]), {}) + 34);
+  let chipRows = 1, used = 0;
+  for (const cw of chipWidths) { if (used + cw > w - 28 && used > 0) { chipRows++; used = 0; } used += cw; }
+  const chipsH = chipRows * 24;
+  const nameH = Math.round(31 * FS) + 8;
+  const lvlH = Math.round(20 * FS) + (tierOwnLine ? Math.round(20 * FS) : 0) + 4;
+  const h = 10 + nameH + lvlH + 6 + lines.length * descStep + 10 + chipsH + 8;
   let x = clamp(s.x - w / 2, 12, VIEW_W - w - 12);
   let y = s.y - NODE_R[n.tier || 0] * zoom - h - 20;
   if (y < 80) y = s.y + NODE_R[n.tier || 0] * zoom + 22;
+  // a dica nunca entra na moldura do topo (título/frutos/legenda) nem na dica
+  // do rodapé — antes ela era sorteada por cima da legenda dos ramos
+  y = clamp(y, topUI() + 4, VIEW_H - 44 - h);
 
   // sombra
   ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -612,14 +661,25 @@ function drawNodeTip(ctx, n) {
   ctx.fillRect(x, y, w, 12);
   ctx.restore();
 
-  drawText(ctx, n.name, x + 14, y + 18, { font: "big", scale: 1, color: br.color });
-  drawText(ctx, br.name + "  —  NÍVEL " + lvl + "/" + max, x + 14, y + 42, { color: PAL.textDim });
-  drawText(ctx, TIER_NAME[n.tier || 0], x + w - 14, y + 42, { color: TIER_COLOR[n.tier || 0], align: "right" });
-  lines.forEach((L, i) => drawText(ctx, L, x + 14, y + 66 + i * 20, { color: PAL.text }));
+  let ty = y + 10;
+  drawText(ctx, n.name, x + 14, ty, { font: "big", scale: 1, color: br.color, maxWidth: w - 28 });
+  ty += nameH;
+  if (tierOwnLine) {
+    drawText(ctx, lvlTxt, x + 14, ty, { color: PAL.textDim, scale: 0.85, maxWidth: w - 28 });
+    ty += Math.round(20 * FS);
+    drawText(ctx, tierTxt, x + w - 14, ty, { color: TIER_COLOR[n.tier || 0], align: "right", scale: 0.85, maxWidth: 160 });
+  } else {
+    drawText(ctx, lvlTxt, x + 14, ty, { color: PAL.textDim, scale: 0.85, maxWidth: w - 28 - textWidth(tierTxt, {}) - 12 });
+    drawText(ctx, tierTxt, x + w - 14, ty, { color: TIER_COLOR[n.tier || 0], align: "right", scale: 0.85, maxWidth: 160 });
+  }
+  ty += Math.round(20 * FS) + 4;
+  lines.forEach((L, i) => drawText(ctx, L, x + 14, ty + i * descStep, { color: PAL.text, maxWidth: w - 28 }));
+  ty += lines.length * descStep + 10;
 
-  const ptY = y + h - 24;
-  let ptx = x + 14;
+  let ptx = x + 14, prow = 0;
   for (let i = 0; i < max; i++) {
+    if (ptx + chipWidths[i] > x + w - 14 && ptx > x + 14) { ptx = x + 14; prow++; }
+    const ptY = ty + prow * 24;
     const bought = i < lvl;
     const isNext = i === lvl;
     const afford = G.save.essence >= n.cost[i];
@@ -639,7 +699,7 @@ function drawNodeTip(ctx, n) {
     }
     drawText(ctx, String(n.cost[i]), ptx + 12, ptY + 1,
       { color: bought ? br.color : isNext ? (afford ? "#efe9ff" : "#ff8a96") : PAL.textDim });
-    ptx += textWidth(String(n.cost[i]), {}) + 36;
+    ptx += chipWidths[i];
   }
 }
 

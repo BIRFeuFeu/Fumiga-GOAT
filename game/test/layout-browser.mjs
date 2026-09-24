@@ -144,7 +144,7 @@ const STATES = [
   ["NINHO", S.ninho], ["CUTSCENE", S.cutscene, 2600],
 ];
 // fonte grande (acessibilidade) nas telas que mais têm texto
-const BIG = new Set(["TITULO", "AJUDA", "MODO", "OPCOES-ABA0", "OPCOES-ABA3", "RUN", "RUN-EXPANDIDO", "RUN-PAUSA", "RUN-DRAFT", "RUN-DERROTA", "NINHO", "MEMORIAS", "PROFECIAS"]);
+const BIG = new Set(["TITULO", "AJUDA", "MODO", "OPCOES-ABA0", "OPCOES-ABA3", "RUN", "RUN-EXPANDIDO", "RUN-PAUSA", "RUN-DRAFT", "RUN-DERROTA", "NINHO", "MEMORIAS", "PROFECIAS", "RUN-TUTORIAL"]);
 
 fs.mkdirSync(OUT, { recursive: true });
 const server = process.env.BASE_URL ? null : await startServer();
@@ -173,10 +173,17 @@ for (const profile of profiles) {
         await (0, eval)("(" + src + ")")(M);
       }, [typeof fn === "string" ? fn : fn.toString(), big]);
       await page.waitForTimeout(waitMs || 900);
-      const res = await page.evaluate(() => window.FUMIGA.auditarLayout());
+      const res = await page.evaluate((dump) => {
+        if (dump) window.FUMIGA_DUMP_TEXTS = true;
+        return window.FUMIGA.auditarLayout();
+      }, !!process.env.LAYOUT_DUMP);
       const file = path.join(OUT, profile.id + "-" + label.toLowerCase() + ".png");
       await page.screenshot({ path: file });
       for (const e of errs) res.issues.push({ tipo: "erro", msg: e });
+      if (process.env.LAYOUT_DUMP && res.detalhes) {
+        fs.writeFileSync(path.join(OUT, profile.id + "-" + label.toLowerCase() + ".txt"),
+          res.detalhes.map((d) => [d.layer, d.text, Math.round(d.x), Math.round(d.y), Math.round(d.w), Math.round(d.h)].join("\t")).join("\n"));
+      }
       all.push({ perfil: profile.id, estado: label, tela: res.tela, textos: res.textos, issues: res.issues, file });
       await context.close();
     }
