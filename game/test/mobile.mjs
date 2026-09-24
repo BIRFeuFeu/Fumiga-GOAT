@@ -138,7 +138,7 @@ if (scenario === "boot-mobile") {
   await import(JS + "main.js");
   await wait(2500);
   const { G } = await import(JS + "state.js");
-  const { worldToScreen } = await import(JS + "camera.js");
+  const { worldToScreen, screenToWorld } = await import(JS + "camera.js");
   const units = await import(JS + "units.js");
   assert.equal(touchMode.on, true, "modo toque ativo no boot mobile");
   assert.equal(touchMode.smart, true, "gesto inteligente ativo por padrão no boot");
@@ -168,7 +168,7 @@ if (scenario === "boot-mobile") {
 
   const hud = els.get("touch-hud");
   assert.equal(hud.hidden, false, "HUD virtual visível na run");
-  const pausaBtn = hud.children[1].children[3];
+  const pausaBtn = hud.children[1].children[1];
   const { isPaused } = await import(JS + "game.js");
   pausaBtn.fire("pointerdown"); await wait(300);
   assert.equal(isPaused(), true, "botão PAUSA pausou");
@@ -181,7 +181,7 @@ if (scenario === "boot-mobile") {
   // HUD de toque garante uma formiga visível sem depender do mapa sorteado.
   for (let i = 0; i < 20 && G.run.draft; i++) { G.run.draft = null; await wait(100); }
   assert.equal(!!G.run.draft, false, "nenhum draft aberto no momento do toque");
-  hud.children[0].children[2].fire("pointerdown"); // CENTRO (Space)
+  hud.children[0].children[0].fire("pointerdown"); // CENTRO (Space)
   await wait(100);
 
   // Irmã fora da HUD: toque em cima de botão é da UI (uiCapture) e não
@@ -189,17 +189,12 @@ if (scenario === "boot-mobile") {
   // às vezes estava sobre a barra da loja, no rodapé).
   const ui = await import(JS + "ui.js");
   const sobUI = (x, y) => ui.uiButtons().some((b) => ui.pointInRect(x, y, b.x, b.y, b.w, b.h));
-  const a = (() => {
-    for (const u of units.allies) {
-      if (u.dead || u.dying || u.type === "queen") continue;
-      const sp = worldToScreen(u.x, u.y);
-      if (sp.x < 40 || sp.y < 40 || sp.x > 920 || sp.y > 400) continue;   // vista útil
-      if (sobUI(sp.x, sp.y)) continue;
-      return u;
-    }
-    return null;
-  })();
-  assert.ok(a, "havia formiga viva fora da HUD para tocar");
+  // Alvo determinístico no campo: antes dependia de uma formiga aleatória
+  // ainda estar na viewport após toda a introdução (falha intermitente).
+  const spot = screenToWorld(480, 310);
+  const a = units.spawnAnt("soldier", spot.x, spot.y, { guardPos: spot });
+  a.thinkT = 10;
+  assert.equal(sobUI(480,310), false, "alvo fora da interface");
   // a formiga continua andando: mira na posição ATUAL e repete se o frame
   // adiantou entre a leitura e o toque
   let sel = 0;
@@ -318,50 +313,26 @@ if (scenario === "gestos") {
 
   // 9. HUD: botões virtuais pressionam as teclas do PC
   const hud = els.get("touch-hud");
-  const rowTop = hud.children[0], rowBot = hud.children[1], rowNest = hud.children[2];
-  const [zOut, zIn, zCentro] = rowTop.children;
-  const [onda, rali, ninho, pausa] = rowBot.children;
-  const [chamar, soltar] = rowNest.children;
-  assert.equal(hud.children.length, 3, "HUD tem 3 fileiras de botões");
-  assert.ok(zOut && zIn && zCentro && onda && rali && ninho && pausa && chamar && soltar, "9 botões criados");
-  pausa.fire("pointerdown");
-  assert.equal(pressed.Escape, true, "botão pausa -> Escape");
-  pressed.Escape = false;
-  ninho.fire("pointerdown");
-  assert.equal(pressed.KeyB, true, "botão ninho -> KeyB");
-  pressed.KeyB = false;
-  rali.fire("pointerdown");
-  assert.equal(pressed.KeyF, true, "botão rali -> KeyF");
-  pressed.KeyF = false;
-  onda.fire("pointerdown");
-  assert.equal(pressed.KeyG, true, "botão onda -> KeyG");
-  pressed.KeyG = false;
-  zCentro.fire("pointerdown");
-  assert.equal(pressed.Space, true, "botão centro -> Espaço");
-  pressed.Space = false;
-  zIn.fire("pointerdown");
-  assert.equal(mouse.wheel, -1, "zoom+ -> wheel -1 (aproxima)");
-  mouse.wheel = 0;
-  zOut.fire("pointerdown");
-  assert.equal(mouse.wheel, 1, "zoom- -> wheel +1 (afasta)");
-  mouse.wheel = 0;
-  // a BOCA do formigueiro: fileira extra que só aparece com o ninho aberto
-  soltar.fire("pointerdown");
-  assert.equal(pressed.KeyL, true, "botão soltar -> KeyL (libera uma pela boca)");
-  pressed.KeyL = false;
-  chamar.fire("pointerdown");
-  assert.equal(pressed.KeyP, true, "botão chamar -> KeyP (chama uma para dentro)");
-  pressed.KeyP = false;
-  assert.equal(rowNest.hidden, true, "fileira da boca escondida fora do formigueiro");
+  const rowTop = hud.children[0], rowBot = hud.children[1];
+  const [zCentro] = rowTop.children;
+  const [rali, pausa] = rowBot.children;
+  assert.equal(hud.children.length, 2, "apenas duas fileiras");
+  assert.equal(rowTop.children.length + rowBot.children.length, 3, "somente centro, rali e pausa; nenhuma ação duplicada");
+  for (const [btn, key] of [[pausa, "Escape"], [rali, "KeyF"], [zCentro, "Space"]]) {
+    btn.fire("pointerdown");
+    assert.equal(pressed[key], true, "atalho " + key);
+    pressed[key] = false;
+  }
   G.screen = "RUN"; G.run = { baseOpen: true };
   pump(1);
-  assert.equal(rowNest.hidden, false, "fileira da boca aparece com o formigueiro aberto");
-  assert.equal(rowTop.hidden, true && rowBot.hidden, "as outras fileiras cedem o lugar no formigueiro");
+  assert.equal(rowTop.hidden, true, "centro escondido no ninho");
+  assert.equal(rali.hidden, true, "rali escondido no ninho");
+  assert.equal(hud.hidden, true, "ninho usa apenas os comandos do canvas, sem duplicar voltar");
   G.run = { baseOpen: false };
   pump(1);
-  assert.equal(rowNest.hidden, true && rowTop.hidden === false && rowBot.hidden === false,
-    "sair do formigueiro devolve as fileiras normais");
-  console.log("ok    HUD virtual: pausa/ninho/rali/onda/centro/zoom/boca mapeados");
+  assert.equal(rowTop.hidden, false, "centro volta na expedição");
+  assert.equal(rali.hidden, false, "rali volta na expedição");
+  console.log("ok    HUD sem duplicatas; ninho usa comandos do próprio canvas");
 
   // 10. HUD aparece só na expedição e rótulo da pausa acompanha o jogo
   G.screen = "BOOT"; G.run = null;
@@ -370,10 +341,10 @@ if (scenario === "gestos") {
   G.screen = "RUN"; G.run = {};
   pump(1);
   assert.equal(hud.hidden, false, "HUD visível na run");
-  assert.equal(pausa.firstChild.textContent, "⏸", "rótulo de pausa normal");
+  assert.equal(pausa.firstChild.textContent, "II", "rótulo de pausa normal");
   setPaused(true);
   pump(1);
-  assert.equal(pausa.firstChild.textContent, "▶", "rótulo muda quando pausado");
+  assert.equal(pausa.firstChild.textContent, ">", "rótulo muda quando pausado");
   assert.equal(pausa.lastChild.textContent, "VOLTAR", "texto de retomada");
   setPaused(false);
   assert.equal(isPaused(), false, "despausou");

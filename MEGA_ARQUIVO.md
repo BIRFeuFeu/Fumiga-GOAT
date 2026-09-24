@@ -29,6 +29,277 @@ repetições, datas, branches, checklists e notas históricas foram preservados.
 > Divergências permanecem visíveis, sem apagar conteúdo. O que efetivamente
 > funciona deve ser confirmado por testes e inspeção no preview.
 
+## Ampliação entregue — sete frutos e miniárvores (2026-09-24)
+
+**Status: implementado e validado no escopo confirmado.** Este registro substitui
+as pendências da solicitação inicial e amplia a Fase 3 histórica abaixo.
+**Não significa que sete mapas já sejam jogáveis.**
+
+### Decisões e progressão
+
+- O usuário escolheu **efeitos novos globais**, combináveis em todos os mapas,
+  e **preparar o sétimo fruto bloqueado**, sem implementar agora o Topo/Pálida.
+- Sete frutos na copa da árvore literal, cada qual abre uma miniárvore própria
+  com **dez opções novas distintas** (70 no total), não dez níveis do mesmo nó.
+- Cada miniárvore tem três caminhos de três habilidades e um ápice que exige os
+  três finais. Prévia bloqueada permite ler; compra exige o chefe correto e os
+  pré-requisitos. Selecionar nunca compra: confirmação explícita em EVOLUIR.
+- Desbloqueio somente pela morte do chefe configurado no mapa da **campanha**.
+  O evento verifica mapa, identidade do chefe e modo; persiste uma vez. Vitórias
+  antigas dos seis mapas são respeitadas. Sobrevivência não concede esses frutos.
+- 49 nós base + 18 legados + 70 novos = **137 definições**. As 18 melhorias
+  anteriores permanecem na aba LEGADO, com IDs, preços, compras e regras locais
+  preservados; o novo escopo global não converte silenciosamente os bônus antigos.
+- Seis frutos obtíveis: 60 novas compras + 18 legadas. O sétimo mostra seus dez
+  poderes, mas **não permite comprar**, nem se `clearedMaps.topo` estiver marcado.
+  Vencer o Devastador no Pico jamais se faz passar por derrotar a Pálida.
+
+### Implementação e limites
+
+- `fruit_skills.js`: catálogo, IDs estáveis `v_*`, custos, caminhos e descrições.
+- `fruit_effects.js`: efeitos em eventos e consumidores reais; `fruitRuntime`
+  pertence à expedição, barreiras/recargas/resgates individuais pertencem às irmãs.
+  Bônus de mapas diferentes se combinam, sem cópia da IA ou timers fora do jogo.
+- `state.js`/`enemies.js`: gate do chefe correto, compra, persistência e aviso
+  “FRUTO DESPERTADO!”. `units.js`, `combat.js`, `game.js`: combate, criação,
+  coleta, cura, cristais e visão consomem os poderes.
+- Explosões secundárias atingem até três vizinhos por evento, com orçamento de
+  12 impactos por frame e supressão de recursão. Esses abates não alimentam
+  cadeias/ciclos de recompensas. Veneno e fogo usam o sistema de dano contínuo
+  existente; Cinzas Férteis declara explicitamente a interação com ambos.
+- `tree_layout.js`/`meta.js`: sete entradas, miniárvores com coordenadas locais,
+  aba LEGADO, detalhes fixos, retorno por botão/Escape. Cartões, confirmação e
+  abas novas têm área mínima de 44 px lógicos. No mobile, a copa abre os frutos;
+  os indicadores compactos do cabeçalho não duplicam o toque das entradas.
+- Arte e fonte pixel preservadas, descrições com quebra de linhas e fonte grande,
+  estados bloqueados/futuros claros, partículas reduzidas respeitadas. Contador
+  compacto mostra compras realizadas; totais completos aparecem nas miniárvores.
+- Na revisão, corrigidos: velocidade de coleta deve **dividir o intervalo**, não
+  multiplicá-lo; dano fracionário não deve subir para um sem redução plana; dano
+  contínuo fatal conserva a sinalização para recompensas do evento de morte.
+
+### Verificação desta ampliação
+
+- `npm test`: **23/23** aprovados, incluindo `fruit-powers` (cada um dos 70
+  efeitos), `fruit-integration` (coleta/depósito, vida, nascimento, projéteis,
+  mortes e seis chefes reais) e `sim-fruit-combos` com os 60 poderes obtíveis.
+- `npm run inspect:tree`: PC e mobile, **137 detalhes × duas fontes × duas
+  plataformas = 548 inspeções**, sem colisões nem compras acidentais; sete frutos
+  abertos por clique/toque real, alternância das abas, retorno/Escape;
+  **78 compras por perfil** persistem após reload; Era concedida uma só vez.
+- `npm run inspect`: **30 cenas** sem erros JS/HTTP/glifos; seis mapas e interfaces
+  nas duas plataformas. Capturas em `/tmp/fumiga-tree` e `/tmp/fumiga-inspect`.
+- `HUD_MIN_FPS=55 npm run inspect:hud`, isolado: **58,38 FPS / 1800 frames**.
+  Medida diagnóstica em Chromium headless, não promessa de desempenho em todo
+  celular e não benchmark exaustivo de todas as combinações compradas.
+- Integridade dos seis documentos incorporados verificada byte a byte + SHA-256;
+  `git diff --check` sem erros. Alterações anteriores preservadas, sem commit/push.
+
+**Limitações/próximos passos:** Topo/Pálida permanece para a Fase 8; seus dez
+consumidores foram testados com fixtures, não com uma campanha inexistente.
+Playtest humano e ajuste futuro de balanceamento dos novos poderes continuam
+recomendados. A decisão de manter preços/valores legados permanece válida.
+
+### Catálogo das 70 melhorias novas
+
+Todas são globais, de um nível. Custos em essência. Três caminhos: 1→4→7,
+2→5→8 e 3→6→9; a habilidade 10 exige 7, 8 e 9. O catálogo abaixo corresponde
+às definições em `fruit_skills.js`, sem substituir as 18 melhorias legadas.
+
+#### LIÇÕES DO TAMBORILADOR — planicie
+
+Chefe: **TAMBORILADOR**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | CORRIDA DO AMANHECER (`v_p1`) | 60 | Nos primeiros 20s da expedição, irmãs se movem 35% mais rápido. |
+| 2 | GOTAS PARA A RAINHA (`v_p2`) | 60 | Entregar comida cura 8 de vida da rainha. Intervalo de 1s entre curas. |
+| 3 | CADÊNCIA DO TAMBOR (`v_p3`) | 60 | Cada quarto golpe direto da colônia causa 80% de dano extra. |
+| 4 | CAPIM ESCUDO (`v_p4`) | 105 | Cada irmã reduz um golpe em 12 de dano. Recarrega após 8s; mínimo 1 de dano. |
+| 5 | PRIMEIRA COLHEITA (`v_p5`) | 105 | As três primeiras entregas de comida de cada irmã rendem o dobro. |
+| 6 | VENTO NAS MANDÍBULAS (`v_p6`) | 105 | Projéteis aliados viajam 50% mais rápido; alcance de ataque aumenta em 45. |
+| 7 | FUGA ENTRE AS FOLHAS (`v_p7`) | 150 | Irmãs abaixo de 35% de vida ganham 60% de velocidade para escapar. |
+| 8 | TAMBOR COMPARTILHADO (`v_p8`) | 150 | Golpear um alvo lento espalha 15% do dano a até três vizinhos em 130. Máximo uma vez a cada 0,4s. |
+| 9 | CARAVANA DO ORVALHO (`v_p9`) | 150 | Cada expedição começa com três operárias extras e 60 de comida adicional. |
+| 10 | NOVO AMANHECER (`v_p10`) | 315 | A cada 20 abates diretos ou por veneno, toda a colônia recupera 8% da vida máxima. |
+
+#### SEDA DA CAÇADORA — floresta
+
+Chefe: **CAÇADORA ASTUTA**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | TEIA DE CAÇA (`v_f1`) | 75 | Cada terceiro golpe direto aplica 2s de lentidão a inimigos comuns. |
+| 2 | EMBOSCADA DE MUSGO (`v_f2`) | 75 | Golpes contra inimigos com vida cheia causam 60% mais dano. |
+| 3 | DOSSEL CURATIVO (`v_f3`) | 75 | Matabeles alcançam irmãs 70% mais distantes ao curar. |
+| 4 | CASULO DE EMERGÊNCIA (`v_f4`) | 120 | Cada irmã sobrevive uma vez a um golpe fatal, voltando com 25% da vida. Não afeta a rainha. |
+| 5 | SEDA RETALIADORA (`v_f5`) | 120 | Ao sofrer um golpe próximo, a irmã atordoa o agressor comum por 0,4s. Recarga individual de 6s. |
+| 6 | PÓLEN DE TRIAGEM (`v_f6`) | 120 | Matabeles curam 50% a mais quando o alvo tem menos de 35% de vida. |
+| 7 | FOLHAS FERMENTADAS (`v_f7`) | 165 | Cada entrega de comida concede seis unidades extras após os outros multiplicadores. |
+| 8 | TECELAGEM EXPEDITA (`v_f8`) | 165 | Tecelãs ganham 80% de velocidade e duas unidades de capacidade de carga. |
+| 9 | CHEIRO DA CAÇADORA (`v_f9`) | 165 | Alvos já revelados por um golpe recebem 25% de dano direto adicional. |
+| 10 | NINHO VIVO (`v_f10`) | 330 | A cada 12s, irmãs a até 300 da rainha recuperam 8% da vida máxima. |
+
+#### BRUMA DA SOMBRA — pantano
+
+Chefe: **SOMBRA ALADA**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | MANDÍBULAS SÉPTICAS (`v_s1`) | 90 | Golpes diretos envenenam: seis de dano por segundo durante 3s. Não acumula consigo mesmo. |
+| 2 | BANQUETE DA PODRIDÃO (`v_s2`) | 90 | Abater um inimigo envenenado concede quatro de comida. |
+| 3 | CONTÁGIO DE BRUMA (`v_s3`) | 90 | Inimigos envenenados mortos espalham o veneno restante a até três vizinhos em 130. |
+| 4 | MARÉ PÚTRIDA (`v_s4`) | 135 | Explosões e ataques de área aliados têm raio 40% maior. |
+| 5 | WISPS CONDUTORES (`v_s5`) | 135 | Cristais de essência voam ao formigueiro duas vezes mais rápido. |
+| 6 | MANTO DO BREJO (`v_s6`) | 135 | Irmãs sofrem 35% menos dano de golpes com origem a mais de 220 de distância. |
+| 7 | FERIDA CONTAMINADA (`v_s7`) | 180 | Golpes diretos causam 30% mais dano contra alvos já envenenados. |
+| 8 | GRITO ROUBADO (`v_s8`) | 180 | Cada quinto golpe direto enfraquece o alvo por 4s. Inimigos comuns causam 15% menos dano. |
+| 9 | BARQUEIRAS DA MEMÓRIA (`v_s9`) | 180 | Cada irmã perdida devolve cinco de essência à reserva da expedição. |
+| 10 | CICLO DO LODO (`v_s10`) | 345 | A cada dez abates de envenenados, a rainha recupera 15% da vida máxima. |
+
+#### FÚRIA DA MATRIARCA — deserto
+
+Chefe: **MATRIARCA RIVAL**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | CALOR CRESCENTE (`v_d1`) | 105 | Golpes em sequência ganham 1% de dano por acerto, até 40%. Esfria após 3s sem acertar. |
+| 2 | NINHADA SOLAR (`v_d2`) | 105 | O tempo base de chocagem das irmãs é reduzido em 35%. |
+| 3 | CUSPE DE BRASAS (`v_d3`) | 105 | Projéteis aliados incendeiam por 4s, causando oito de dano por segundo. |
+| 4 | CASCA CALCINADA (`v_d4`) | 150 | Irmãs abaixo de metade da vida recebem 25% menos dano. |
+| 5 | TRABALHO ANTES DO MEIO-DIA (`v_d5`) | 150 | Nos primeiros 30s da expedição, velocidade de coleta dobra. |
+| 6 | FÚRIA FAMINTA (`v_d6`) | 150 | Irmãs abaixo de 40% de vida causam 50% mais dano direto. |
+| 7 | PROLE DA MATRIARCA (`v_d7`) | 195 | A cada oito irmãs nascidas, nasce uma operária gratuita se houver espaço. Limite de três por expedição. |
+| 8 | MIRAGEM DEFENSIVA (`v_d8`) | 195 | Cada terceiro projétil recebido por uma irmã é evitado completamente. |
+| 9 | MANDÍBULA DE VIDRO (`v_d9`) | 195 | Chance de crítico das irmãs aumenta em 15 pontos percentuais. |
+| 10 | FORNO DO ENXAME (`v_d10`) | 360 | Matar um inimigo em chamas ou envenenado causa 20 de dano a até três vizinhos em 130. Explosões não geram outras explosões. |
+
+#### COROA DO GALHADA — outono
+
+Chefe: **GALHADA REAL**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | MANTO DE FOLHAS (`v_o1`) | 120 | Cada irmã nasce com uma barreira igual a 20% da vida máxima. Não se regenera. |
+| 2 | SEIVA DA VITÓRIA (`v_o2`) | 120 | Abates curam oito de vida da irmã ferida mais próxima do inimigo, em até 300. |
+| 3 | PODA DO GALHADA (`v_o3`) | 120 | Golpes contra alvos abaixo de 20% de vida causam o dobro. Contra chefes, o bônus é de 20%. |
+| 4 | ÂMBAR DO POMAR (`v_o4`) | 165 | Cada entrega de comida gera uma essência na reserva da expedição. |
+| 5 | COLHEITA RESTAURADORA (`v_o5`) | 165 | Entregar comida restaura 8% da vida máxima da própria coletora. |
+| 6 | RAÍZES FIRMES (`v_o6`) | 165 | Irmãs a até 240 do formigueiro ignoram lentidão ao se mover. |
+| 7 | ÚLTIMA FOLHA (`v_o7`) | 210 | A rainha sobrevive a um golpe fatal com 30% da vida. Uma vez por expedição. |
+| 8 | JARDIM DE SEIVA (`v_o8`) | 210 | A rainha regenera três de vida por segundo, somando às outras fontes. |
+| 9 | CHAMADO DOURADO (`v_o9`) | 210 | Um rali bem-sucedido cura 25% da vida das irmãs chamadas. Recarga de 15s. |
+| 10 | ESTAÇÃO DA ABUNDÂNCIA (`v_o10`) | 375 | A cada 50 abates diretos ou por veneno, recebe 30 de comida e 15 de essência na expedição. |
+
+#### MEMÓRIA DO DEVASTADOR — gelo
+
+Chefe: **DEVASTADOR**. Desbloqueio pela vitória neste chefe na campanha.
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | MANDÍBULAS DE GEADA (`v_i1`) | 135 | Cada terceiro golpe direto causa 3s de lentidão e 0,35s de atordoamento em inimigos comuns. |
+| 2 | FRATURA DO INVERNO (`v_i2`) | 135 | Golpes diretos contra alvos lentos causam 60% mais dano. |
+| 3 | QUITINA DE GRANIZO (`v_i3`) | 135 | Irmãs reduzem cada golpe recebido em seis de dano, mantendo dano mínimo de um. |
+| 4 | PESO DO DEVASTADOR (`v_i4`) | 180 | Cefalotes têm 40% mais vida, mas se movem 10% mais devagar. |
+| 5 | INVERNO LONGO (`v_i5`) | 180 | Dobra a duração da lentidão aplicada pelos novos frutos a inimigos comuns. |
+| 6 | AVALANCHE CONCENTRADA (`v_i6`) | 180 | Cada quarto projétil aliado explode em raio 90, atingindo outros alvos com 60% do dano. |
+| 7 | CALMA GLACIAL (`v_i7`) | 225 | Irmãs com vida cheia atacam 30% mais rápido enquanto permanecem intactas. |
+| 8 | CORAÇÃO SOB O GELO (`v_i8`) | 225 | A rainha começa a expedição com uma barreira de 20% da vida máxima. |
+| 9 | CAÇA AO COLOSSO (`v_i9`) | 225 | Golpes diretos causam 25% mais dano contra chefes de qualquer mapa. |
+| 10 | SOLO PERENE (`v_i10`) | 390 | A cada 15 abates diretos ou por veneno, atordoa até seis inimigos comuns a até 250 do último alvo por 1s. |
+
+#### CORAÇÃO DA NÉVOA-MÃE — topo
+
+Chefe: **PÁLIDA**. **Prévia futura, compra bloqueada.**
+
+| # | Melhoria | Custo | Efeito global |
+|---|---|---:|---|
+| 1 | MEMÓRIA HERDADA (`v_a1`) | 150 | Começa cada expedição com 100 de essência na reserva. |
+| 2 | RESSONÂNCIA DA ANCIÃ (`v_a2`) | 150 | Cada quinto golpe direto dobra o dano e cura dois de vida da rainha. |
+| 3 | LIÇÕES DAS PERDIDAS (`v_a3`) | 150 | Experiência recebida aumenta em 40%. |
+| 4 | SEDA ANCESTRAL (`v_a4`) | 195 | Cura das Matabeles e cura natural da rainha aumentam em 35%. |
+| 5 | NINHADA ESPECTRAL (`v_a5`) | 195 | As cinco primeiras irmãs de cada expedição recebem barreira de 50% da vida, somada ao Manto de Folhas. |
+| 6 | FIOS DO RESGATE (`v_a6`) | 195 | Uma irmã atingida fatalmente retorna com 10% de vida. Recarga compartilhada de 30s; não salva a rainha. |
+| 7 | OLHAR DA NÉVOA-MÃE (`v_a7`) | 240 | Alcance de visão de todas as irmãs aumenta em 50%. |
+| 8 | FOME DE MEMÓRIAS (`v_a8`) | 240 | Cada unidade de cristal recolhida concede duas essências extras. |
+| 9 | COROA DE BRUMA (`v_a9`) | 240 | A rainha recebe 20% menos dano de todos os golpes. |
+| 10 | CORAÇÃO DA COLÔNIA ETERNA (`v_a10`) | 405 | Uma vez por expedição, ao cair abaixo de 30% de vida, a rainha restaura 40% da vida máxima de toda a colônia. |
+
+## Estado atualizado — Fase 3: Árvore Genealógica (2026-09-24)
+
+**Fase 3 finalizada no escopo atual, com dependência futura explícita da Fase 8.**
+Escolha confirmada: árvore literal (substitui anéis orbitais) e efeitos conforme as
+suas descrições, sem reprecificar os frutos. Registro completo e evidências em
+[progresso integral](#fonte-progresso-historico).
+
+- 67 nós: tronco Real, galhos Guerra/Coleta/Criação, seis mini-árvores na copa e
+  raízes ancestrais; seiva dourada, chime lendário, foco por ramo/fruto e zoom.
+- Selecionar apenas inspeciona; EVOLUIR confirma gasto. Custos, requisitos e IDs
+  preservados; compras dos 18 frutos persistem após reload, inclusive no mobile.
+- Corrigidos bônus globais/consumidores incorretos; efeitos restritos ao bioma.
+  A migração recalcula veteranas sem curá-las gratuitamente.
+- Névoa Revelada oferece +25% contraste do feromônio; **Pálida no minimapa é futuro**
+  (Fase 8), sinalizado no próprio nó. OLFATO disponível por toque no HUD expandido.
+- 20 testes headless passaram, 268 detalhes auditados por clique/toque no navegador,
+  inspeção geral sem erros e gate de HUD acima de 55 FPS na execução isolada.
+
+A pendência de “retomar a Fase 3” nos registros abaixo é histórica e fica
+substituída por este fechamento. Próximo: aprovação visual e auditoria da Fase 4;
+não declara concluídas as Fases 4–8 nem autoriza refazer cutscenes.
+
+## Estado atualizado — correções de interface (2026-09-24)
+
+**Fechadas no escopo verificado desta entrega.** Ver o registro de fechamento no
+[progresso integral](#fonte-progresso-historico): cartões paginados legíveis em
+Memórias/Profecias, seis controles mobile redundantes removidos, acesso ao ninho
+preservado pelo canvas e enquadramento sem sobreposição em 16:9 exato.
+
+O código inicial já tinha correções não refletidas no histórico dos 750 achados:
+a auditoria inicial passou em 88 estados. Na entrega, auditoria ampliada de 208
+estados e revalidação dos 57 estados mobile afetados pelos últimos ajustes passaram;
+19 testes headless, navegação por cliques/toques reais e inspeção de 30 cenas também.
+Limites e resultados completos estão no registro de progresso; não equivale a uma
+campanha completa nem a teste em aparelho físico.
+
+**Continuidade recomendada:** Fase 3, conferindo compra, desbloqueio e persistência
+dos frutos contra o código. O plano abaixo permanece como histórico anterior a este
+fechamento. Cutscenes e demais fases não foram ampliadas.
+
+## Direção de continuidade e nova regra — 2026-09-24
+
+**Pedido:** indicar os próximos passos segundo este documento e sempre atualizá-lo
+conforme o jogo for implementado ou atualizado. Regra formalizada como **Regra 12**
+em `REGRAS_DE_TRABALHO.md` e lembrada em `AGENTS.md`.
+
+**Próximo passo imediato:** continuar a auditoria de layout de 2026-09-24. A entrega
+anterior criou as ferramentas, não concluiu as correções. Os 750 achados em 86 estados
+incluem falsos positivos; não equivalem a 750 bugs confirmados.
+
+Ordem recomendada, sujeita às decisões de implementação do usuário:
+
+1. Afinar o analisador (sombras do título e nós fora da vista), pesquisar referências
+   e confirmar as decisões de UI antes de implementar.
+2. Corrigir tela a tela: MEMÓRIAS, PROFECIAS, MODO, ÁRVORE/dicas, AJUDA e fim de
+   expedição; resolver sobreposições dos controles mobile e dicas de teclado no toque.
+   Validar fonte normal/grande, PC/mobile, com `npm run inspect:layout` e inspeção visual.
+3. Retomar a Fase 3: compra, desbloqueio e persistência dos frutos por mapa e polimento
+   da árvore genealógica. Conferir o código antes de tratar pendências históricas como atuais.
+4. Retomar a Fase 5 quando autorizado: há registro de 13 camadas pendentes da Noite
+   Branca (5 do painel 2 e 8 do painel 3). A decisão posterior de 2026-09-23 foi manter
+   as cutscenes intactas naquela entrega; não iniciar geração sem confirmar a retomada.
+5. Completar/verificar áudio ambiente por bioma (Fase 6), chefes e Eras já registrados
+   como implementados; não confundir esses registros com nova validação.
+6. Fase 8: protótipo da Pálida, revisão das profecias e telas finais, polimento e
+   validação completa da campanha em PC/mobile.
+
+**Critério por entrega:** registrar mudanças, decisões, testes/resultados, limitações
+ e pendências neste arquivo. Preservar o histórico e distinguir planejado, implementado
+ e verificado. Não reutilizar percentuais antigos como medição atual.
+
+**Escopo desta entrega:** documentação apenas; nenhuma alteração de gameplay, arte
+ou layout. Verificação documental: `node game/test/docs.mjs` (blocos e hashes).
+A auditoria de layout e os testes de gameplay não foram reexecutados nesta consulta.
+
 ## Registro técnico — Regra 10 na prática: exibir arte no viewer (lição de sessão, 2026-09-22)
 
 Esta seção é nova e não modifica os seis textos originais. Ela operacionaliza a
@@ -557,6 +828,19 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 - Não deixar o PR aberto aguardando merge manual — salvo pedido explícito em contrário.
 - Não deletar o branch da sessão após o merge (a sessão continua associada a ele).
 
+## Regra 12 — Manter o MEGA ARQUIVO atualizado 📚
+
+> **Sempre atualizar `MEGA_ARQUIVO.md` conforme o jogo for implementado ou atualizado.**
+
+- Registrar na mesma entrega a data, o escopo, as decisões, o que mudou, os testes
+  executados e seus resultados, as limitações e os próximos passos.
+- Diferenciar planejado, implementado e verificado; não declarar conclusão sem evidência.
+- Preservar o histórico e indicar explicitamente quando um registro novo substitui
+  uma pendência ou decisão anterior.
+- Ao editar um dos seis documentos incorporados, sincronizar seu bloco integral e
+  tamanho/SHA-256 no MEGA ARQUIVO; validar com `node game/test/docs.mjs`.
+- A atualização documental faz parte da entrega, não fica para uma sessão futura.
+
 ## 🔄 Resumo do fluxo obrigatório a cada pedido
 
 ```text
@@ -569,7 +853,8 @@ Ao final de cada tarefa, apresentar um **checklist de conferência** com este fo
 7. VERIFICAR  → check-in com checklist do que foi pedido (Regra 3)
 8. JOGAR      → inspeção em jogo buscando bugs e imperfeições (Regra 4)
 9. PREVIEW    → abrir o jogo no preview ao vivo (Regra 7)
-10. SALVAR    → “salvar no GitHub” = CREATE PR + MERGE PR juntos (Regra 11)
+10. DOCUMENTAR → atualizar MEGA_ARQUIVO com mudanças, verificações e pendências (Regra 12)
+11. SALVAR    → “salvar no GitHub” = CREATE PR + MERGE PR juntos (Regra 11)
 ```
 
 > Estas regras valem para **qualquer** alteração: features, correções, balanceamento,
@@ -1564,6 +1849,207 @@ Cada layer: alta resolução, pixel art detalhado, paleta violeta/âmbar, sem hu
 **Arquivo de origem:** [PROGRESSO_MEGA_ATUALIZACAO.md](PROGRESSO_MEGA_ATUALIZACAO.md)
 
 <!-- INICIO ORIGINAL: PROGRESSO_MEGA_ATUALIZACAO.md -->
+# PROGRESSO — AMPLIAÇÃO: SETE FRUTOS / 70 NOVOS PODERES (2026-09-24)
+
+**Entrega posterior ao registro de Fase 3 abaixo.** Escolhas confirmadas pelo
+usuário: poderes novos **globais**, combináveis entre mapas; preparar a sétima
+árvore sem implementar agora o Topo/Pálida. Branch mantida:
+`arena/01a0d3f5-fumiga-goat`; nenhuma mudança de branch, commit ou push solicitado.
+
+- Sete portas na copa da árvore literal; cada uma abre sua própria miniárvore
+  com dez melhorias distintas, três caminhos e um ápice. Seleção mostra detalhes;
+  só EVOLUIR gasta essência. Voltar/Escape permitem retornar à árvore principal.
+- 49 nós base + 18 legados preservados + 70 novos = **137 definições**.
+  As 18 compras antigas ficam na aba LEGADO, com IDs, preços e efeitos locais
+  preservados. As 60 novas melhorias dos seis mapas existentes são obtíveis.
+- A morte do chefe correto na campanha libera só o fruto correspondente.
+  Chefe errado, sobrevivência e vitória no Pico não liberam a Pálida.
+  O sétimo fruto oferece prévia de dez poderes, mas permanece incomprável,
+  inclusive se `clearedMaps.topo` vier marcado em um save alterado.
+- Consumidores reais de dano, projéteis, coleta/depósito, nascimento/morte,
+  vida/barreiras/resgates, cura, visão, experiência e cristais. Contadores por
+  expedição/unidade; limites de frequência e explosões secundárias não recursivas.
+- Catálogo completo das 70 habilidades, custos e temas em `MEGA_ARQUIVO.md`.
+- Testes: **23/23** na bateria completa; 70 efeitos individualmente, seis mortes
+  reais de chefes, coleta/depósito/nascimento/projéteis reais e simulação com 60
+  poderes combinados. Navegador: 548 inspeções de detalhes (137 × duas fontes ×
+  PC/mobile), sete entradas e abas por plataforma; 78 compras persistidas por
+  perfil, com recarga e Era sem duplicação. Inspeção geral: 30 cenas sem erro JS,
+  HTTP ou glifo ausente. HUD isolado: **58,38 FPS**, 1800 frames, limiar 55.
+- Revisão encontrou e corrigiu um multiplicador invertido no intervalo de coleta,
+  preservou dano fracionário quando não há redução plana e ampliou áreas dos
+  cartões/confirmação para 44 px lógicos. Sem substituir a fonte pixel.
+- Limitação: sétimo mapa/Pálida ainda não jogáveis. Balanceamento de longo prazo
+  das novas combinações requer playtest humano; os testes não o substituem.
+- Próxima etapa: validação do usuário e, futuramente, Fase 8 para ligar a vitória
+  legítima da Pálida à árvore preparada. Não declarar essa vitória implementada.
+
+---
+
+# PROGRESSO — FASE 3: ÁRVORE GENEALÓGICA FINALIZADA NO ESCOPO ATUAL (2026-09-24)
+
+**Branch:** `arena/01a0d3f5-fumiga-goat`. **Pedido:** finalizar a Fase 3.
+**Decisões confirmadas nesta sessão:** árvore literal com frutos, substituindo os
+anéis orbitais; cumprir as descrições dos bônus, preservando preços/valores existentes;
+dependências da Pálida explicitamente futuras. Isto substitui a antiga escolha visual
+“anéis ao redor da raiz”, sem apagar o histórico.
+
+## Auditoria antes da implementação
+
+O código já possuía `FRUIT_TREES`, compra com essência, requisitos, save de nós e
+`clearedMaps` por vitória de campanha. Não foi preciso recriar a persistência.
+Porém, vários efeitos não correspondiam às descrições: bônus locais eram globais,
+visão da batedora aumentava alcance de ataque, velocidade da Tecelã alterava chocagem,
+velocidade da Prata alterava frequência de arrancada, +1 essência por cristal virava
++10%, e o bônus contra chefes estava no handler de inimigos comuns.
+
+## Entrega
+
+- **Árvore literal em Canvas:** tronco Real, galhos Guerra/Coleta/Criação, copa de
+  seis frutos, raízes da Colônia Ancestral com névoa, folhagem que muda com compras,
+  seiva dourada nas conexões compradas e chime nos lendários. Desenho determinístico
+  em código, sem PNGs pesados ou novas dependências de produção.
+- `tree_layout.js` separa coordenadas visuais de dados de progressão: **49 nós
+  originais + 18 de frutos = 67**. IDs, pré-requisitos, custos e saves existentes
+  preservados. Teste geométrico cobre os raios dos 67 nós, não apenas o HUD.
+- Panorama VER TUDO inclui copa e raízes. Indicadores de ramos/frutos aproximam suas
+  regiões; arrasto, roda e pinça mantidos. Detalhes fixos com fonte normal/grande.
+- **Compra explícita:** selecionar abre detalhes sem gastar essência; botão EVOLUIR
+  mostra disponibilidade/custo e confirma a compra. Bloqueio por mapa, saldo,
+  pré-requisito e nível máximo continuam no estado, não apenas no desenho.
+- Contagem de progresso inclui os 67 nós. Brilho/contadores dos frutos distinguem
+  desbloqueio e compra. Partículas e animações da árvore respeitam efeitos reduzidos.
+- **Bônus locais corrigidos:** velocidade da Planície (inclusive operárias), resistência
+  ao THUMP, comida; visão das batedoras/velocidade das Tecelãs/cura na Floresta;
+  velocidade da Prata, resistência à inversão e +1 por unidade de cristal no Pântano;
+  dano/população/essência no Deserto; comida/vida dos tanques/cura no Outono;
+  dano contra chefes no Gelo. Removidos vínculos globais incorretos e extras não descritos.
+- Veteranas têm atributos recalculados ao migrar de mapa, preservando proporção de
+  vida. Bônus de cura do Outono também alcança cura da rainha e recuperação de migração.
+- `Névoa Revelada`: efeito antes vago quantificado em **+25% no contraste do feromônio**
+  no Gelo; custo de 80 mantido. **Ver Pálida no minimapa continua futuro (Fase 8)**,
+  indicado na descrição; não foi inventado um chefe para declarar esse efeito pronto.
+- `Topo do Mundo` mantém +1 Era imediata, apenas na primeira compra, custo 120 e
+  requisitos preservados. Recarregar o save não concede Era novamente.
+- **Mobile:** no painel expandido (+) há OLFATO ligado/desligado, equivalente ao H,
+  para que o efeito de Névoa Revelada também possa ser usado por toque. Sem duplicar
+  gameplay nem reintroduzir os seis atalhos redundantes removidos na entrega anterior.
+- Consultas de frutos usam índice `Map` imutável, evitando buscas repetidas por nó.
+
+**Referência:** crescimento visual de progressão permanente em Rogue Legacy 2,
+adaptado à colônia e sem copiar arte:
+[2](https://arstechnica.com/gaming/2022/05/rogue-legacy-2-review-a-perfect-sequel-to-a-great-game/).
+
+## Verificação
+
+- `npm test`: **20/20 passaram**, agora incluindo `fruits.mjs`.
+- `fruits.mjs`: geometria de 67 nós; 18 compras, saldo, requisitos, limites, reload e
+  save antigo; isolamento dos bônus nos seis mapas; atributos reais de unidades;
+  coleta de orbes; THUMP/inversão pelos handlers reais; dano de chefe versus inimigo
+  comum; seis desbloqueios por campanha e ausência de desbloqueio em sobrevivência;
+  recalcular veteranas e +1 Era sem recompra.
+- `npm run inspect:tree`: **268 inspeções de detalhes** (67 × PC/mobile × fonte
+  normal/grande), sem achados de layout nem compra ao apenas selecionar; 18 compras
+  por clique/toque em cada perfil persistiram após reload. Replay do teste também
+  valida OLFATO ligado/desligado por toque. Capturas em `/tmp/fumiga-tree`.
+- Auditoria focada de layout: **16 estados** de Árvore, Ajuda, Opções/Controles e
+  HUD expandido PC/mobile, incluindo fonte grande onde configurada, sem achados.
+- `npm run inspect`: 30 cenas PC/mobile, seis mapas por seleção controlada,
+  nenhum erro JS, HTTP ou glifo faltando.
+- `HUD_MIN_FPS=55 npm run inspect:hud`: seis biomas, H, acessibilidade, vida baixa,
+  zoom, viewports mobile e ninho/onda; **56,70 FPS médios em 1.800 frames**, maior
+  intervalo 50,1 ms. A primeira medição concorrente com outro Chromium deu 46,94 FPS;
+  foi repetida isoladamente. Isso não garante desempenho em todo celular.
+- Detectada falha intermitente anterior no teste mobile: dependia de encontrar uma
+  formiga aleatória ainda na viewport após a introdução. O cenário agora cria um
+  alvo controlado fora do HUD e continua verificando a seleção pelo toque real do motor.
+
+**Limites:** não foi vencida uma campanha completa nem usado celular físico.
+A indicação futura da Pálida não está implementada. Não foram geradas camadas de
+cutscene nem alterado o chefe final. Layout e arte continuam sujeitos à aprovação
+visual do usuário no preview; testes não substituem essa aprovação.
+
+**Próximos passos:** validar o visual com o usuário; depois conferir a Fase 4
+(arenas, chefes/fase 2 e frases) contra o código. Retomar cutscenes da Fase 5 somente
+com confirmação, respeitando a decisão de mantê-las intactas nesta entrega.
+
+---
+
+# PROGRESSO — FECHAMENTO DAS CORREÇÕES DE INTERFACE (2026-09-24)
+
+**Branch:** `arena/01a0d3f5-fumiga-goat`. **Pedido:** concluir as correções de
+interface. **Escolhas confirmadas:** reorganizar mantendo a arte, com texto legível;
+no mobile excluir botões duplicados e ações já atendidas por toque/gestos.
+
+## Estado encontrado e correção do histórico
+
+A consulta anterior se baseou no registro de ferramentas abaixo. Contudo, o checkout
+inicial desta sessão já continha correções em MODO, AJUDA, ÁRVORE, PROFECIAS,
+MEMÓRIAS, fim de expedição, HUD e analisador (sombras/recortes). A auditoria ANTES de
+editar código passou nos **88 estados PC/mobile**. Portanto, os **750 achados** do
+registro antigo não descrevem este checkout. Não atribuir essas correções anteriores
+à implementação desta sessão. Este registro substitui a pendência genérica de
+“correções de UI vêm a seguir”, preservando o histórico.
+
+## Implementado nesta entrega
+
+- **Memórias:** dois cartões por linha, quatro por página; duas páginas cobrem as
+  oito memórias. Títulos e descrições quebram linhas sem redução automática para
+  caber nos cartões. Fonte grande mantém seu aumento. Navegação Anterior/Próxima,
+  contador de página, retorno à árvore e replay preservados.
+- **Profecias:** quatro cartões por página e quatro páginas cobrem os 16 vaticínios,
+  com descrições completas, recompensas separadas e fonte grande sem encolhimento
+  automático nos cartões. Nenhuma alteração de recompensas ou progressão.
+- **Mobile:** removidos seis botões DOM redundantes: Zoom +/− (pinça), Onda
+  (Invocar no canvas), Ninho (Entrar no canvas), Chamar/Soltar (rodapé do ninho).
+  Permanecem Centro, Rali e Pausa. Dentro do ninho a camada extra fica oculta:
+  Escape ali significa sair, não pausar. Comandos de sair/chamar/soltar permanecem
+  nos botões do próprio jogo.
+- **Entrada do ninho no mobile reativada no canvas:** antes era ocultada por
+  `!isTouchUI()` em favor do atalho DOM. Sua reativação impede perda de acesso
+  após remover a duplicata. Validada por toque real, não apenas presença visual.
+- **Legibilidade mobile:** rótulos dos três atalhos visíveis também na faixa lateral,
+  ícones em texto sem dependência de glifos emoji, nomes acessíveis; dicas de toque
+  no ninho e remoção da dica de teclado H no painel expandido mobile.
+- **Enquadramento:** mantida proporção 16:9; no mobile paisagem sem letterbox suficiente,
+  reserva mínima lateral impede os atalhos de cobrirem o canvas. Retrato continua
+  com orientação recomendada para paisagem; não é um redesign vertical do jogo.
+- **Testes:** `mobile.mjs` verifica apenas três atalhos e preserva cobertura de pinça;
+  `layout-browser.mjs` cobre páginas adicionais e aceita `--extra` (960×540 e
+  390×844). Novo `npm run inspect:ui` exercita cliques/toques reais e verifica que
+  todos os títulos das oito memórias e 16 profecias continuam acessíveis.
+
+**Referência pesquisada:** acessibilidade de Dead Cells (tamanho de HUD/textos),
+adaptada à arte existente do FUMIGA, sem gerar novos assets:
+[2](https://dead-cells.com/patchnotes/29).
+
+## Verificação e limites
+
+- `npm test`: **19/19 passaram**, incluindo boot, layout, mobile, assets, simulação,
+  árvore, profecias, UI e sobrevivência.
+- Auditoria ampliada `node game/test/layout-browser.mjs --extra`: **208 estados
+  sem achados**, PC 1280×720, mobile 844×390, mobile 960×540 e retrato 390×844,
+  com os estados de fonte grande configurados na suíte. Após os últimos ajustes
+  no ninho/HUD/dicas, reexecutados os **57 estados RUN/NINHO nos três perfis mobile**:
+  também sem achados. A suíte não cobre toda combinação possível de opções.
+- `npm run inspect:ui`: navegação em todas as páginas, ida/volta, fonte normal/grande,
+  replay da segunda página, ninho (entrar/comandos/sair), pausa/retomada e invocação
+  de onda por toque no canvas. Sem erros JS/rede.
+- `npm run inspect`: **30 cenas PC/mobile**, seis mapas por seleção controlada,
+  sem erros JS, HTTP ou glifos ausentes. Última execução mobile: 60 FPS médios por
+  mapa no ambiente headless; não é garantia para todo aparelho.
+- Capturas de Memórias/Profecias com fonte grande, RUN 16:9/retrato e NINHO
+  inspecionadas visualmente. Relatórios/capturas em `/tmp/layout-final`,
+  `/tmp/layout-touch-final` e `/tmp/fumiga-inspect`, fora do Git.
+- Não foi jogada uma campanha completa nem testado um celular físico. Nenhuma arte
+  de cutscene, boss, balanceamento ou lógica dos frutos foi alterada.
+
+**Próximo passo:** retomar a Fase 3 (compra/desbloqueio/persistência dos frutos e
+polimento da árvore), após conferir as pendências contra o código e confirmar a direção.
+MEGA ARQUIVO atualizado nesta mesma entrega conforme a Regra 12.
+
+---
+
 # PROGRESSO — AUDITORIA DE LAYOUT, FASE 1: FERRAMENTAS DE MEDIÇÃO (2026-09-24)
 
 **Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar as telas de todo o jogo e ajustar
@@ -2015,11 +2501,11 @@ parte dos blocos originais.
 
 | Arquivo original | Bytes preservados | SHA-256 |
 |---|---:|---|
-| `REGRAS_DE_TRABALHO.md` | 12735 | `82f611ccf900114c940ce3ddbddcf70789be158ad58ffacee3c2c930625fe8b1` |
+| `REGRAS_DE_TRABALHO.md` | 13591 | `fbdc8bb8384e97ac26f13bc889f350c9952de20c3d39dcf01c2241f4ea5bf303` |
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
-| `PROGRESSO_MEGA_ATUALIZACAO.md` | 12665 | `f8c210d7346731ee7337bacff3a51a399a0cedc4ee6cbab870f46e408f23d877` |
+| `PROGRESSO_MEGA_ATUALIZACAO.md` | 26142 | `b89b280976bb684a9cb5d4ab7113542429c264ec1dcce88899de765c65d788ac` |
 | `DOCUMENTO_FASES_IMPLEMENTACAO.md` | 16113 | `065f79996d7ee89b3445cd231217067471be5b58792c36699c66146ed7a3965b` |
 
 **Conferência reproduzível:** `node game/test/docs.mjs`.

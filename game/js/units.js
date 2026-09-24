@@ -1,3 +1,4 @@
+import { fruitWorld, fruitUnitStats, fruitAllyDamage, fruitSurvive, fruitQueenBorn, fruitBorn, fruitDeath, fruitSpeed, fruitIgnoreSlow, fruitGatherRate, fruitAttackCd, fruitHealingMultiplier, fruitDeposit, fruitTick, fruitRally } from "./fruit_effects.js";
 // ============================================================================
 // FUMIGA — formigas da colônia (IA estilo Ant Colony), rainha e ovos
 // Papéis: worker | fighter | ranged | healer | bomber (via def.role)
@@ -290,16 +291,19 @@ export function spawnQueen() {
     maxHp: Math.round(QUEEN.hp * m.queenHp), hp: 0,
     bodyR: 46, dead: false,
     flash: 0, eatT: 0, bob: rand(0, 6.28), rebirthUsed: false,
-    takeDamage(dmg) {
+    takeDamage(dmg, from, attacker) {
       if (this.dead) return;
       const mm = mods();
       dmg *= mm.muts.dmgTaken * (1 - mm.queenArmor);
+      dmg = fruitAllyDamage(this, dmg, attacker);
       this.hp -= dmg;
+      fruitSurvive(this);
       this.flash = 0.14;
       SFX.queenHit();
     },
   };
   q.hp = q.maxHp;
+  fruitQueenBorn(q);
   allies.queen = q;
   return q;
 }
@@ -322,10 +326,10 @@ function computeAntStats(typeId) {
       atkCd *= 0.3;
     }
   } catch(e) {}
-  return {
+  return fruitUnitStats(typeId, {
     hp: Math.round(b.hp * m.hpAll * (typeId === "giant" ? m.dinoHp : 1) * (typeId === "tank" ? 1 + (m.fruitTankHp||0) : 1) * lvHp),
     dmg: b.dmg * m.dmgAll * lvDmg * fightMult,
-    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed),
+    speed: b.speed * m.muts.speed * (isWorker ? m.workerSpeed : m.allSpeed) * (1 + m.fruitPlanicieSpeed) * (typeId === "weaver" ? 1 + m.fruitWeaverSpeed : 1) * (typeId === "scout" ? 1 + m.fruitScoutSpeed : 1),
     range: b.range + m.rangeBonus, atkCd,
     carry: (b.carry || 0) + (isWorker ? m.workerCarry : 0),
     gatherRate: (b.gatherRate || 0) * m.gatherRate,
@@ -337,7 +341,7 @@ function computeAntStats(typeId) {
     aoe: (b.aoe || 0) * m.aoeMult,
     burnDps: (b.burnDps || 0) * m.dmgAll * lvDmg * fightMult * m.burnMult,
     burnDur: b.burnDur || 0,
-  };
+  });
 }
 
 /** Recalcula atributos das formigas vivas mantendo a fração de vida. */
@@ -414,7 +418,9 @@ export function spawnAnt(typeId, x, y, opts = {}) {
           if (Math.random() < 0.18) floatText(this.x, this.y - this.bodyR - 8, "PORTA-VIVA", { color: "#ffb347", life: 0.8, scale: 0.9 });
         }
       }
+      dmg = fruitAllyDamage(this, dmg, attacker);
       this.hp -= dmg;
+      fruitSurvive(this);
       this.hitT = 0.12;
       // PROFECIA: SANGUE FRIO — o run lembra o pior momento da rainha
       if (this.type === "queen" && G.run) G.run.queenMinHp = Math.min(G.run.queenMinHp ?? 1, Math.max(0, this.hp) / this.maxHp);
@@ -453,11 +459,13 @@ export function spawnAnt(typeId, x, y, opts = {}) {
     },
   };
   allies.push(a);
+  fruitBorn(a, !!opts.fruitFree);
   return a;
 }
 
 export function killAnt(a) {
   if (a.dying) return;
+  fruitDeath();
   a.dying = 0.45;
   if (G.run) G.run.deaths = (G.run.deaths || 0) + 1; // PROFECIA: FLOR IMACULADA
   a.dead = true;
@@ -553,6 +561,7 @@ function hatchTick(dt) {
 
 // ----------------------------------------------------------------- update ---
 export function updateAllies(dt, foes) {
+  fruitTick(dt);
   const m = mods();
   const run = G.run;
 
@@ -561,12 +570,12 @@ export function updateAllies(dt, foes) {
   if (q && !q.dead) {
     q.bob += dt;
     q.flash = Math.max(0, q.flash - dt);
-    if (m.queenRegen > 0) q.hp = Math.min(q.maxHp, q.hp + m.queenRegen * dt);
+    if (m.queenRegen > 0) q.hp = Math.min(q.maxHp, q.hp + m.queenRegen * m.allHealing * dt);
     // alimentação da rainha (cura com comida)
     q.eatT -= dt;
     if (q.eatT <= 0 && q.hp < q.maxHp && run.food >= QUEEN.eatFood) {
       run.food -= QUEEN.eatFood;
-      q.hp = Math.min(q.maxHp, q.hp + QUEEN.eatHp);
+      q.hp = Math.min(q.maxHp, q.hp + QUEEN.eatHp * m.allHealing);
       q.eatT = QUEEN.eatCd * m.queenEatRate;
       const A = world.anthill;
       burst(A.x, A.y - 20, { n: 6, color: ["#ffd479", "#7fd6a0"], spMin: 8, spMax: 42, life: 0.5, sizeMin: 1, sizeMax: 2 });
@@ -633,8 +642,8 @@ export function updateAllies(dt, foes) {
 
 function moveToward(a, tx, ty, dt, speedMult = 1) {
   const m = mods();
-  let sp = a.st.speed * speedMult;
-  if (a.slowT > 0) sp *= 0.75;
+  let sp = a.st.speed * speedMult * fruitSpeed(a);
+  if (a.slowT > 0 && !fruitIgnoreSlow(a)) sp *= 0.75;
   // FORMIGA-PRATA (Cataglyphis bombycina): a formiga mais rápida do mundo
   // dispara arrancadas relâmpago a cada ~4s enquanto corre
   if (a.type === "scout") {
@@ -694,7 +703,7 @@ function packBonus(a) {
 
 function attackMelee(a, target, dt) {
   if (a.atkT > 0) return;
-  a.atkT = a.st.atkCd;
+  a.atkT = fruitAttackCd(a, a.st.atkCd);
   const mm = a.mm;
   let dmg = a.st.dmg * packBonus(a);
   const crit = mm.critChance > 0 && Math.random() < mm.critChance;
@@ -971,7 +980,7 @@ function updateWorker(a, dt, foes, think, m, run) {
       const arrived = moveToward(a, tgt.x, tgt.y, dt);
       const d = Math.sqrt(dist2(a.x, a.y, tgt.x, tgt.y));
       if (arrived || d < tgt.r + 7) {
-        a.state = "gather"; a.gatherT = a.st.gatherRate;
+        a.state = "gather"; a.gatherT = (a.st.gatherRate / fruitGatherRate());
         a.gotoT = 0; a.gotoBest = undefined;
         break;
       }
@@ -1004,7 +1013,7 @@ function updateWorker(a, dt, foes, think, m, run) {
       moveToward(a, tgt.x, tgt.y, dt, 0.3);
       a.gatherT -= dt;
       if (a.gatherT <= 0) {
-        a.gatherT = a.st.gatherRate;
+        a.gatherT = (a.st.gatherRate / fruitGatherRate());
         const isEssence = tgt.kind === "essence";
         const take = isEssence ? Math.min(1, tgt.amount) : Math.min(3, tgt.amount);
         tgt.amount -= take;
@@ -1089,6 +1098,7 @@ function deposit(a, m, run) {
     v = Math.round(v * m.foodBonus * (K === "food" ? m.muts.foodGather : 1)) + (K === "food" ? m.muts.depositBonus : 0);
     const pantry = run && run.chambers ? run.chambers.pantry : 0;
     if (pantry > 0) v = Math.round(v * (1 + 0.15 * pantry));
+    v = fruitDeposit(a, v);
     if (run) run.food += Math.max(1, Math.round(v * (run.ascFood || 1))); // ASCENSÃO nv14: COLHEITA MAGRA
     // FORMIGA-CORTADEIRA (Atta): as folhas alimentam o fungário - cada
     // entrega de comida apressa o próximo cultivo
@@ -1161,7 +1171,7 @@ function updateHealer(a, dt, foes, m) {
       // FORMIGA-MATABELE (Megaponera): triagem de guerra - feridas críticas
       // recebem o dobro da cura (na natureza, 90% dos resgatados sobrevivem)
       const triage = tgt.hp / tgt.maxHp < 0.3 + m.triageBonus ? 2 : 1;
-      tgt.hp = Math.min(tgt.maxHp, tgt.hp + a.st.healRate * triage * m.healPower * dt);
+      tgt.hp = Math.min(tgt.maxHp, tgt.hp + a.st.healRate * triage * m.healPower * fruitHealingMultiplier(tgt) * dt);
       a.healFxT -= dt;
       if (a.healFxT <= 0) {
         a.healFxT = 0.22;
@@ -1285,7 +1295,7 @@ function updateFighter(a, dt, foes, think, m) {
 }
 
 function spitAt(a, tgt, m) {
-  a.atkT = a.st.atkCd;
+  a.atkT = fruitAttackCd(a, a.st.atkCd);
   const d = dist(a.x, a.y, tgt.x, tgt.y) || 1;
   const lead = clamp(d / a.st.projSpeed, 0, 0.5);
   const px = tgt.x + (tgt.vx || 0) * lead * 40, py = tgt.y + (tgt.vy || 0) * lead * 40;
@@ -1301,7 +1311,7 @@ function spitAt(a, tgt, m) {
   spawnProj({
     x: a.x + Math.cos(a.angle) * 10, y: a.y + Math.sin(a.angle) * 10 - 4,
     vx: ((px - a.x) / dd) * a.st.projSpeed, vy: ((py - a.y) / dd) * a.st.projSpeed,
-    dmg, faction: "ally",
+    dmg, faction: "ally", owner:a,
     color: isBomb ? "#ff9a3d" : "#7fe8ff",
     size: isBomb ? 3.4 : 2.5,
     slow: m.muts.acidSlow ? 0.25 : 0,
@@ -1387,6 +1397,7 @@ export function orderSelected(wx, wy, worldQueries) {
 /** F: convoca todas as guerreiras para o anel de defesa do formigueiro. */
 export function rallyDefenders(anthill) {
   let n = 0;
+  const called = [];
   for (const a of allies) {
     if (a.dead || a.dying || a.def.role === "worker") continue;
     // O RALI CHAMA A COLÔNIA PARA FORA: guerreira que está no ninho entra na
@@ -1401,8 +1412,9 @@ export function rallyDefenders(anthill) {
       a.tx = ring.x; a.ty = ring.y;
       a.state = "move";
     }
-    n++;
+    called.push(a); n++;
   }
+  fruitRally(called);
   if (n > 0) SFX.command();
   return n;
 }
@@ -1418,3 +1430,11 @@ export function orderAttackSelected(foe) {
   if (n > 0) SFX.command();
   return n;
 }
+
+// Referências do motor compartilhado; não criam outro loop ou outra IA.
+fruitWorld.allies = allies;
+fruitWorld.home = () => world.anthill;
+fruitWorld.freeWorker = (a) => {
+  if(popUsed() >= popCapTotal()) return false;
+  spawnAnt("worker", a.x, a.y, { fruitFree:true, spawnT:0.34 }); return true;
+};

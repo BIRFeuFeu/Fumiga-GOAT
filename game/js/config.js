@@ -1,3 +1,4 @@
+import { NEW_FRUIT_NODES } from "./fruit_skills.js";
 // ============================================================================
 // FUMIGA — dados de balanceamento e conteúdo
 // ============================================================================
@@ -575,10 +576,21 @@ export const FRUIT_TREES = [
   ]},
   { id: "fruit_gelo", map: "gelo", name: "MEMÓRIA DO DEVASTADOR", color: "#e8f4ff", nodes: [
     { id: "f_g_1", name: "Gelo Quebrado", desc: "GELO: +20% dano contra chefes (mecânica única)", cost: [60], requires: [], fruit: "fruit_gelo", map: "gelo", br: "G", tier: 0, icon: "fire_sword" },
-    { id: "f_g_2", name: "Névoa Revelada", desc: "GELO: Revela feromônio melhor + vê Pálida no minimapa", cost: [80], requires: ["f_g_1"], fruit: "fruit_gelo", map: "gelo", br: "H", tier: 0, icon: "sk_frost" },
+    { id: "f_g_2", name: "Névoa Revelada", desc: "GELO: +25% contraste do feromônio. Pálida no minimapa: futuro (Fase 8)", cost: [80], requires: ["f_g_1"], fruit: "fruit_gelo", map: "gelo", br: "H", tier: 0, icon: "sk_frost" },
     { id: "f_g_3", name: "Topo do Mundo", desc: "GELO: Desbloqueia ERA +1 (lendário) — a colônia vira paisagem", cost: [120], requires: ["f_g_2"], fruit: "fruit_gelo", map: "gelo", br: "R", tier: 2, icon: "crown", sprite: "queen" },
   ]},
 ];
+
+// Sete frutos canônicos: o sétimo existe como prévia, não como mapa jogável.
+FRUIT_TREES.push({ id:"fruit_topo", map:"topo", name:"CORAÇÃO DA NÉVOA-MÃE", color:"#d9b8ff", pending:true, nodes:[] });
+const FRUIT_BOSSES = ["hare","fox","grouse","matriarch","deer","boar","palida"];
+const FRUIT_BOSS_NAMES = ["TAMBORILADOR","CAÇADORA ASTUTA","SOMBRA ALADA","MATRIARCA RIVAL","GALHADA REAL","DEVASTADOR","PÁLIDA"];
+FRUIT_TREES.forEach((f,i) => {
+  f.boss = FRUIT_BOSSES[i]; f.bossName = FRUIT_BOSS_NAMES[i];
+  f.legacyNodes = [...f.nodes];
+  f.newNodes = NEW_FRUIT_NODES.filter(n => n.map === f.map);
+  f.nodes.push(...f.newNodes);
+});
 
 // ------------------------------------------------------------- Recursos iniciais
 export const START = {
@@ -872,7 +884,8 @@ export const HELP_CONTROLS_TOUCH = [
   ["TOQUE DUPLO", "Selecionar o tipo visível na tela"],
   ["ARRASTAR (2 DEDOS)", "Caixa de seleção"],
   ["PINÇA", "Zoom"],
-  ["BOTÕES NA TELA", "Pausa • Ninho • Rali • Onda • Zoom • Centro"],
+  ["OLFATO", "Abra + no HUD e toque em OLFATO"],
+  ["BOTÕES NA TELA", "Pausa • Rali • Centro; demais ações no jogo"],
   ["CARDS DA LOJA", "Toque no card para chocar a classe"],
 ];
 export const HELP_TIPS = [

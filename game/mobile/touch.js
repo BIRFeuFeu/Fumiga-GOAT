@@ -263,6 +263,8 @@ function makeBtn(cls, ico, lbl, onPress) {
   const b = document.createElement("button");
   b.className = cls;
   b.type = "button";
+  b.title = lbl;
+  b.setAttribute?.("aria-label", lbl);
   const i = document.createElement("span");
   i.className = "ico"; i.textContent = ico;
   b.appendChild(i);
@@ -276,33 +278,20 @@ function makeBtn(cls, ico, lbl, onPress) {
   return b;
 }
 
-const btnPause = makeBtn("btn", "⏸", "PAUSA", () => pressKey("Escape"));
-const btnNest  = makeBtn("btn", "🏠", "NINHO", () => pressKey("KeyB"));
-const btnRally = makeBtn("btn", "⚔", "RALI",  () => pressKey("KeyF"));
-const btnWave  = makeBtn("btn", "⏭", "ONDA",  () => pressKey("KeyG"));
-const btnCent  = makeBtn("btn", "🎯", "CENTRO", () => pressKey("Space"));
-const btnZin   = makeBtn("btn zoom", "＋", "", () => { mouse.x = VIEW_W / 2; mouse.y = VIEW_H / 2; mouse.wheel -= 1; });
-const btnZout  = makeBtn("btn zoom", "－", "", () => { mouse.x = VIEW_W / 2; mouse.y = VIEW_H / 2; mouse.wheel += 1; });
-// A BOCA DO FORMIGUEIRO (rework): abrir a porta e chamar de volta. Só valem
-// na tela do formigueiro — a fileira inteira aparece só quando ela está aberta.
-const btnOut   = makeBtn("btn", "🐜", "SOLTAR", () => pressKey("KeyL"));
-const btnIn    = makeBtn("btn", "⬇", "CHAMAR", () => pressKey("KeyP"));
-
+// Só atalhos sem equivalente direto no canvas. Pinça substitui Zoom +/-;
+// INVOCAR, ENTRAR e os comandos da boca já são botões tocáveis do jogo.
+const btnPause = makeBtn("btn", "II", "PAUSA", () => pressKey("Escape"));
+const btnRally = makeBtn("btn", "!", "RALI", () => pressKey("KeyF"));
+const btnCent = makeBtn("btn", "+", "CENTRO", () => pressKey("Space"));
 const rowTop = document.createElement("div");
 rowTop.className = "hud-row";
-rowTop.appendChild(btnZout); rowTop.appendChild(btnZin); rowTop.appendChild(btnCent);
+rowTop.appendChild(btnCent);
 const rowBot = document.createElement("div");
 rowBot.className = "hud-row";
-rowBot.appendChild(btnWave); rowBot.appendChild(btnRally); rowBot.appendChild(btnNest); rowBot.appendChild(btnPause);
-const rowNest = document.createElement("div");
-rowNest.className = "hud-row";
-rowNest.appendChild(btnIn); rowNest.appendChild(btnOut);
-// Todos os botões do HUD: a faixa lateral ajusta a altura de cada um.
-const HUD_BUTTONS = [btnCent, btnIn, btnNest, btnOut, btnPause, btnRally, btnWave, btnZin, btnZout];
+rowBot.appendChild(btnRally); rowBot.appendChild(btnPause);
+const HUD_BUTTONS = [btnCent, btnRally, btnPause];
 hudEl.appendChild(rowTop);
 hudEl.appendChild(rowBot);
-hudEl.appendChild(rowNest);
-rowNest.hidden = true;
 hudEl.hidden = true;
 
 // zoom: pinça faz zoom-IN quando os dedos afastam; a RODA do PC faz zoom-out
@@ -317,7 +306,7 @@ modeBtnEl.hidden = true;
 
 function updateModeBtn() {
   const selecting = touchMode.mode === "selecionar";
-  modeBtnEl.textContent = selecting ? "🎯 SELECIONAR" : "🖐 ORDENAR";
+  modeBtnEl.textContent = selecting ? "SELECIONAR" : "ORDENAR";
   modeBtnEl.className = selecting ? "select" : "";
 }
 updateModeBtn();
@@ -327,31 +316,31 @@ let hudShown = false, pauseShown = null, modeShown = false, modeSmart = null, ne
 function hudTick() {
   requestAnimationFrame(hudTick);
   const inRun = G.screen === "RUN" && !!G.run;
-  if (inRun !== hudShown) {
-    hudShown = inRun;
-    hudEl.hidden = !inRun;
+  const showHud = inRun && !G.run.baseOpen;
+  if (showHud !== hudShown) {
+    hudShown = showHud;
+    hudEl.hidden = !showHud;
   }
-  // formigueiro aberto: a fileira da BOCA substitui as demais (o rodapé da
-  // cena de dentro, desenhado no canvas, já traz os mesmos comandos)
+  // No ninho os comandos do rodapé bastam; Escape ali significa sair,
+  // não pausar. Não mostrar um botão PAUSA enganoso e duplicado.
   const inNest = inRun && !!(G.run && G.run.baseOpen);
   if (inNest !== nestShown) {
     nestShown = inNest;
-    rowNest.hidden = !inNest;
     rowTop.hidden = inNest;
-    rowBot.hidden = inNest;
+    btnRally.hidden = inNest;
   }
   if (inRun) {
     const p = isPaused();
     if (p !== pauseShown) {
       pauseShown = p;
-      btnPause.firstChild.textContent = p ? "▶" : "⏸";
+      btnPause.firstChild.textContent = p ? ">" : "II";
       btnPause.lastChild.textContent = p ? "VOLTAR" : "PAUSA";
     }
   }
   // modo explícito (OPÇÕES → CONTROLES) pode ligar/desligar em plena run:
   // ele está LIGADO quando a preferência touchSelect é verdadeira
   const explicit = touchMode.on && !!G.save.settings.touchSelect;
-  const showMode = inRun && explicit;
+  const showMode = inRun && !inNest && !isPaused() && explicit;
   if (showMode !== modeShown) {
     modeShown = showMode;
     modeBtnEl.hidden = !showMode;
@@ -369,8 +358,8 @@ requestAnimationFrame(hudTick);
 // livre (letterbox) ao lado dele. O canvas 16:9 centralizado deixa barras
 // laterais em telas largas e barras de cima/baixo em telas quase quadradas —
 // o HUD escolhe a faixa maior e se organiza em coluna (faixa lateral) ou em
-// fileira (faixa de baixo/cima). Só se não sobrar NENHUMA faixa (canvas
-// preenchendo a tela toda) ele volta ao comportamento antigo de sobrepor.
+// fileira (faixa de baixo/cima). main.js reserva a faixa mínima em paisagem,
+// inclusive no 16:9 exato, mantendo a proporção do canvas.
 const HUD_RAIL_CLASSES = ["rail-left", "rail-right", "bar-top", "bar-bottom"];
 const RAIL_MIN = 74;        // largura/altura mínima de faixa para caber um botão
 
@@ -409,9 +398,9 @@ function layoutTouchHud() {
     hudEl.style.width = Math.round(sideGap - 12) + "px";
     // a faixa é estreita: a coluna de botões divide a altura com o botão de
     // modo (60px no pé). Cada botão encolhe o quanto precisar para caber.
-    // 7 = maior fileira visível (zoom x2 + centro + onda + rali + ninho + pausa)
+    // 3 atalhos: centro, rali e pausa (sem duplicar comandos do canvas)
     const railH = r.height - 12 - 60;
-    const btnH = Math.max(30, Math.min(48, Math.floor((railH - 6 * 4 - 8) / 7)));
+    const btnH = Math.max(44, Math.min(56, Math.floor((railH - 16) / 3)));
     for (const b of HUD_BUTTONS) b.style.height = btnH + "px";
     modeBtnEl.style.bottom = "6px";
     modeBtnEl.style[useRight ? "right" : "left"] = "6px";
@@ -428,7 +417,7 @@ function layoutTouchHud() {
     modeBtnEl.style[useBottom ? "top" : "bottom"] = "6px";
     modeBtnEl.style.left = "6px";
   } else {
-    setRailClass(hudEl, "rail-right");      // tela 16:9 exata: sobrepõe como antes
+    setRailClass(hudEl, "rail-right");      // fallback para shells sem o fit() mobile
   }
 }
 window.addEventListener("resize", layoutTouchHud);
