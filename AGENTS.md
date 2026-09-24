@@ -24,7 +24,7 @@ npm run test:quick          # ~10 s: confirma que a base está verde
 | `node game/test/run-all.mjs --only=sim,tree` | só alguns testes | — |
 | `npm run inspect` | **joga no navegador**: PC + mobile, todas as telas, 6 mapas; erros JS, 404, glifos “?”, FPS | ~100 s |
 | `node game/test/inspect.mjs --pc --telas=TREE,RUN-MAPA3` | inspeção focada | ~10 s |
-| `npm run inspect:tree` | 67 detalhes PC/mobile, fonte normal/grande, compra dos frutos e reload do save | ~2 min |
+| `npm run inspect:tree` | 548 detalhes PC/mobile + arte cinza/cor, 7 galhos, compras, saves, arrasto/pinça e Renascimento | ~3 min |
 | `npm run inspect:ui` | cliques/toques reais: páginas de Memórias/Profecias, replay, ninho, pausa e invocar | ~15 s |
 | `npm run inspect:hud` | HUD orgânico nos 6 biomas, tecla H, acessibilidade | ~40 s |
 | `npm run inspect:layout` | **auditoria de layout**: todas as telas PC + mobile, com e sem FONTE GRANDE — texto fora da tela, colidindo, vazando da caixa, botões sobrepostos, toque cobrindo o canvas | ~4 min |
@@ -68,7 +68,8 @@ faltando e o último erro. No console: `FUMIGA.ajuda()`, `FUMIGA.go('RUN', {mapa
 | `waves.js` | diretor: calmaria → ondas → chefe → próximo mapa (`director`) |
 | `world.js` | geração procedural por bioma (`genWorld(seed, mapIdx)`), props, recursos, colisão |
 | `nest.js` | cena de dentro do formigueiro (câmaras, túneis, “olho lá fora”) |
-| `meta.js` | tela da Árvore da Evolução (layout, zoom, compra) |
+| `meta.js` | tela da Árvore ancestral: navegação pelos sete galhos, zoom, seleção ao soltar e confirmação de compra |
+| `tree_layout.js` · `tree_art.js` | posições na arte aprovada · restauração de cor por região, assada somente quando compras mudam |
 | `mutations.js` | draft 1-de-3 |
 | `combat.js` · `particles.js` · `lore_vfx.js` | projéteis/orbes · partículas com pooling · VFX por casta (orçamento `vfxAllow`) |
 | `lore_hud.js` | HUD orgânico por bioma, barra-gaster da rainha, visão de feromônio (H) |
@@ -98,6 +99,7 @@ faltando e o último erro. No console: `FUMIGA.ajuda()`, `FUMIGA.go('RUN', {mapa
   que já existia? Suba `ASSET_V`, senão celulares continuam com o antigo.
 - **Preview velho**: `python3 -m http.server` deixa o navegador guardar módulos ES em cache. Use
   `npm run serve` (sem cache).
+- **Árvore por mundos**: `META_STAGES`/`stage`/`META_POWER` em `config.js`; `treeStageRequirement` em `state.js`. Abrir galho exige os mapas anteriores; o fruto exige o próprio chefe. Compras antigas ficam ativas; Pálida segue futura. `tree-progression.mjs` protege gates, preços e valores.
 - **Save**: PC `fumiga_goat_save_v1`, mobile `fumiga_goat_mobile_save_v1`, debug `…_debug`.
 - **Testes headless** simulam DOM/canvas com Proxy: código novo que usa uma API de DOM
   diferente pode precisar de guarda (`typeof document !== "undefined"`).

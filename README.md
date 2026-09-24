@@ -17,9 +17,12 @@ Para jogar no seu computador, veja [Rodar localmente](#-rodar-localmente) abaixo
 A Rainha vive dentro do formigueiro e a colônia migra por **6 biomas**, estilo *Dead Cells*:
 ao fim de cada mapa há um **chefão**, e derrotá-lo abre a passagem para o próximo. Entre as
 ondas, **drafts de mutações** (escolha 1 de 3) moldam a build, e a essência coletada alimenta
-a **Árvore da Evolução** — 49 nós e 143 níveis de progresso permanente, organizada nos
-mesmos grupos das formigas (⚔️ Guerra, 🍃 Coleta, 🏥 Criação e 👑 Real), com nós **lendários**
-por espécie e keystones com trade-off.
+a **Árvore da Evolução** — arte ancestral no estilo da TITLE, inicialmente cinza e
+restaurada em cores pelas compras. São **sete patamares**, com 49 melhorias principais
+(143 níveis) e sete frutos com miniárvores, totalizando 137 definições. Os galhos sobem
+em preço e potência conforme as vitórias; os quatro ofícios continuam identificados por
+cor (Guerra, Coleta, Criação e Real). O fruto do mundo 7/Pálida é uma prévia futura;
+os seis mapas jogáveis e os saves anteriores são preservados.
 
 | # | Mapa | Chefão |
 |---|------|--------|

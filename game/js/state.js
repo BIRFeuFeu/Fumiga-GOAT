@@ -2,7 +2,7 @@ import { applyFruitBonuses } from "./fruit_effects.js";
 // ============================================================================
 // FUMIGA-GOAT — estado global do jogo + persistência
 // ============================================================================
-import { META_NODES, PROPHECIES, FRUIT_TREES, MAPS } from "./config.js";
+import { META_NODES, META_STAGES, META_POWER as MP, PROPHECIES, FRUIT_TREES, MAPS } from "./config.js";
 
 // A versão MOBILE define globalThis.FUMIGA_SAVE_KEY antes de carregar o motor,
 // mantendo um slot de save PRÓPRIO: as versões PC e mobile são paralelas e
@@ -94,8 +94,9 @@ export function persistSave() {
 export function metaLevel(id) { return G.save.nodes[id] | 0; }
 
 // Índices imutáveis: consultas de bônus não percorrem os 18 frutos por frame.
+const META_INDEX = new Map(META_NODES.map(n => [n.id, n]));
 const FRUIT_INDEX = new Map(FRUIT_TREES.flatMap(f => f.nodes.map(n => [n.id, { node: n, fruit: f }])));
-// FRUIT helpers — copa da árvore
+// Frutos e galhos: desbloqueios distintos, sem inferir vitórias de compras antigas.
 function fruitNodeById(id) {
   return FRUIT_INDEX.get(id)?.node || null;
 }
@@ -103,7 +104,7 @@ function fruitForNode(id) {
   return FRUIT_INDEX.get(id)?.fruit || null;
 }
 export function isFruitNode(id) { return !!fruitNodeById(id); }
-export function metaNode(id) { return META_NODES.find((n) => n.id === id) || fruitNodeById(id) || null; }
+export function metaNode(id) { return META_INDEX.get(id) || fruitNodeById(id) || null; }
 export function isFruitUnlocked(mapId) {
   const f = FRUIT_TREES.find(f => f.map === mapId);
   return !!f && !f.pending && !!G.save.clearedMaps?.[mapId];
@@ -115,6 +116,15 @@ export function unlockFruitForBoss(mapId, bossId, mode) {
   persistSave(); return true;
 }
 
+export function treeStageRequirement(stage) {
+  if (!Number.isInteger(stage) || stage < 1 || stage > META_STAGES.length) return "GALHO INVÁLIDO";
+  for (let i = 0; i < stage - 1; i++) {
+    if (!G.save.clearedMaps?.[META_STAGES[i].map]) return "DERROTE " + FRUIT_TREES[i].bossName;
+  }
+  return "";
+}
+export function isTreeStageUnlocked(stage) { return treeStageRequirement(stage) === ""; }
+
 export function metaCanBuy(id) {
   const node = metaNode(id);
   if (!node) return { ok: false, why: "?" };
@@ -123,8 +133,12 @@ export function metaCanBuy(id) {
   // gate de fruta: precisa ter vencido o mapa
   const fruit = fruitForNode(id);
   if (fruit && !isFruitUnlocked(fruit.map)) return { ok: false, why: fruit.pending ? "FUTURO: DERROTE A PÁLIDA (FASE 8)" : "DERROTE " + fruit.bossName };
+  if (!fruit) {
+    const why = treeStageRequirement(node.stage);
+    if (why) return { ok: false, why };
+  }
   for (const req of node.requires) {
-    if (metaLevel(req) <= 0) return { ok: false, why: "BLOQUEADO" };
+    if (metaLevel(req) <= 0) return { ok: false, why: "REQUER " + metaNode(req).name };
   }
   const price = node.cost[lvl];
   if (G.save.essence < price) return { ok: false, why: "SEM ESSÊNCIA" };
@@ -151,71 +165,71 @@ export function metaBonus() {
   // Frutos descrevem bônus locais: possuir não os torna globais.
   const F = id => fruitForNode(id)?.map === map ? L(id) : 0;
   return applyFruitBonuses({
-    foodBonus: 1 + 0.15 * L("t_col") + 0.10 * F("f_p_3") + 0.12 * F("f_o_1"),
-    workerSpeed: 1 + 0.10 * L("t_vel"),
-    workerCarry: L("t_carga"),
-    startWorkers: 2 * L("t_ini"),
-    crystalYield: 2 * L("t_ambar"),
-    dmgAll: 1 + 0.10 * L("g_dan") + 0.12 * F("f_d_1"),
-    hpAll: Math.max(0.6, 1 + 0.12 * L("g_vid") - 0.05 * L("k_arpao")),  // trade-off da CEIFA DA ARPÃO
-    critChance: 0.04 * L("g_cri"),
-    startSoldiers: L("g_grd"),
-    queenHp: 1 + 0.15 * L("r_vida"),
-    queenEatRate: Math.pow(0.7, L("r_reg")),
-    hatchSpeed: Math.pow(0.88, L("r_ovo")),
-    popCap: 4 * L("r_pop") + F("f_d_2"),
-    essMult: 1 + 0.15 * L("r_ess") + 0.15 * F("f_d_3"),
+    foodBonus: 1 + MP.t_col * L("t_col") + 0.10 * F("f_p_3") + 0.12 * F("f_o_1"),
+    workerSpeed: 1 + MP.t_vel * L("t_vel"),
+    workerCarry: MP.t_carga * L("t_carga"),
+    startWorkers: MP.t_ini * L("t_ini"),
+    crystalYield: MP.t_ambar * L("t_ambar"),
+    dmgAll: 1 + MP.g_dan * L("g_dan") + 0.12 * F("f_d_1"),
+    hpAll: Math.max(0.6, 1 + MP.g_vid * L("g_vid") - MP.k_arpao.hpPenalty * L("k_arpao")),  // trade-off da CEIFA DA ARPÃO
+    critChance: MP.g_cri * L("g_cri"),
+    startSoldiers: MP.g_grd * L("g_grd"),
+    queenHp: 1 + MP.r_vida * L("r_vida"),
+    queenEatRate: Math.pow(1 - MP.r_reg, L("r_reg")),
+    hatchSpeed: Math.pow(1 - MP.r_ovo, L("r_ovo")),
+    popCap: MP.r_pop * L("r_pop") + F("f_d_2"),
+    essMult: 1 + MP.r_ess * L("r_ess") + 0.15 * F("f_d_3"),
     rebirth: L("r_ren") > 0,
 
     // ---------------------------------------------------- nós novos da árvore
     // TRABALHO
-    gatherRate: 1 + 0.12 * L("t_rap"),
-    allSpeed: 1 + 0.05 * L("t_rede"),
-    startFood: 20 * L("t_estoque"),
-    skipBonus: 5 * L("t_atalho"),
+    gatherRate: 1 + MP.t_rap * L("t_rap"),
+    allSpeed: 1 + MP.t_rede * L("t_rede"),
+    startFood: MP.t_estoque * L("t_estoque"),
+    skipBonus: MP.t_atalho * L("t_atalho"),
     // GUERRA
-    fireRate: 1 + 0.08 * L("g_cad"),
-    rangeBonus: 14 * L("g_alc"),
-    aoeMult: 1 + 0.15 * L("g_bomb"),
-    burnMult: 1 + 0.15 * L("g_fogo"),
-    armor: 0.04 * L("g_arm"),          // fração do dano recebido ignorada
-    dodge: 0.05 * L("g_esq"),          // chance de esquivar por completo
-    reflect: 3 * L("g_esp"),           // dano devolvido a quem morde
+    fireRate: 1 + MP.g_cad * L("g_cad"),
+    rangeBonus: MP.g_alc * L("g_alc"),
+    aoeMult: 1 + MP.g_bomb * L("g_bomb"),
+    burnMult: 1 + MP.g_fogo * L("g_fogo"),
+    armor: MP.g_arm * L("g_arm"),          // fração do dano recebido ignorada
+    dodge: MP.g_esq * L("g_esq"),          // chance de esquivar por completo
+    reflect: MP.g_esp * L("g_esp"),           // dano devolvido a quem morde
     // REAL
-    queenArmor: 0.08 * L("r_casca"),
-    xpGain: 1 + 0.10 * L("r_xp"),
-    queenRegen: 1.5 * L("r_regen"),
-    startEssence: 20 * L("r_essin"),
+    queenArmor: MP.r_casca * L("r_casca"),
+    xpGain: 1 + MP.r_xp * L("r_xp"),
+    queenRegen: MP.r_regen * L("r_regen"),
+    startEssence: MP.r_essin * L("r_essin"),
     // NINHO
-    digSpeed: 1 + 0.30 * L("n_dig"),
-    nurserySpeed: 1 + 0.12 * L("n_berco"),
-    nestEgg: Math.pow(0.90, L("n_ovo")),
-    fungusRate: L("n_fung"),
-    chamberCost: Math.pow(0.92, L("n_eco")),
-    nestDeposit: L("n_desp"),
-    nestSpeed: 1 + 0.10 * L("n_corr"),
-    workerSave: 0.06 * L("n_zelo"),
+    digSpeed: 1 + MP.n_dig * L("n_dig"),
+    nurserySpeed: 1 + MP.n_berco * L("n_berco"),
+    nestEgg: Math.pow(1 - MP.n_ovo, L("n_ovo")),
+    fungusRate: MP.n_fung * L("n_fung"),
+    chamberCost: Math.pow(1 - MP.n_eco, L("n_eco")),
+    nestDeposit: MP.n_desp * L("n_desp"),
+    nestSpeed: 1 + MP.n_corr * L("n_corr"),
+    workerSave: MP.n_zelo * L("n_zelo"),
 
     // ---------------------------------- keystones de espécie (rework da árvore)
     // ⚔️ GUERRA
-    stingSlow: 0.35 * L("k_bala"),            // FERRÃO DA BALA: +s de lentidão
-    ceifaBonus: 0.08 * L("k_arpao"),          // CEIFA DA ARPÃO: limiar +
-    venomTime: 1 + 0.20 * L("k_acrobata"),    // VENENO DA ACROBATA: duração
-    venomDps: 1 + 0.25 * L("k_acrobata"),     //   …e corrosão
-    gatePower: 0.05 * L("k_cefalote"),        // CABEÇA DE CEFALOTE: redução +
-    gateRange: 30 * L("k_cefalote"),          //   …e raio da PORTA-VIVA
+    stingSlow: MP.k_bala * L("k_bala"),            // FERRÃO DA BALA: +s de lentidão
+    ceifaBonus: MP.k_arpao.threshold * L("k_arpao"),          // CEIFA DA ARPÃO: limiar +
+    venomTime: 1 + MP.k_acrobata.duration * L("k_acrobata"),    // VENENO DA ACROBATA: duração
+    venomDps: 1 + MP.k_acrobata.damage * L("k_acrobata"),     //   …e corrosão
+    gatePower: MP.k_cefalote.armor * L("k_cefalote"),        // CABEÇA DE CEFALOTE: redução +
+    gateRange: MP.k_cefalote.range * L("k_cefalote"),          //   …e raio da PORTA-VIVA
     // 🍃 COLETA
-    dashFreq: 1 + 0.10 * L("k_prata"),        // PASSO DA PRATA: arrancadas +
-    melThresh: 20 * L("k_mel"),               // ÂMBAR DA DESPENSA: estoque-alvo
-    melRate: 1 + 0.20 * L("k_mel"),           //   …e gotejo mais rápido
-    fungusPower: 0.30 * L("k_cortadeira"),    // JARDIM DA CORTADEIRA: fungário
+    dashFreq: 1 + MP.k_prata * L("k_prata"),        // PASSO DA PRATA: arrancadas +
+    melThresh: MP.k_mel.stock * L("k_mel"),               // ÂMBAR DA DESPENSA: estoque-alvo
+    melRate: 1 + MP.k_mel.rate * L("k_mel"),           //   …e gotejo mais rápido
+    fungusPower: MP.k_cortadeira * L("k_cortadeira"),    // JARDIM DA CORTADEIRA: fungário
     // 🏥 CRIAÇÃO
-    weaverBoost: 1 + 0.15 * L("k_tecela"),    // SEDA DA TECELÃ: bônus da Tecelã
-    healPower: (1 + 0.08 * L("k_matabele") + 0.10 * F("f_f_3")) * (1 + 0.15 * F("f_o_3")),    // BÁLSAMO DA MATABELE: cura
-    triageBonus: 0.04 * L("k_matabele"),      //   …e limiar da triagem
+    weaverBoost: 1 + MP.k_tecela * L("k_tecela"),    // SEDA DA TECELÃ: bônus da Tecelã
+    healPower: (1 + MP.k_matabele.heal * L("k_matabele") + 0.10 * F("f_f_3")) * (1 + 0.15 * F("f_o_3")),    // BÁLSAMO DA MATABELE: cura
+    triageBonus: MP.k_matabele.triage * L("k_matabele"),      //   …e limiar da triagem
     // 👑 REAL
-    dinoHp: 1 + 0.25 * L("k_dinoponera"),     // FÚRIA DA DINOPONERA: vida +
-    dinoCost: 40 * L("k_dinoponera"),         //   …mas custa mais (trade-off)
+    dinoHp: 1 + MP.k_dinoponera.hp * L("k_dinoponera"),     // FÚRIA DA DINOPONERA: vida +
+    dinoCost: MP.k_dinoponera.food * L("k_dinoponera"),         //   …mas custa mais (trade-off)
 
     // ────────────────────────── FRUTOS DA ÁRVORE — 6 mini-árvores por bioma (Fase 3)
     // Cada fruto é mecânica única + bônus de bioma (escolha C em peso_bonus)

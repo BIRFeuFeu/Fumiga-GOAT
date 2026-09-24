@@ -33,7 +33,7 @@ globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()
 const { FRUIT_TREES: ALL_FRUIT_TREES, UNITS, MAPS } = await import('../js/config.js');
 const FRUIT_TREES = ALL_FRUIT_TREES.filter(f=>!f.pending).map(f=>({...f,nodes:f.legacyNodes}));
 const { G, metaBonus, metaBuy, metaCanBuy, loadSave, persistSave } = await import('../js/state.js');
-const { TREE_ALL } = await import('../js/tree_layout.js');
+const { TREE_ALL, TREE_NODE_RADII } = await import('../js/tree_layout.js');
 const U = await import('../js/units.js');
 const E = await import('../js/enemies.js');
 const C = await import('../js/combat.js');
@@ -44,8 +44,8 @@ const run = mapIdx => { G.run = { mapIdx, mode:'campanha', level:0, mutations:ne
 for(let i=0;i<TREE_ALL.length;i++) for(let j=i+1;j<TREE_ALL.length;j++) {
   const a=TREE_ALL[i],b=TREE_ALL[j];
   if(a._fruit || b._fruit) continue; // miniárvores têm seu próprio viewport (testado no navegador)
-  const radius=n=>n._fruit ? [16,18,22][n.tier||0] : [34,42,52][n.tier||0];
-  assert.ok(Math.hypot((a.x-b.x)*142,(a.y-b.y)*142*.5)>radius(a)+radius(b)+4, `nós sobrepostos: ${a.id}/${b.id}`);
+  const radius=n=>TREE_NODE_RADII[n.tier||0];
+  assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>radius(a)+radius(b)+4, `nós sobrepostos: ${a.id}/${b.id}`);
 }
 for (const f of FRUIT_TREES) {
   G.save.nodes={}; G.save.clearedMaps={}; G.save.essence=1000;

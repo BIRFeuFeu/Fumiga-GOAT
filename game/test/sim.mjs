@@ -45,6 +45,10 @@ const { START, MAPS } = await import("../js/config.js");
 
 // ---------------------------------------------------------------- setup -----
 loadSave();
+if (process.env.TREE_POWERS) {
+  const { META_NODES } = await import("../js/config.js");
+  for (const n of META_NODES) G.save.nodes[n.id] = n.cost.length;
+}
 if (process.env.FRUIT_POWERS) {
   const { NEW_FRUIT_NODES } = await import("../js/fruit_skills.js");
   for (const n of NEW_FRUIT_NODES) if (n.map !== "topo") G.save.nodes[n.id]=1;

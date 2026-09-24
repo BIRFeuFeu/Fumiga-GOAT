@@ -25,7 +25,10 @@ try {
       await page.waitForTimeout(160);
     }
     async function button(id) {
-      const b = await page.evaluate(async id => (await M('ui.js')).uiButtons().find(b => b.id === id), id);
+      // Aguarda o quadro que publica o controle, não um prazo fixo: sob carga
+      // o render/transição pode levar mais que o sleep anterior.
+      const handle = await page.waitForFunction(async id => (await M('ui.js')).uiButtons().find(b => b.id === id), id, { timeout: 5000 });
+      const b = await handle.jsonValue(); await handle.dispose();
       assert.ok(b, 'botão acessível: ' + id);
       await tap(b.x + b.w/2, b.y + b.h/2);
     }
@@ -57,12 +60,18 @@ try {
     await page.waitForFunction(async () => (await M('cutscenes.js')).isCutsceneActive());
     console.log((mobile ? 'mobile' : 'PC') + ': todas as páginas, fonte normal/grande, anterior/próxima e replay por toque/clique OK');
     if (mobile) {
-      await page.evaluate(async () => {
-        (await M('cutscenes.js')).handleCutsceneInput({ Escape: true });
-        FUMIGA.go('RUN', { mapa: 0, seed: 7 });
-        (await M('state.js')).G.run.banner = null;
+      // A fixture do HUD não reutiliza timers/estado transitório do replay.
+      // Navegar invalida os callbacks da página anterior, inclusive sob carga.
+      await page.goto(server.url + '/game/mobile/?debug&limpo&hud=0&tela=RUN&seed=7');
+      await page.waitForFunction(() => window.FUMIGA?.pronto);
+      await page.evaluate(() => {
+        const root = document.querySelector('script[src*="main.js"]').src.replace(/main\.js.*$/, '');
+        window.M = name => import(root + name);
+        FUMIGA.G.save.accessibility.bigFont = true;
+        FUMIGA.G.run.banner = null;
       });
-      await page.waitForTimeout(1000);
+      await page.waitForFunction(async () => FUMIGA.G.screen === 'RUN' &&
+        !(await M('render.js')).hasTransition() && !(await M('cutscenes.js')).isCutsceneActive());
       assert.equal(await page.locator('#touch-hud button').count(), 3, 'sem seis botões redundantes');
       await button('nestBtn');
       assert.equal(await page.evaluate(async () => (await M('state.js')).G.run.baseOpen), true);
