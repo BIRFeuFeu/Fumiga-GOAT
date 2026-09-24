@@ -1,10 +1,6 @@
 # FUMIGA — CI: a bateria de testes roda em TODO push (qualquer branch).
 #
-# ⚠ ARQUIVO PRONTO, AINDA INATIVO. Para ligar, ele precisa estar em
-#   .github/workflows/testes.yml. O app do GitHub usado pelo agente não tem a
-#   permissão "workflows", então quem ativa é o dono do repositório:
-#   GitHub → Add file → Create new file → nome ".github/workflows/testes.yml"
-#   → colar este conteúdo → Commit. (Ou conceder a permissão ao app.)
+# Este arquivo vive em .github/workflows/testes.yml e está ATIVO.
 # O fluxo "salvar no GitHub" (Regra 11) espera este check ficar verde antes
 # do merge:  gh pr checks <n> --watch --fail-fast && gh pr merge <n> --merge
 # (as verificações ficam presas ao commit, então aparecem no PR também).
