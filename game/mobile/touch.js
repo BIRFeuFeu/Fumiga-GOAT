@@ -297,6 +297,8 @@ rowBot.appendChild(btnWave); rowBot.appendChild(btnRally); rowBot.appendChild(bt
 const rowNest = document.createElement("div");
 rowNest.className = "hud-row";
 rowNest.appendChild(btnIn); rowNest.appendChild(btnOut);
+// Todos os botões do HUD: a faixa lateral ajusta a altura de cada um.
+const HUD_BUTTONS = [btnCent, btnIn, btnNest, btnOut, btnPause, btnRally, btnWave, btnZin, btnZout];
 hudEl.appendChild(rowTop);
 hudEl.appendChild(rowBot);
 hudEl.appendChild(rowNest);
@@ -361,6 +363,77 @@ function hudTick() {
   }
 }
 requestAnimationFrame(hudTick);
+
+// ------------------------------------------- HUD FORA DA ÁREA DO JOGO -----
+// Os botões de toque NÃO ficam mais por cima do canvas: eles vão para a faixa
+// livre (letterbox) ao lado dele. O canvas 16:9 centralizado deixa barras
+// laterais em telas largas e barras de cima/baixo em telas quase quadradas —
+// o HUD escolhe a faixa maior e se organiza em coluna (faixa lateral) ou em
+// fileira (faixa de baixo/cima). Só se não sobrar NENHUMA faixa (canvas
+// preenchendo a tela toda) ele volta ao comportamento antigo de sobrepor.
+const HUD_RAIL_CLASSES = ["rail-left", "rail-right", "bar-top", "bar-bottom"];
+const RAIL_MIN = 74;        // largura/altura mínima de faixa para caber um botão
+
+// classList não existe no DOM falso dos testes headless: escreve por className
+// quando for o caso (no navegador os dois caminhos dão no mesmo).
+function setRailClass(el, cls) {
+  if (el.classList && typeof el.classList.add === "function") {
+    for (const c of HUD_RAIL_CLASSES) el.classList.remove(c);
+    if (cls) el.classList.add(cls);
+    return;
+  }
+  const keep = String(el.className || "").split(/\s+/).filter((c) => c && HUD_RAIL_CLASSES.indexOf(c) < 0);
+  if (cls) keep.push(cls);
+  el.className = keep.join(" ");
+}
+
+function layoutTouchHud() {
+  const cv = document.getElementById("game");
+  if (!cv) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const r = cv.getBoundingClientRect();
+  const gapL = r.left, gapR = vw - r.right, gapT = r.top, gapB = vh - r.bottom;
+  setRailClass(hudEl, null);
+  setRailClass(modeBtnEl, null);
+  hudEl.style.cssText = "";
+  modeBtnEl.style.cssText = "";
+  for (const b of HUD_BUTTONS) b.style.height = "";   // volta ao tamanho do CSS
+  const sideGap = Math.max(gapL, gapR), vertGap = Math.max(gapT, gapB);
+  if (sideGap >= RAIL_MIN && sideGap >= vertGap) {
+    const useRight = gapR >= gapL;
+    setRailClass(hudEl, useRight ? "rail-right" : "rail-left");
+    setRailClass(modeBtnEl, useRight ? "rail-right" : "rail-left");
+    hudEl.style.top = Math.round(r.top + 6) + "px";
+    hudEl.style.height = Math.round(r.height - 12) + "px";
+    hudEl.style[useRight ? "right" : "left"] = "6px";
+    hudEl.style.width = Math.round(sideGap - 12) + "px";
+    // a faixa é estreita: a coluna de botões divide a altura com o botão de
+    // modo (60px no pé). Cada botão encolhe o quanto precisar para caber.
+    // 7 = maior fileira visível (zoom x2 + centro + onda + rali + ninho + pausa)
+    const railH = r.height - 12 - 60;
+    const btnH = Math.max(30, Math.min(48, Math.floor((railH - 6 * 4 - 8) / 7)));
+    for (const b of HUD_BUTTONS) b.style.height = btnH + "px";
+    modeBtnEl.style.bottom = "6px";
+    modeBtnEl.style[useRight ? "right" : "left"] = "6px";
+    modeBtnEl.style.width = Math.round(sideGap - 12) + "px";
+  } else if (vertGap >= RAIL_MIN) {
+    const useBottom = gapB >= gapT;
+    setRailClass(hudEl, useBottom ? "bar-bottom" : "bar-top");
+    setRailClass(modeBtnEl, useBottom ? "bar-bottom" : "bar-top");
+    hudEl.style[useBottom ? "bottom" : "top"] = "4px";
+    hudEl.style.left = Math.round(r.left + 6) + "px";
+    hudEl.style.width = Math.round(r.width - 12) + "px";
+    // o botão de modo vai para a OUTRA ponta da faixa (topo, se a barra é do
+    // pé) para nunca dividir espaço com os botões
+    modeBtnEl.style[useBottom ? "top" : "bottom"] = "6px";
+    modeBtnEl.style.left = "6px";
+  } else {
+    setRailClass(hudEl, "rail-right");      // tela 16:9 exata: sobrepõe como antes
+  }
+}
+window.addEventListener("resize", layoutTouchHud);
+window.addEventListener("orientationchange", layoutTouchHud);
+layoutTouchHud();
 
 // ------------------------------------------------ rotação / enquadramento ---
 let rotateDismissed = false;

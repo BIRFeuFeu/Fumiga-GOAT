@@ -328,6 +328,7 @@ expect(fog.fogExplored(world.anthill.x, world.anthill.y) === true, "formigueiro 
 // Regressão do bug relatado: drawTreeHUD() devolvia "back" mas drawTree()
 // jogava o retorno fora (sempre `return null`), então só o ESC saía da árvore.
 const meta = await import(BASE + "/meta.js");
+const { uiButtons } = await import(BASE + "/ui.js");
 const click = async (x, y) => {
   mouse.x = x; mouse.y = y; mouse.down = mouse.justDown = true;
   await wait(60);
@@ -336,14 +337,23 @@ const click = async (x, y) => {
   mouse.justUp = false;
   await wait(700);              // dá tempo da transição terminar
 };
+// clica no CENTRO do botão pelo id: a geometria do HUD muda (as telas têm de
+// caber também com FONTE GRANDE) e coordenadas fixas quebravam sem que haja
+// regressão nenhuma de comportamento.
+const clickBtn = async (id) => {
+  const b = uiButtons().find((x) => x.id === id);
+  if (!b) { console.error("botão " + id + " não achado nos uiButtons()"); return false; }
+  await click(b.x + b.w / 2, b.y + b.h / 2);
+  return true;
+};
 G.screen = "TITLE";
 await wait(120);
 meta.enterTree();
 G.screen = "TREE";
 await wait(150);
 expect(G.screen === "TREE", "entrou na árvore da evolução");
-// botão VOLTAR: x = 960-180 .. 960-24, y = 18..58 (ver drawTreeHUD em meta.js)
-await click(960 - 180 + 78, 38);
+// botão VOLTAR do HUD da árvore (drawTreeHUD): achado pelo id "treeBack"
+await clickBtn("treeBack");
 expect(G.screen === "TITLE", "VOLTAR (clique) saiu da árvore — screen=" + G.screen);
 // e o ESC continua funcionando, voltando para a mesma tela
 meta.enterTree();
@@ -359,14 +369,14 @@ expect(G.screen === "TITLE", "ESC saiu da árvore — screen=" + G.screen);
 meta.enterTree();
 G.screen = "TREE";
 await wait(150);
-await click(960 - 480 + 70, 38);          // botão PROFECIAS (480..620)
+await clickBtn("treeProphecy");           // botão PROFECIAS do HUD da árvore
 expect(G.screen === "PROPHECY", "abriu a tela de PROFECIAS — screen=" + G.screen);
 pressed.Escape = true;
 await wait(60);
 pressed.Escape = false;
 await wait(700);
 expect(G.screen === "TREE", "ESC voltou das profecias para a árvore — screen=" + G.screen);
-await click(960 - 180 + 78, 38);          // VOLTAR
+await clickBtn("treeBack");                // VOLTAR
 expect(G.screen === "TITLE", "VOLTAR saiu da árvore — screen=" + G.screen);
 
 console.log(problems.length ? "PROBLEMAS: " + problems.join(" | ") : "UI-TEST PASSOU");

@@ -321,6 +321,11 @@ export function iconButton(ctx, opt) {
     const px = (hr.w - w) / 2 - opt.maxPadX;
     hr = { x: hr.x + px, y: hr.y, w: hr.w - px * 2, h: hr.h };
   }
+  // linhas de cards: mesma ideia na vertical (grade de memórias/draft)
+  if (opt.maxPadY !== undefined && (hr.h - h) / 2 > opt.maxPadY) {
+    const py2 = (hr.h - h) / 2 - opt.maxPadY;
+    hr = { x: hr.x, y: hr.y + py2, w: hr.w, h: hr.h - py2 * 2 };
+  }
   const hot = pointInRect(mouse.x, mouse.y, hr.x, hr.y, hr.w, hr.h);
   const dis = !!opt.disabled;
   const clicked = hot && mouse.justDown && !dis;

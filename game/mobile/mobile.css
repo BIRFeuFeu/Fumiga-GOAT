@@ -62,8 +62,12 @@ body {
 }
 
 /* ---------------------------------------------------------------- HUD ----- */
-/* Botões virtuais da expedição. Ficam por cima do canvas, nas bordas,
-   respeitando safe-area (notch). Tamanhos >= 48px = alvo de toque bom. */
+/* Botões virtuais da expedição. Eles NÃO ficam mais sobre o canvas: o
+   touch.js os joga para a faixa livre (letterbox) ao lado/abaixo da tela do
+   jogo, por isso o posicionamento horizontal/vertical vem por estilo inline.
+   Aqui ficam só as variantes de faixa, o tamanho de alvo de toque (>= 48px)
+   e o respiro em cima do botão de modo. Só sem faixa alguma (16:9 exato) eles
+   voltam a flutuar sobre o canto inferior direito, como antes. */
 #touch-hud {
   position: fixed;
   right: calc(8px + env(safe-area-inset-right));
@@ -76,6 +80,34 @@ body {
 #touch-hud .hud-row {
   display: flex; gap: 8px;
 }
+/* Faixa lateral (letterbox de tela larga): botões empilhados; os dois
+   primeiro vão para o topo e o resto para o pé da faixa. */
+#touch-hud.rail-left, #touch-hud.rail-right {
+  flex-direction: column; justify-content: space-between; align-items: stretch;
+}
+#touch-hud.rail-left .hud-row, #touch-hud.rail-right .hud-row {
+  flex-direction: column; align-items: stretch; gap: 4px;
+}
+#touch-hud.rail-left button, #touch-hud.rail-right button {
+  /* a altura vem inline do touch.js (a coluna inteira precisa caber na faixa
+     ao lado do canvas sem invadir o botão de modo) */
+  width: 100%; height: 44px; min-width: 0; padding: 0 6px;
+}
+#touch-hud.rail-left button .ico, #touch-hud.rail-right button .ico { font-size: 15px; }
+#touch-hud.rail-left button .lbl, #touch-hud.rail-right button .lbl {
+  display: none;                      /* faixa estreita: só o ícone */
+}
+/* Faixa de baixo (letterbox de tela quase quadrada): uma fileira corrida. */
+#touch-hud.bar-bottom, #touch-hud.bar-top {
+  flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 6px 8px;
+}
+#touch-hud.bar-bottom .hud-row, #touch-hud.bar-top .hud-row {
+  flex-direction: row; align-items: center; gap: 8px;
+}
+#touch-hud.bar-bottom button, #touch-hud.bar-top button { height: 48px; }
+#touch-hud.bar-bottom .hud-row + .hud-row,
+#touch-hud.bar-top .hud-row + .hud-row { margin-left: 14px; }
 #touch-hud button {
   pointer-events: auto;
   min-width: 52px; height: 52px;
@@ -120,6 +152,15 @@ body {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   box-shadow: 0 2px 0 #120e20;
+}
+/* Na faixa lateral ele também vira barra cheia, colado no pé/na cabeça da
+   faixa, em cima do respiro do HUD (não divide espaço com os botões). */
+#touch-mode-btn.rail-left, #touch-mode-btn.rail-right {
+  min-width: 0; height: 52px; padding: 0 6px;
+  font-size: 11px; letter-spacing: .02em;
+}
+#touch-mode-btn.bar-bottom, #touch-mode-btn.bar-top {
+  height: 48px; padding: 0 12px;
 }
 #touch-mode-btn:active { background: rgba(255, 179, 71, 0.3); }
 #touch-mode-btn.select { border-color: #37e6c8; color: #dffcf5; background: rgba(20, 44, 40, 0.9); }

@@ -10,7 +10,7 @@ import { allies, eggs, insideCount } from "./units.js";
 import { foes, boss } from "./enemies.js";
 import { orbs, projectiles, drawProjectiles, drawOrbs } from "./combat.js";
 import { drawDecals, drawTrails, drawParts, drawGlows, drawRings, drawFloats } from "./particles.js";
-import { drawText, textWidth, lineWidth, FONT } from "./font.js";
+import { drawText, textWidth, lineWidth, FONT, fontScale } from "./font.js";
 import { clamp, TAU, lerp } from "./utils.js";
 import { fogDraw, fogVisible } from "./fog.js";
 import { SFX } from "./audio.js";
@@ -260,20 +260,24 @@ export function drawOutsideEye(ctx, x, y, w = PIP.w, h = PIP.h) {
   const run = G.run;
   let outside = 0;
   for (const a of allies) if (!a.dead && !a.dying && !a.inside && a.type !== "queen") outside++;
-  // faixa de título (em cima) e faixa de status (embaixo) — como uma janela
+  // faixa de título (em cima) e faixa de status (embaixo) — como uma janela.
+  // Com FONTE GRANDE elas crescem: antes a tinta do texto (18px) passava da
+  // faixa de 14px e saía pela borda do painel.
+  const eyeFS = fontScale();
+  const bandT = eyeFS > 1 ? 23 : 15, bandB = eyeFS > 1 ? 21 : 14;
   ctx.fillStyle = "rgba(10,8,16,0.86)";
-  ctx.fillRect(x, y, w, 15);
-  ctx.fillRect(x, y + h - 14, w, 14);
-  drawText(ctx, "OLHO LÁ FORA", x + 5, y + 2,
-    { color: alarm ? "#ff8a96" : "#ffd479", scale: 0.8 });
+  ctx.fillRect(x, y, w, bandT);
+  ctx.fillRect(x, y + h - bandB, w, bandB);
+  drawText(ctx, "OLHO LÁ FORA", x + 5, y + (bandT - 18) / 2,
+    { color: alarm ? "#ff8a96" : "#ffd479", scale: 0.8, maxWidth: w / 2 - 8 });
   if (run) {
-    drawText(ctx, "ONDA " + (run.wave || 0), x + w - 5, y + 2,
-      { color: PAL.textDim, scale: 0.8, align: "right" });
+    drawText(ctx, "ONDA " + (run.wave || 0), x + w - 5, y + (bandT - 18) / 2,
+      { color: PAL.textDim, scale: 0.8, align: "right", maxWidth: w / 2 - 8 });
   }
-  drawText(ctx, "FORA " + outside, x + 5, y + h - 12,
-    { color: "#8fd3ff", scale: 0.75 });
-  drawText(ctx, "DENTRO " + insideCount(), x + w - 5, y + h - 12,
-    { color: "#7fd6a0", scale: 0.75, align: "right" });
+  drawText(ctx, "FORA " + outside, x + 5, y + h - bandB + (bandB - 16) / 2,
+    { color: "#8fd3ff", scale: 0.75, maxWidth: w / 2 - 8 });
+  drawText(ctx, "DENTRO " + insideCount(), x + w - 5, y + h - bandB + (bandB - 16) / 2,
+    { color: "#7fd6a0", scale: 0.75, align: "right", maxWidth: w / 2 - 8 });
 }
 
 // ===================================================================== RUN ==
@@ -1199,7 +1203,10 @@ export function drawTitleLogo(ctx, time, x = 56, y = 54, scale = 5.0) {
   // FASE 2 FINAL: escala 5.0 + sin(time*0.6)*0.08 respirando (pixel gigante) + micro 0.02
   const breathing = Math.sin(time * 0.6) * 0.08;
   const secondary = Math.sin(time * 1.2) * 0.02;
-  scale = scale + breathing + secondary;
+  // O logo é ARTE (13 caracteres a 5x = 845px de largura): com FONTE GRANDE ele
+  // cresceria 30% e a última letra sairia da tela. Aqui ele mantém o tamanho de
+  // projeto — o fator de acessibilidade é desfeito no próprio drawText.
+  scale = (scale + breathing + secondary) / fontScale();
   const str = "FUMIGA";
   const h = FONT.big.ch * scale;
   const w = lineWidth(str.length, { font: "big", scale });
@@ -1618,13 +1625,17 @@ export function drawModeSelect(ctx, time) {
   ctx.fillStyle = "rgba(10,8,18,0.62)";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  // título da tela
-  drawText(ctx, "SELECIONE O MODO", VIEW_W/2, 32, { font: "big", scale: 2, color: "#ffd479", align: "center" });
-  drawText(ctx, "Cada modo é uma colônia diferente para comandar", VIEW_W/2, 78, { color: "#9a8fc0", align: "center" });
+  // título da tela — o subtítulo desce conforme a altura REAL da tinta do
+  // título (com FONTE GRANDE ele passava por cima das letras)
+  const modeFS = fontScale();
+  const titleInk = 20 * 2 * modeFS;
+  drawText(ctx, "SELECIONE O MODO", VIEW_W/2, 24, { font: "big", scale: 2, color: "#ffd479", align: "center", maxWidth: VIEW_W - 40 });
+  drawText(ctx, "Cada modo é uma colônia diferente para comandar", VIEW_W/2, 24 + titleInk + 13,
+    { color: "#9a8fc0", align: "center", maxWidth: VIEW_W - 40 });
 
   // linha
   ctx.fillStyle = "rgba(143,111,214,0.3)";
-  ctx.fillRect(VIEW_W/2 - 180, 98, 360, 1);
+  ctx.fillRect(VIEW_W/2 - 180, 24 + titleInk + 38, 360, 1);
 }
 
 export function drawModeCards(ctx, modes, hoverIdx, time, scrollOffset = 0) {
@@ -1679,18 +1690,24 @@ export function drawModeCards(ctx, modes, hoverIdx, time, scrollOffset = 0) {
       drawText(ctx, m.icon, x + cardW/2, iconY + 18, { font: "big", scale: 1.5, color: m.color, align: "center" });
     }
 
-    // nome
-    drawText(ctx, m.name, x + cardW/2, iconY + 76, { font: "big", scale: 0.9, color: "#efe9ff", align: "center" });
+    // nome, dificuldade e descrição em passos CALCULADOS: a tinta da fonte big
+    // escala 0.9 tem 23px com FONTE GRANDE, e o passo fixo de 20px punha o
+    // subtítulo por cima do nome ("CAMPANHA" x "NORMAL • 6 MAPAS")
+    const FS = fontScale();
+    const nameAdv = Math.ceil(30 * 0.9 * FS);
+    const diffAdv = Math.ceil(24 * 0.85 * FS);
+    drawText(ctx, m.name, x + cardW/2, iconY + 76, { font: "big", scale: 0.9, color: "#efe9ff", align: "center", maxWidth: cardW - 16 });
 
     // dificuldade
-    drawText(ctx, m.diff, x + cardW/2, iconY + 96, { color: m.color, align: "center", scale: 0.85 });
+    drawText(ctx, m.diff, x + cardW/2, iconY + 76 + nameAdv, { color: m.color, align: "center", scale: 0.85, maxWidth: cardW - 16 });
 
-    // descrição quebrada
+    // descrição quebrada — o passo entre linhas acompanha o tamanho REAL da
+    // tinta (FONTE GRANDE +30%), senão as linhas se sobrepõem dentro do card
     const descLines = m.desc.split("\n");
-    let dy = iconY + 120;
+    let dy = iconY + 76 + nameAdv + diffAdv;
     for (const line of descLines) {
-      drawText(ctx, line, x + cardW/2, dy, { color: "#9a8fc0", align: "center", scale: 0.85 });
-      dy += 14;
+      drawText(ctx, line, x + cardW/2, dy, { color: "#9a8fc0", align: "center", scale: 0.85, maxWidth: cardW - 20 });
+      dy += 14 * FS;
     }
 
     // stats
@@ -1699,8 +1716,8 @@ export function drawModeCards(ctx, modes, hoverIdx, time, scrollOffset = 0) {
     ctx.fillRect(x + 10, dy, cardW - 20, 1);
     dy += 8;
     for (const s of m.stats) {
-      drawText(ctx, s, x + 12, dy, { color: "#6b5a8a", scale: 0.8 });
-      dy += 12;
+      drawText(ctx, s, x + 12, dy, { color: "#6b5a8a", scale: 0.8, maxWidth: cardW - 20 });
+      dy += 12 * FS;
     }
 
     // botão jogar - sempre abaixo dos stats com margem

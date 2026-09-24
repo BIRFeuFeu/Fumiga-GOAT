@@ -3,7 +3,7 @@
 // ============================================================================
 import { G, persistSave } from "./state.js";
 import { PAL } from "./config.js";
-import { drawText, wrapText } from "./font.js";
+import { drawText, wrapText, fontScale } from "./font.js";
 import { clamp, TAU } from "./utils.js";
 import { panel, pointInRect } from "./ui.js";
 import { uiButtons } from "./ui.js";
@@ -130,8 +130,22 @@ export function updateTutorial(dt, run) {
 
 const CARD_W = 420;
 const CARD_Y = 72;
+// Com FONTE GRANDE (acessibilidade) a tinta do título e das linhas cresce 30%:
+// as alturas saem de medidas reais, senão o título invade a 1ª linha e as
+// linhas se encostam dentro do cartão.
+function cardSteps() {
+  const FS = fontScale();
+  return {
+    FS,
+    titleAdv: Math.ceil(20 * FS),          // tinta do título (big escala 1)
+    descStep: Math.ceil(14 * FS) + 5,      // passo entre as linhas da descrição
+    bottom: Math.ceil(24 * FS),            // rodapé PASSO n/n + botão PULAR
+  };
+}
 function cardMetrics(st) {
-  return { w: CARD_W, h: 44 + wrapText(stepDesc(st), CARD_W - 40, {}).length * 17 + 22 };
+  const { titleAdv, descStep, bottom } = cardSteps();
+  const lines = wrapText(stepDesc(st), CARD_W - 40, {}).length;
+  return { w: CARD_W, h: 12 + titleAdv + 8 + lines * descStep + bottom };
 }
 
 export function tutorialCardRect(VIEW_W) {
@@ -139,7 +153,10 @@ export function tutorialCardRect(VIEW_W) {
   const st = TUT.steps[TUT.idx];
   if (!st) return null;
   const m = cardMetrics(st);
-  return { x: (VIEW_W - m.w) / 2, y: CARD_Y, w: m.w, h: m.h };
+  // Centralizado, o cartão caía sobre o painel da colônia (10..330): com 336px
+  // ele começa depois do painel e ainda termina antes do minimapa (770).
+  const x = Math.max((VIEW_W - m.w) / 2, 336);
+  return { x, y: CARD_Y, w: m.w, h: m.h };
 }
 
 export function drawTutorial(ctx, VIEW_W) {
@@ -182,12 +199,15 @@ export function drawTutorial(ctx, VIEW_W) {
     drawText(ctx, "✓", x + w - 18, y + 10, { color: "#000", align: "center", font: "big" });
   }
 
-  drawText(ctx, st.title, x + 20, y + 12, { font: "big", scale: 1, color: TUT._done ? "#7fd6a0" : "#ffd479" });
-  descLines.forEach((L, li) => drawText(ctx, L, x + 20, y + 36 + li * 17, { color: PAL.text }));
-  drawText(ctx, "PASSO " + (TUT.idx + 1) + "/" + TUT.steps.length, x + 20, y + h - 18, { color: PAL.textDim });
+  const CS = cardSteps();
+  const descY0 = y + 12 + CS.titleAdv + 8;
+  drawText(ctx, st.title, x + 20, y + 12, { font: "big", scale: 1, color: TUT._done ? "#7fd6a0" : "#ffd479", maxWidth: w - 40 });
+  descLines.forEach((L, li) => drawText(ctx, L, x + 20, descY0 + li * CS.descStep, { color: PAL.text, maxWidth: w - 40 }));
+  drawText(ctx, "PASSO " + (TUT.idx + 1) + "/" + TUT.steps.length, x + 20, y + h - Math.ceil(16 * CS.FS) - 2,
+    { color: PAL.textDim, maxWidth: w - 140 });
 
   // botão pular refinado
-  const bw = 96, bh = 22;
+  const bw = Math.ceil(96 * CS.FS), bh = Math.max(22, Math.ceil(18 * CS.FS));
   const bx = x + w - bw - 12, by = y + h - bh - 10;
   const hot = pointInRect(mouse.x, mouse.y, bx, by, bw, bh);
   ctx.fillStyle = hot ? "#3a3054" : "#2c2444";
@@ -195,7 +215,8 @@ export function drawTutorial(ctx, VIEW_W) {
   ctx.strokeStyle = hot ? "#8f7bd6" : "#4a3a6e";
   ctx.lineWidth = 1;
   ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
-  drawText(ctx, "PULAR (T)", bx + bw / 2, by + 6, { color: hot ? "#efe9ff" : PAL.textDim, align: "center" });
+  const padY = Math.max(6, Math.round((bh - 14 * CS.FS) / 2) + 1);
+  drawText(ctx, "PULAR (T)", bx + bw / 2, by + padY, { color: hot ? "#efe9ff" : PAL.textDim, align: "center", maxWidth: bw - 8 });
   uiButtons().push({ x: bx, y: by, w: bw, h: bh, id: "tutSkip" });
   if (hot && mouse.justDown) {
     SFX.uiClick();

@@ -156,7 +156,10 @@ function analyzeLayout(texts0, boxes0) {
   }
   for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
     const a = texts[i], b = texts[j];
-    if (a.text === b.text && Math.abs(a.x - b.x) < 8 && Math.abs(a.y - b.y) < 8) continue; // camadas do mesmo texto
+    // camadas do MESMO texto (sombra/contorno/brilho do logo, desenhadas com
+    // deslocamento de poucos pixels) não são sobreposição de conteúdo
+    if (a.text === b.text && (Math.abs(a.x - b.x) < 8 && Math.abs(a.y - b.y) < 8 ||
+        ov(a, b) > Math.min(area(a), area(b)) * 0.5)) continue;
     const o = ov(a, b);
     if (o > Math.max(6, Math.min(area(a), area(b)) * 0.06)) add("colisão", "\"" + a.text + "\" " + R(a) + " x \"" + b.text + "\" " + R(b));
   }
@@ -196,7 +199,10 @@ function auditarLayout() {
         layoutRec.on = false;
         const texts = layoutRec.texts, boxes = layoutRec.boxes;
         layoutRec.texts = []; layoutRec.boxes = [];
-        resolve({ tela: G.screen, issues: analyzeLayout(texts, boxes), textos: texts.length, caixas: boxes.length, toque: domRects() });
+        const out = { tela: G.screen, issues: analyzeLayout(texts, boxes), textos: texts.length, caixas: boxes.length, toque: domRects() };
+        // FUMIGA_DUMP_TEXTS: devolve as caixas medidas (depurar sobreposição fina)
+        if (typeof window !== "undefined" && window.FUMIGA_DUMP_TEXTS) out.detalhes = texts;
+        resolve(out);
       });
     });
   });
