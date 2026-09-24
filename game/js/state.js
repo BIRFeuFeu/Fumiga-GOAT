@@ -1,7 +1,7 @@
 // ============================================================================
 // FUMIGA-GOAT — estado global do jogo + persistência
 // ============================================================================
-import { META_NODES, PROPHECIES } from "./config.js";
+import { META_NODES, PROPHECIES, FRUIT_TREES } from "./config.js";
 
 // A versão MOBILE define globalThis.FUMIGA_SAVE_KEY antes de carregar o motor,
 // mantendo um slot de save PRÓPRIO: as versões PC e mobile são paralelas e
@@ -27,7 +27,8 @@ export const G = {
     ascension: 0,        // PÓS-FINAL: maior ASCENSÃO DA NÉVOA vencida (campanha)
     era: 0,              // PÓS-FINAL: gerações do Formigueiro Eterno (1 por vitória)
     prophecies: {},      // PÓS-FINAL: vaticínios cumpridos (id -> true)
-    cutscenes: {},       // MEGA LORE: memórias vistas (Noite Branca + 6 degraus + Pálida)
+    cutscenes: {},       // MEGA LORE: memórias vistas
+    clearedMaps: {},     // FASE 3: mapas vencidos na campanha (mapId -> true) — libera frutos (Noite Branca + 6 degraus + Pálida)
     tutorial: 0,         // 1 = tutorial concluído (ou pulado)
     accessibility: {     // modo acessível - escolha do usuário
       invincible: false,
@@ -71,6 +72,7 @@ export function loadSave() {
         G.save.era = Math.max(0, data.era | 0 || 0);
         G.save.prophecies = data.prophecies && typeof data.prophecies === "object" ? data.prophecies : {};
         G.save.cutscenes = data.cutscenes && typeof data.cutscenes === "object" ? data.cutscenes : {};
+        G.save.clearedMaps = data.clearedMaps && typeof data.clearedMaps === "object" ? data.clearedMaps : {};
         G.save.tutorial = data.tutorial ? 1 : 0;
         if (data.accessibility && typeof data.accessibility === "object") {
           G.save.accessibility = Object.assign(G.save.accessibility, data.accessibility);
@@ -90,13 +92,27 @@ export function persistSave() {
 // ------------------------------------------------------------------- meta ---
 export function metaLevel(id) { return G.save.nodes[id] | 0; }
 
-export function metaNode(id) { return META_NODES.find((n) => n.id === id); }
+// FRUIT helpers — anéis ao redor da raiz
+function fruitNodeById(id) {
+  for (const f of FRUIT_TREES) for (const n of f.nodes) if (n.id === id) return n;
+  return null;
+}
+function fruitForNode(id) {
+  for (const f of FRUIT_TREES) for (const n of f.nodes) if (n.id === id) return f;
+  return null;
+}
+export function isFruitNode(id) { return !!fruitNodeById(id); }
+export function metaNode(id) { return META_NODES.find((n) => n.id === id) || fruitNodeById(id) || null; }
+export function isFruitUnlocked(mapId) { return !!(G.save.clearedMaps && G.save.clearedMaps[mapId]); }
 
 export function metaCanBuy(id) {
   const node = metaNode(id);
   if (!node) return { ok: false, why: "?" };
   const lvl = metaLevel(id);
   if (lvl >= node.cost.length) return { ok: false, why: "MÁX" };
+  // gate de fruta: precisa ter vencido o mapa
+  const fruit = fruitForNode(id);
+  if (fruit && !isFruitUnlocked(fruit.map)) return { ok: false, why: "VENÇA " + fruit.map.toUpperCase() };
   for (const req of node.requires) {
     if (metaLevel(req) <= 0) return { ok: false, why: "BLOQUEADO" };
   }
@@ -110,6 +126,10 @@ export function metaBuy(id) {
   if (!chk.ok) return false;
   G.save.essence -= chk.price;
   G.save.nodes[id] = metaLevel(id) + 1;
+  // ERA lendária: Topo do Mundo dá +1 ERA imediata
+  if (id === "f_g_3") {
+    G.save.era = (G.save.era || 0) + 1;
+  }
   persistSave();
   return true;
 }
@@ -118,31 +138,31 @@ export function metaBuy(id) {
 export function metaBonus() {
   const L = metaLevel;
   return {
-    foodBonus: 1 + 0.15 * L("t_col"),
+    foodBonus: 1 + 0.15 * L("t_col") + 0.10 * L("f_p_3") + 0.12 * L("f_o_1"),
     workerSpeed: 1 + 0.10 * L("t_vel"),
     workerCarry: L("t_carga"),
     startWorkers: 2 * L("t_ini"),
     crystalYield: 2 * L("t_ambar"),
-    dmgAll: 1 + 0.10 * L("g_dan"),
+    dmgAll: 1 + 0.10 * L("g_dan") + 0.12 * L("f_d_1"),
     hpAll: Math.max(0.6, 1 + 0.12 * L("g_vid") - 0.05 * L("k_arpao")),  // trade-off da CEIFA DA ARPÃO
     critChance: 0.04 * L("g_cri"),
     startSoldiers: L("g_grd"),
     queenHp: 1 + 0.15 * L("r_vida"),
     queenEatRate: Math.pow(0.7, L("r_reg")),
     hatchSpeed: Math.pow(0.88, L("r_ovo")),
-    popCap: 4 * L("r_pop"),
-    essMult: 1 + 0.15 * L("r_ess"),
+    popCap: 4 * L("r_pop") + 1 * L("f_d_2"),
+    essMult: 1 + 0.15 * L("r_ess") + 0.15 * L("f_d_3") + 0.10 * L("f_pa_3"),
     rebirth: L("r_ren") > 0,
 
     // ---------------------------------------------------- nós novos da árvore
     // TRABALHO
     gatherRate: 1 + 0.12 * L("t_rap"),
-    allSpeed: 1 + 0.05 * L("t_rede"),
+    allSpeed: 1 + 0.05 * L("t_rede") + 0.08 * L("f_p_1"),
     startFood: 20 * L("t_estoque"),
     skipBonus: 5 * L("t_atalho"),
     // GUERRA
     fireRate: 1 + 0.08 * L("g_cad"),
-    rangeBonus: 14 * L("g_alc"),
+    rangeBonus: 14 * L("g_alc") + 12 * L("f_f_1"),
     aoeMult: 1 + 0.15 * L("g_bomb"),
     burnMult: 1 + 0.15 * L("g_fogo"),
     armor: 0.04 * L("g_arm"),          // fração do dano recebido ignorada
@@ -172,17 +192,44 @@ export function metaBonus() {
     gatePower: 0.05 * L("k_cefalote"),        // CABEÇA DE CEFALOTE: redução +
     gateRange: 30 * L("k_cefalote"),          //   …e raio da PORTA-VIVA
     // 🍃 COLETA
-    dashFreq: 1 + 0.10 * L("k_prata"),        // PASSO DA PRATA: arrancadas +
+    dashFreq: 1 + 0.10 * L("k_prata") + 0.15 * L("f_pa_1"),        // PASSO DA PRATA: arrancadas +
     melThresh: 20 * L("k_mel"),               // ÂMBAR DA DESPENSA: estoque-alvo
     melRate: 1 + 0.20 * L("k_mel"),           //   …e gotejo mais rápido
     fungusPower: 0.30 * L("k_cortadeira"),    // JARDIM DA CORTADEIRA: fungário
     // 🏥 CRIAÇÃO
-    weaverBoost: 1 + 0.15 * L("k_tecela"),    // SEDA DA TECELÃ: bônus da Tecelã
-    healPower: 1 + 0.08 * L("k_matabele"),    // BÁLSAMO DA MATABELE: cura
+    weaverBoost: 1 + 0.15 * L("k_tecela") + 0.20 * L("f_f_2"),    // SEDA DA TECELÃ: bônus da Tecelã
+    healPower: 1 + 0.08 * L("k_matabele") + 0.10 * L("f_f_3") + 0.15 * L("f_o_3"),    // BÁLSAMO DA MATABELE: cura
     triageBonus: 0.04 * L("k_matabele"),      //   …e limiar da triagem
     // 👑 REAL
     dinoHp: 1 + 0.25 * L("k_dinoponera"),     // FÚRIA DA DINOPONERA: vida +
     dinoCost: 40 * L("k_dinoponera"),         //   …mas custa mais (trade-off)
+
+    // ────────────────────────── FRUTOS DA ÁRVORE — 6 mini-árvores por bioma (Fase 3)
+    // Cada fruto é mecânica única + bônus de bioma (escolha C em peso_bonus)
+    // Planície
+    fruitPlanicieSpeed: 0.08 * L("f_p_1"),
+    fruitThumpResist: 0.15 * L("f_p_2"),      // -15% dano THUMP
+    fruitFoodPlanicie: 0.10 * L("f_p_3"),
+    // Floresta
+    fruitVision: 0.12 * L("f_f_1"),
+    fruitWeaverSpeed: 0.20 * L("f_f_2"),
+    fruitHealFloresta: 0.10 * L("f_f_3"),
+    // Pântano
+    fruitScoutSpeed: 0.15 * L("f_pa_1"),
+    fruitShriekResist: 0.20 * L("f_pa_2"),    // -20% duração inversão
+    fruitEssOrb: 1 * L("f_pa_3"),
+    // Deserto
+    fruitDmgDeserto: 0.12 * L("f_d_1"),
+    fruitPopDeserto: 1 * L("f_d_2"),
+    fruitEssDeserto: 0.15 * L("f_d_3"),
+    // Outono
+    fruitFoodOutono: 0.12 * L("f_o_1"),
+    fruitTankHp: 0.18 * L("f_o_2"),
+    fruitHealOutono: 0.15 * L("f_o_3"),
+    // Gelo
+    fruitBossDmg: 0.20 * L("f_g_1"),
+    fruitSeePalida: L("f_g_2") > 0 ? 1 : 0,
+    fruitEra: L("f_g_3") > 0 ? 1 : 0,
   };
 }
 
@@ -219,8 +266,9 @@ export function checkProphecies(run, won, info = {}) {
   if (run && (run.wave || 0) >= 25) grant("p_ondas25");
   // de estado (valem em qualquer chamada: fim de run ou tela de profecias)
   if (G.save.best.kills >= 1000) grant("p_mil");
-  if (META_NODES.filter((n) => metaLevel(n.id) > 0).length >= 15) grant("p_arvore");
-  if (META_NODES.some((n) => n.id.startsWith("k_") && metaLevel(n.id) >= n.cost.length)) grant("p_keystone");
+  const allNodes = [...META_NODES, ...FRUIT_TREES.flatMap(f=>f.nodes)];
+  if (allNodes.filter((n) => metaLevel(n.id) > 0).length >= 15) grant("p_arvore");
+  if (allNodes.some((n) => (n.id.startsWith("k_") || n.id.startsWith("f_")) && n.tier===2 && metaLevel(n.id) >= n.cost.length)) grant("p_keystone");
   if ((G.save.era || 0) >= 5) grant("p_era5");
   return earned;
 }

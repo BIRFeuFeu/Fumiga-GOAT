@@ -542,6 +542,44 @@ export const META_NODES = [
     tier: 2, sprite: "giant" },
 ];
 
+// MEGA LORE — FRUTOS DA ÁRVORE: 6 mini-árvores por bioma, 3 nós cada.
+// Desbloqueio escolhido pelo jogador (2026-09-24): A) Automático na vitória —
+// vencer o mapa libera o fruto para compra com essência (lore puro).
+// Visual escolhido: C) Anéis ao redor da raiz (a Colônia Ancestral)
+// Bônus escolhido: C) Mecânica única por fruto + feedback rico por bioma.
+export const FRUIT_TREES = [
+  { id: "fruit_planicie", map: "planicie", name: "LIÇÕES DO TAMBORILADOR", color: "#7fd6a0", nodes: [
+    { id: "f_p_1", name: "Pulo Aprendido", desc: "PLANÍCIE: +8% velocidade fora do ninho — as irmãs correram com a lebre", cost: [20], requires: [], fruit: "fruit_planicie", map: "planicie", br: "C", tier: 0, icon: "bolt" },
+    { id: "f_p_2", name: "Tambor Resistente", desc: "PLANÍCIE: -15% dano do THUMP do Tamborilador (mecânica única)", cost: [35], requires: ["f_p_1"], fruit: "fruit_planicie", map: "planicie", br: "G", tier: 0, icon: "shield" },
+    { id: "f_p_3", name: "Orvalho Coletado", desc: "PLANÍCIE: +10% comida coletada na Planície (bioma)", cost: [50], requires: ["f_p_2"], fruit: "fruit_planicie", map: "planicie", br: "C", tier: 1, icon: "food" },
+  ]},
+  { id: "fruit_floresta", map: "floresta", name: "SEDA DA CAÇADORA", color: "#6db7ff", nodes: [
+    { id: "f_f_1", name: "Faro Aguçado", desc: "FLORESTA: +12% alcance de visão das batedoras", cost: [30], requires: [], fruit: "fruit_floresta", map: "floresta", br: "G", tier: 0, icon: "sk_slash" },
+    { id: "f_f_2", name: "Seda Invisível", desc: "FLORESTA: Tecelã +20% velocidade (mecânica única)", cost: [45], requires: ["f_f_1"], fruit: "fruit_floresta", map: "floresta", br: "H", tier: 0, icon: "spider" },
+    { id: "f_f_3", name: "Musgo Cura", desc: "FLORESTA: Matabele cura +10% (Kurandeira)", cost: [60], requires: ["f_f_2"], fruit: "fruit_floresta", map: "floresta", br: "H", tier: 1, icon: "heal" },
+  ]},
+  { id: "fruit_pantano", map: "pantano", name: "BRUMA DA SOMBRA", color: "#37e6c8", nodes: [
+    { id: "f_pa_1", name: "Asas de Névoa", desc: "PÂNTANO: Prata +15% velocidade (arrancada)", cost: [35], requires: [], fruit: "fruit_pantano", map: "pantano", br: "C", tier: 0, icon: "bolt" },
+    { id: "f_pa_2", name: "Grito Absorvido", desc: "PÂNTANO: -20% duração da inversão de controles da Sombra (mecânica única)", cost: [50], requires: ["f_pa_1"], fruit: "fruit_pantano", map: "pantano", br: "G", tier: 0, icon: "sk_fury" },
+    { id: "f_pa_3", name: "Wisp Guia", desc: "PÂNTANO: +1 essência por cristal coletado", cost: [70], requires: ["f_pa_2"], fruit: "fruit_pantano", map: "pantano", br: "R", tier: 1, icon: "wing_gem" },
+  ]},
+  { id: "fruit_deserto", map: "deserto", name: "FÚRIA DA MATRIARCA", color: "#ffb347", nodes: [
+    { id: "f_d_1", name: "Areia Resistente", desc: "DESERTO: +12% dano de todas as irmãs", cost: [40], requires: [], fruit: "fruit_deserto", map: "deserto", br: "G", tier: 0, icon: "fire_sword" },
+    { id: "f_d_2", name: "Prole Rival", desc: "DESERTO: +1 população máxima (mecânica única)", cost: [55], requires: ["f_d_1"], fruit: "fruit_deserto", map: "deserto", br: "C", tier: 0, icon: "spider" },
+    { id: "f_d_3", name: "Calor Âmbar", desc: "DESERTO: +15% essência no Deserto (bioma)", cost: [75], requires: ["f_d_2"], fruit: "fruit_deserto", map: "deserto", br: "R", tier: 1, icon: "sun" },
+  ]},
+  { id: "fruit_outono", map: "outono", name: "COROA DO GALHADA", color: "#ff9a5c", nodes: [
+    { id: "f_o_1", name: "Folha Dourada", desc: "OUTONO: +12% comida no Outono (bioma)", cost: [45], requires: [], fruit: "fruit_outono", map: "outono", br: "C", tier: 0, icon: "food" },
+    { id: "f_o_2", name: "Chifre Quebrado", desc: "OUTONO: Tanques +18% vida (porta-viva)", cost: [60], requires: ["f_o_1"], fruit: "fruit_outono", map: "outono", br: "G", tier: 0, icon: "shield" },
+    { id: "f_o_3", name: "Tristeza Curada", desc: "OUTONO: Cura +15% (todas as curas)", cost: [80], requires: ["f_o_2"], fruit: "fruit_outono", map: "outono", br: "H", tier: 1, icon: "heal" },
+  ]},
+  { id: "fruit_gelo", map: "gelo", name: "MEMÓRIA DO DEVASTADOR", color: "#e8f4ff", nodes: [
+    { id: "f_g_1", name: "Gelo Quebrado", desc: "GELO: +20% dano contra chefes (mecânica única)", cost: [60], requires: [], fruit: "fruit_gelo", map: "gelo", br: "G", tier: 0, icon: "fire_sword" },
+    { id: "f_g_2", name: "Névoa Revelada", desc: "GELO: Revela feromônio melhor + vê Pálida no minimapa", cost: [80], requires: ["f_g_1"], fruit: "fruit_gelo", map: "gelo", br: "H", tier: 0, icon: "sk_frost" },
+    { id: "f_g_3", name: "Topo do Mundo", desc: "GELO: Desbloqueia ERA +1 (lendário) — a colônia vira paisagem", cost: [120], requires: ["f_g_2"], fruit: "fruit_gelo", map: "gelo", br: "R", tier: 2, icon: "crown", sprite: "queen" },
+  ]},
+];
+
 // ------------------------------------------------------------- Recursos iniciais
 export const START = {
   food: 80,
