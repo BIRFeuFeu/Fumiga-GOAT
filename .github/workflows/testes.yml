@@ -36,6 +36,14 @@ jobs:
           name: log-headless
           path: ${{ runner.temp }}/headless.log
           retention-days: 7
+      # Espelha as falhas em annotations (visíveis em gh run view e no checks
+      # do commit), para diagnóstico sem precisar baixar o log completo.
+      - name: anunciar falhas (se falhar)
+        if: failure()
+        run: |
+          grep -E '^(FALHOU|✗)' "${RUNNER_TEMP}/headless.log" | head -20 | while IFS= read -r l; do echo "::error::headless: $l"; done
+          grep -A 30 'últimas linhas' "${RUNNER_TEMP}/headless.log" | head -40 | while IFS= read -r l; do echo "::warning::${l:0:300}"; done
+          true
 
   navegador:
     name: inspeção no navegador (Chromium, PC + mobile)
