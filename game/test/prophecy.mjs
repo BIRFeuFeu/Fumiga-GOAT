@@ -41,13 +41,14 @@ globalThis.performance = globalThis.performance || { now: () => Date.now() };
 process.on("unhandledRejection", (e) => { console.error("UNHANDLED-REJ", e && e.stack || e); process.exit(9); });
 process.on("uncaughtException", (e) => { console.error("UNCAUGHT", e && e.stack || e); process.exit(9); });
 
-const BASE = "/home/user/Fumiga-GOAT/game/js";
-const { ascMods, ascLabel, ASC_MAX, PROPHECIES, ERA_LINES, BOSSES } = await import(BASE + "/config.js");
-const { FONT_CHARS } = await import(BASE + "/font.js");
-const { G, checkProphecies } = await import(BASE + "/state.js");
-const { world, genWorld } = await import(BASE + "/world.js");
-const en = await import(BASE + "/enemies.js");
-const { settleRun } = await import(BASE + "/game.js");
+// caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório, em qualquer máquina
+const J = (f) => new URL("../js/" + f, import.meta.url);
+const { ascMods, ascLabel, ASC_MAX, PROPHECIES, ERA_LINES, BOSSES } = await import(J("config.js"));
+const { FONT_CHARS } = await import(J("font.js"));
+const { G, checkProphecies } = await import(J("state.js"));
+const { world, genWorld } = await import(J("world.js"));
+const en = await import(J("enemies.js"));
+const { settleRun } = await import(J("game.js"));
 
 const problems = [];
 const ok = (msg) => console.log("ok    " + msg);
