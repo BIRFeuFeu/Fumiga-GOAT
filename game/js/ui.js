@@ -3,7 +3,7 @@
 // Painéis refinados, botões com profundidade, caixas de texto in-game
 // ============================================================================
 import { PAL, VIEW_W, VIEW_H } from "./config.js";
-import { drawText, textWidth, FONT } from "./font.js";
+import { drawText, textWidth, FONT, layoutBox } from "./font.js";
 import { mouse, touchMode } from "./input.js";
 import { SFX } from "./audio.js";
 import { G } from "./state.js";
@@ -97,6 +97,7 @@ function hitRect(x, y, w, h) {
 
 /** Painel com borda dupla, cantos chanfrados e estética Dead Cells refinada */
 export function panel(ctx, x, y, w, h, opt = {}) {
+  layoutBox(ctx, opt.kind || "painel", x, y, w, h, opt.layoutId);
   const r = opt.r !== undefined ? opt.r : 6;
   const fill = opt.fill || PAL.panel;
   const border = opt.border || PAL.border;
@@ -227,6 +228,7 @@ export function button(ctx, opt) {
   const fill = dis ? "#171222" : mix(PAL.panel, PAL.panelHi, hv * 0.9);
 
   panel(ctx, bx, by, w, h, {
+    kind: "botao", layoutId: opt.id || opt.label,
     fill,
     border,
     r: 5,
@@ -329,6 +331,7 @@ export function iconButton(ctx, opt) {
   let border = dis ? "#2c2440" : mix(PAL.border, opt.frame || PAL.amber, Math.max(hv, sel));
 
   panel(ctx, x, y + lift, w, h, {
+    kind: "botao", layoutId: "ic:" + (opt.id || ""),
     fill: mix(PAL.panel, PAL.panelHi, hv),
     border,
     r: 4,
@@ -424,6 +427,7 @@ export function bar(ctx, x, y, w, h, frac, opt = {}) {
 
 /** Caixa de diálogo / tooltip refinada */
 export function dialogBox(ctx, x, y, w, h, opt = {}) {
+  layoutBox(ctx, "caixa", x, y, w, h, opt.layoutId);
   const border = opt.border || PAL.borderHi;
   // sombra
   ctx.fillStyle = "rgba(0,0,0,0.6)";

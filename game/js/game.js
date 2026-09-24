@@ -11,7 +11,7 @@ import {
   G, mods, metaBonus, mutBonus, toggleMute, persistSave, loadSave, checkProphecies,
 } from "./state.js";
 import { IMG, rotFrame } from "./assets.js";
-import { drawText, textWidth, wrapText, FONT } from "./font.js";
+import { drawText, textWidth, wrapText, FONT, layoutRec } from "./font.js";
 import { keys, pressed, mouse, initInput, touchMode } from "./input.js";
 import { cam, camReset, updateCam, panCam, zoomCam, shake, screenToWorld, worldToScreen, visibleWorldRect } from "./camera.js";
 import {
@@ -182,9 +182,10 @@ function optSetVolume(sl, x, silent) {
 function isMobileLayout() { return isTouchUI(); }
 
 // ------------------------------------------------------------------ run -----
-function newRun(mode = null) {
+function newRun(mode = null, seedOverride = null) {
   const mSel = mode || selectedMode;
-  const seed = (Math.random() * 0xffffffff) >>> 0;
+  // seedOverride: só o modo debug (?seed=) — mesmo mapa gerado toda vez
+  const seed = seedOverride != null ? seedOverride >>> 0 : (Math.random() * 0xffffffff) >>> 0;
   resetDirector();
   const startMap = mSel.mapIdx || 0;
   genWorld(seed, startMap);
@@ -1216,11 +1217,13 @@ function renderOptions() {
   ctx.beginPath();
   ctx.rect(V.x, V.y, V.w, V.h);
   ctx.clip();
+  layoutRec.clip = { x: V.x, y: V.y, w: V.w, h: V.h };
   if (optionsTab === 0) optionsContentH = optContentAudio(TX, RR, oy, V, FS);
   else if (optionsTab === 1) optionsContentH = optContentVideo(TX, RR, oy, V, FS);
   else if (optionsTab === 2) optionsContentH = optContentControls(TX, RR, oy, V, FS);
   else if (optionsTab === 3) optionsContentH = optContentAccess(TX, RR, oy, V, FS);
   else optionsContentH = optContentLang(TX, RR, oy, V, FS);
+  layoutRec.clip = null;
   ctx.restore();
 
   // barra de rolagem (só quando o conteúdo passa da janela)
@@ -1555,7 +1558,10 @@ function renderRun() {
   // No formigueiro a cena de dentro cobre a tela inteira: desenhar o mundo por
   // baixo seria trabalho jogado fora (e são duas telas vivas no mesmo quadro).
   // O mundo continua visível e simulado pela janela "OLHO LÁ FORA" (drawNest).
+  // auditoria de layout: o mundo pode se sobrepor à vontade; a interface não
+  layoutRec.layer = "world";
   if (!run.baseOpen) drawRun(ctx, dtClampForAnim());
+  layoutRec.layer = "ui";
 
   const modal = paused || !!run.draft || !!run.transition || !!run.baseOpen || run.status !== "running";
 
@@ -2575,3 +2581,24 @@ export function boot() {
   initInput(canvas);
   applyScanlines();
 }
+
+// ---------------------------------------------------- gancho do MODO DEBUG ---
+// Usado só por js/debug.js (carregado apenas com ?debug na URL): pula os menus
+// e cai direto numa tela ou expedição, pelos MESMOS caminhos dos botões.
+export const __debug = {
+  modes: () => GAME_MODES.map((m) => m.id),
+  startRun({ mode = "campanha", map = 0, seed = null } = {}) {
+    const base = GAME_MODES.find((m) => m.id === mode) || GAME_MODES[0];
+    const idx = Math.max(0, Math.min(MAPS.length - 1, map | 0));
+    return newRun(Object.assign({}, base, { mapIdx: idx }), seed);
+  },
+  openScreen(name) {
+    if (name === "TREE") { enterTree(); treeReturn = "TITLE"; }
+    else if (name === "OPTIONS") { optionsReturn = "TITLE"; optionsTab = 0; optionsScroll = 0; optGrab = null; }
+    else if (name === "HELP") helpReturn = "TITLE";
+    else if (name === "MEMORY") memoryHover = -1;
+    else if (name === "PROPHECY") checkProphecies(null, false, null);
+    G.screen = name;
+  },
+  openNest() { if (G.run && G.screen === "RUN") openNest(G.run); },
+};

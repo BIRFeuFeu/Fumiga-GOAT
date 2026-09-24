@@ -1564,6 +1564,68 @@ Cada layer: alta resolução, pixel art detalhado, paleta violeta/âmbar, sem hu
 **Arquivo de origem:** [PROGRESSO_MEGA_ATUALIZACAO.md](PROGRESSO_MEGA_ATUALIZACAO.md)
 
 <!-- INICIO ORIGINAL: PROGRESSO_MEGA_ATUALIZACAO.md -->
+# PROGRESSO — AUDITORIA DE LAYOUT, FASE 1: FERRAMENTAS DE MEDIÇÃO (2026-09-24)
+
+**Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar as telas de todo o jogo e ajustar
+botões e textos para eliminar sobreposição, vazamento de caixa e o que dificulta a leitura
+(PC e mobile). Entrega desta fase: **as ferramentas**; as correções de UI vêm a seguir.
+
+| Peça | O que faz | Onde |
+|---|---|---|
+| Gravador de layout | por 1 frame grava a caixa de tinta de cada texto e cada painel/botão/caixa, em coordenada de canvas; separa camada mundo × interface e respeita o recorte das listas roláveis. No jogo normal custa um `if` por texto | `font.js` (`layoutRec`/`layoutBox`), ganchos em `ui.js`, `lore_hud.js`, `game.js` |
+| Analisador | acusa: texto fora da tela, dois textos colidindo, texto vazando da caixa dona, texto invadindo botão alheio, botões sobrepostos e, no mobile, botão de toque (DOM) cobrindo o canvas | `debug.js` (`FUMIGA.auditarLayout()`) |
+| Auditoria no navegador | 43 estados por perfil (todas as telas, 5 abas de OPÇÕES no fim do scroll, estados de expedição, e tudo de novo com FONTE GRANDE), PC 1280×720 e mobile 844×390 toque; PNG + `layout.json` por estado | `game/test/layout-browser.mjs` (`npm run inspect:layout`) |
+
+**Primeira passada completa: 86 estados, 750 achados** — 434 colisões, 162 vazando, 105 fora
+da tela, 4 sob botão, 45 de camada de toque. PC 355 · mobile 395. Com FONTE GRANDE quase dobra
+(60 estados fonte normal = 268; 26 com fonte grande = 482). Piores telas: MEMÓRIAS (30, e 51
+com fonte grande), PROFECIAS (43 com fonte grande), MODO (39), ÁRVORE (29) e ÁRVORE-DICA (32).
+Confirmado e real, por exemplo: descrições das MEMÓRIAS (350–466 px) transbordam as colunas de
+300 px e colidem com os botões VER e com a coluna seguinte; subtítulo das PROFECIAS (544 px)
+vaza do cabeçalho de 440 px; no fim da expedição os rótulos colidem com os valores e o total
+invade o botão da Árvore; rodapés saem da tela (PROFECIAS, MEMÓRIAS, AJUDA); no mobile os
+botões de toque ONDA/RALI/NINHO/PAUSA cobrem o ENTRAR (B), o último card da loja de irmãs e as
+dicas de rodapé — e as dicas de teclado do PC (ESQ/DIR/Q/B/H/ESC) aparecem sem teclado.
+Telas limpas: OPÇÕES inteira (as 5 abas nos 2 perfis, até com FONTE GRANDE), expedição padrão
+no PC e NINHO/CUTSCENE com fonte normal.
+
+**Falsos positivos conhecidos** (afinar na fase de correção antes de confiar no número exato):
+cópias de sombra do mesmo texto no TÍTULO e rótulos de custo dos nós da ÁRVORE desenhados fora
+da vista — os números acima já os incluem.
+
+**Bugs de ferramenta corrigidos nesta entrega:** os estados RUN-EXPANDIDO e RUN-FORMIGAS
+procuravam os botões por regex aproximada, não achavam nada e auditavam a tela sem clicar
+(agora id exato `hudMore`/`shopToggle`, com `console.error` quando o botão não é achado — o
+RUN-FORMIGAS sozinho passou de 21 para 41 textos auditados); typo no filtro de sombras do
+`test/layout.mjs` (`"rgba(10,8,18,0.9"` sem parêntese de fechar) fazia o ramo nunca casar.
+
+**Próximos passos:** afinar o analisador, pesquisa de referências (Regra 2), perguntas de
+decisão (Regra 1) e as correções de UI tela a tela, guiadas por `npm run inspect:layout`.
+
+---
+
+# PROGRESSO — FERRAMENTAS DE DESENVOLVIMENTO (2026-09-23)
+
+**Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar e implementar o que acelera o desenvolvimento.
+Escopo aprovado: itens 1–7 (navegador, modo debug, testes paralelos, correções de teste, CI, AGENTS.md).
+Cutscenes mantidas como estão. CI bloqueia o merge até ficar verde.
+
+| # | Item | Status | Onde |
+|---|------|--------|------|
+| 1 | Chromium headless no sandbox (CDN bloqueado → Chromium via npm) | ✅ | `tools/setup-dev.sh`, `game/test/lib/browser.mjs` |
+| 2 | Inspeção no navegador PC+mobile, 30 cenas, erros/404/glifos/FPS | ✅ | `game/test/inspect.mjs` (`npm run inspect`) |
+| 3 | Modo debug `?debug` (save isolado, telas diretas, seed, overlay F3) | ✅ | `game/js/debug.js`, ganchos em `main.js`/`game.js`/`state.js`/`font.js` |
+| 4 | Bateria em paralelo + modo rápido | ✅ | `game/test/run-all.mjs`, `package.json` (`npm test`) |
+| 5 | `treemap.mjs` consertado; `assets.mjs` checa literais de `drawText`; bug `▼`→`?` corrigido | ✅ | `game/test/treemap.mjs`, `game/test/assets.mjs`, `game/js/render.js` |
+| 6 | CI GitHub Actions (headless + navegador + capturas) | ⚠️ pronto, inativo | `tools/ci/testes.yml` — o app do agente não tem a permissão `workflows`; o dono copia para `.github/workflows/` |
+| 7 | Mapa do código para agentes | ✅ | `AGENTS.md` |
+
+Achados da inspeção, ainda sem correção (pedem decisão do usuário): textos sobrepostos em
+MEMÓRIAS, COMO JOGAR e no cabeçalho da ÁRVORE; no mobile, botões de toque cobrindo o
+botão ENTRAR (B) e dicas de teclado visíveis na expedição.
+
+---
+
 # PROGRESSO MEGA ATUALIZAÇÃO — SESSÃO ATUAL
 
 **Data:** 2026-09-22 (continuação)
@@ -1957,7 +2019,7 @@ parte dos blocos originais.
 | `LORE.md` | 15056 | `42075fe4334601f1a74834388c0155342b2a8a6c21e51afa6020e34a5260f493` |
 | `DOCUMENTO_MEGA_ATUALIZACAO_LORE_TOTAL.md` | 30473 | `c642dd06d14e527bba6566458afa5293f697b0a3b981ef6301f6fafdfb9e856e` |
 | `DOCUMENTO_DECISOES_MEGA_ATUALIZACAO.md` | 8179 | `2b05240cd9fef9fb33d8a08768164f60202437c886c1c5b83f250ee9cbb58637` |
-| `PROGRESSO_MEGA_ATUALIZACAO.md` | 7782 | `308b60262d478b650659da247f62a0541f02631acb03768c6aefb04ae818243b` |
+| `PROGRESSO_MEGA_ATUALIZACAO.md` | 12665 | `f8c210d7346731ee7337bacff3a51a399a0cedc4ee6cbab870f46e408f23d877` |
 | `DOCUMENTO_FASES_IMPLEMENTACAO.md` | 16113 | `065f79996d7ee89b3445cd231217067471be5b58792c36699c66146ed7a3965b` |
 
 **Conferência reproduzível:** `node game/test/docs.mjs`.
@@ -2022,3 +2084,22 @@ Chromium headless: PC e mobile do boot à expedição, introdução pulada pelo 
 real; cinco requisições únicas dos atlas, promessa reutilizada, sete temas
 renderizados, sem erros JS/HTTP. Capturas do HUD inspecionadas. Preview :8000 ativo.
 Este registro resolve a pendência de `lorehud.mjs` citada na entrega anterior.
+
+## Registro — ferramentas de desenvolvimento (2026-09-23, branch arena/01a0d13b)
+
+Pedido: analisar o que instalar ou implementar para acelerar o desenvolvimento.
+Escolhas (ask_user): itens 1–7, cutscenes intactas, merge só com CI verde.
+
+- Navegador: o CDN do Playwright e o apt estão bloqueados no sandbox; o Chromium 153 do
+  pacote npm `@sparticuz/chromium` roda com as libs NSS que ele traz
+  (`tools/setup-dev.sh`, ~10 s por sessão, fora do Git). Isso fecha a limitação
+  "sem binário de navegador" registrada acima.
+- `game/test/inspect.mjs`: 30 cenas (PC+mobile, 7 telas, formigueiro, 6 mapas) sem erro JS,
+  404 ou glifo faltando; 60 fps, ~1 ms de CPU por frame. `lorehud-browser.mjs` volta a rodar.
+- Modo debug `?debug` (`game/js/debug.js`, import dinâmico, save `_debug`).
+- `run-all.mjs`: 19 testes em ~44 s (em série: 102 s). `treemap.mjs` voltou (49 nós).
+- Bug achado pelo navegador: seta "▼" fora do atlas virava "?" na tela inicial; agora é
+  desenhada em blocos, e o `assets.mjs` checa todo literal passado a `drawText`.
+- CI pronto em `tools/ci/testes.yml`: o push de `.github/workflows/` foi recusado porque o app
+  do agente não tem a permissão `workflows`, e quem ativa é o dono. Mapa operacional em `AGENTS.md`.
+

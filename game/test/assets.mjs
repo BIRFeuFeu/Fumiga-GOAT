@@ -106,6 +106,16 @@ for (const file of fs.readdirSync(jsDir).filter((f) => f.endsWith(".js"))) {
       if (!FONT_CHARS.includes(ch)) missing.set(ch, s.trim());
     }
   }
+  // Segunda passada, sem filtro de "parece texto": QUALQUER literal entregue
+  // direto à fonte bitmap. Foi assim que o "▼" solto da tela inicial (símbolo
+  // sozinho, sem letra) virou "?" sem o teste acusar.
+  const direct = /\b(?:drawText\(\s*\w+\s*,|textWidth\(|wrapText\()\s*(["'])((?:(?!\1)[^\\\n]|\\.)*)\1/g;
+  for (const m of src.matchAll(direct)) {
+    for (const ch of m[2].toUpperCase()) {
+      if (ch === " ") continue;
+      if (!FONT_CHARS.includes(ch)) missing.set(ch, m[2].trim() + " (" + file + ")");
+    }
+  }
 }
 const bad = [...missing.entries()];
 console.log((bad.length ? "ERRO " : "ok   ") + "glifos x textos (" + FONT_CHARS.length + " glifos no atlas)");

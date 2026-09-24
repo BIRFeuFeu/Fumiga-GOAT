@@ -2,37 +2,32 @@
 // CONSTANTES REAIS de game/js/config.js (META_NODES/META_BRANCHES) e das
 // constantes de enquadramento de game/js/meta.js.
 // É só inspeção visual — o jogo de verdade roda no preview.
-// Uso: node test/treemap.mjs  ->  /home/user/arvore-layout.png
+// Uso: node test/treemap.mjs  ->  /home/user/arvore-layout.png  (TREEMAP_OUT muda o destino)
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
 // caminhos relativos ao PRÓPRIO teste — roda de qualquer diretório
 const GAME = decodeURIComponent(new URL("..", import.meta.url).pathname);
 
-const cfg = fs.readFileSync(GAME + "/js/config.js", "utf8");
 const meta = fs.readFileSync(GAME + "/js/meta.js", "utf8");
 
-const branches = {};
-for (const m of cfg.matchAll(/(\w): \{ name: "(\w+)",\s*color: "(#[0-9a-f]{6})" \}/g)) {
-  branches[m[1]] = { name: m[2], color: m[3] };
-}
+// Lê os dados do PRÓPRIO módulo (config.js não importa nada): o parser por
+// regex antigo quebrava a cada campo novo nos nós (tier/sprite zeraram a árvore).
+const { META_NODES, META_BRANCHES } = await import(new URL("../js/config.js", import.meta.url));
+const branches = META_BRANCHES;
 // cada nó: id, ramo, ícone, nome, custos e posição na grade
-const nodes = [];
-const nodeRe = /\{ id: "(\w+)", br: "(\w)", icon: "(\w+)", name: "([^"]+)",\s*\n?\s*desc: "([^"]*)", cost: \[([^\]]+)\], requires: \[([^\]]*)\], x: (-?[\d.]+), y: (-?[\d.]+) \}/g;
-for (const m of cfg.matchAll(nodeRe)) {
-  nodes.push({
-    id: m[1], br: m[2], icon: m[3], name: m[4], desc: m[5],
-    cost: m[6].split(",").map((v) => +v.trim()), req: m[7].split(",").map((s) => s.trim().replace(/"/g, "")).filter(Boolean),
-    x: +m[8], y: +m[9],
-  });
-}
+const nodes = META_NODES.map((n) => ({
+  id: n.id, br: n.br, icon: n.icon, name: n.name, desc: n.desc,
+  cost: n.cost, req: n.requires || [], x: n.x, y: n.y, tier: n.tier || 0,
+}));
 if (nodes.length < 30) {
   console.error("não consegui ler os nós da árvore (achei " + nodes.length + ")");
   process.exit(1);
 }
 const SP = +meta.match(/const SP = (\d+)/)[1];
 const YF = +meta.match(/const YF = ([\d.]+)/)[1];
-const NODE_R = +meta.match(/const NODE_R = (\d+)/)[1];
+// raio por tier (0 comum, 1 marco, 2 raiz/lendário) — igual a meta.js
+const NODE_R = JSON.parse(meta.match(/const NODE_R = (\[[\d, ]+\])/)[1]);
 const [, TOP_UI, BOTTOM_UI] = meta.match(/const TOP_UI = (\d+), BOTTOM_UI = (\d+)/).map(Number);
 const ZMIN = +meta.match(/const MIN_ZOOM = ([\d.]+), MAX_ZOOM/)[1];
 
@@ -84,8 +79,8 @@ for (const n of nodes) {
 }
 
 // --------------------------------------------------------------------- nós --
-const R = Math.max(6, NODE_R * zoom);
 for (const n of nodes) {
+  const R = Math.max(6, NODE_R[n.tier] * zoom);
   const s = screen(n);
   const br = branches[n.br];
   draw("-fill", "#18122a", "-stroke", br.color, "-strokewidth", "2",
@@ -129,7 +124,7 @@ ids.forEach((id, i) => {
 textC(VIEW_W / 2, VIEW_H - 26, "CLIQUE PARA EVOLUIR  •  ARRASTE PARA MOVER  •  RODA OU VER TUDO: ZOOM (" + Math.round(zoom * 100) + "%)", 10, "#a99fc4");
 textR(VIEW_W - 12, VIEW_H - 14, "layout real: " + nodes.length + " nós • zoom " + zoom.toFixed(2) + " • " + SP + "px de respiro", 9, "#6f6590");
 
-const out = "/home/user/arvore-layout.png";   // fora do repo (é só inspeção)
+const out = process.env.TREEMAP_OUT || "/home/user/arvore-layout.png";   // fora do repo (é só inspeção)
 execFileSync("convert", ["-size", `${VIEW_W}x${VIEW_H}`, "xc:#120d1e", ...A, "-quality", "92", out]);
 const per = {};
 for (const n of nodes) per[n.br] = (per[n.br] || 0) + 1;

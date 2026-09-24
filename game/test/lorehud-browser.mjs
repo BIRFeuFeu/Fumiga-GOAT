@@ -1,17 +1,20 @@
 // Inspeção opcional no navegador. Requer Playwright no ambiente de testes,
-// não no jogo. Servir o repo em :8000; CHROMIUM_PATH pode apontar a um browser.
+// não no jogo: rode antes  bash tools/setup-dev.sh  (npm run inspect:hud).
+// Sobe o próprio servidor (ou use BASE_URL); CHROMIUM_PATH pode apontar a um browser.
 // Saídas fora do Git: HUD_SHOTS=/home/user/fumiga-hud-shots (padrão /tmp).
-import { chromium } from 'playwright';
+import { startServer } from './lib/server.mjs';
+import { launchBrowser } from './lib/browser.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const shots = process.env.HUD_SHOTS || '/tmp/fumiga-hud-shots';
 const perfFrames = Math.max(90, Number(process.env.HUD_PERF_FRAMES) || 1800);
 fs.mkdirSync(shots,{recursive:true});
-const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--no-zygote'],headless:true});
+const server=process.env.BASE_URL?null:await startServer();
+const browser=await launchBrowser();
 try {
 const page=await browser.newPage({viewport:{width:1280,height:720}});
 const errors=[];page.on('pageerror',e=>errors.push(String(e)));page.on('response',r=>{if(r.status()>=400) errors.push(r.status()+' '+r.url())});
-await page.goto((process.env.BASE_URL || 'http://127.0.0.1:8000') + '/game/');
+await page.goto((process.env.BASE_URL || server.url) + '/game/');
 await page.waitForFunction(async()=> (await import('./js/state.js')).G.screen==='PRETITLE');
 async function click(x,y){const box=await page.locator('canvas#game').boundingBox();await page.mouse.click(box.x+x*box.width/960,box.y+y*box.height/540);await page.waitForTimeout(900);}
 await click(480,270);await click(200,275);await click(114,282);await page.keyboard.press('Escape');await page.waitForTimeout(1200);
@@ -70,5 +73,5 @@ if (process.env.HUD_MIN_FPS) assert(perf.fps >= Number(process.env.HUD_MIN_FPS),
 assert.deepEqual(errors,[],'sem erros JS ou HTTP');
 fs.writeFileSync(shots+'/resultado.json',JSON.stringify({perf,errors,biomes:6,checks:['H pressionado/solto/blur','vida baixa','zoom','fonte grande','alto contraste','partículas reduzidas','viewport paisagem/retrato','formigueiro','onda']},null,2));
 console.log('BROWSER HUD OK — seis biomas, H, vida baixa, zoom, acessibilidade, viewports mobile, formigueiro e onda');
-} finally { await browser.close(); }
+} finally { await browser.close(); if(server) await server.close(); }
 

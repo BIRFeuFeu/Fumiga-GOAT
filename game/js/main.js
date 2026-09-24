@@ -163,10 +163,24 @@ function loop(t) {
   if (dt > 0.1) dt = 0.1;
 
   if (!ready) { drawLoading(); return; }
+  const t0 = dbg ? performance.now() : 0;
   setLastDt(dt);
   update(dt);
   render(dt);
   endTick();
+  if (dbg) dbg(ctx, dt, performance.now() - t0);
+}
+
+// MODO DEBUG: só com ?debug na URL. Import dinâmico — o jogo normal nunca
+// baixa js/debug.js. Ver o cabeçalho de debug.js para os parâmetros.
+let dbg = null;
+const DEBUG_URL = typeof location !== "undefined" && /[?&]debug(?:[=&]|$)/.test(location.search || "");
+async function installDebugMode() {
+  try {
+    const m = await import("./debug.js");
+    m.installDebug();
+    dbg = m.debugFrame;
+  } catch (e) { console.error("modo debug falhou:", e); }
 }
 
 async function bootAll() {
@@ -189,6 +203,7 @@ async function bootAll() {
   boot();
   ready = true;
   G.screen = "PRETITLE";
+  if (DEBUG_URL) await installDebugMode();
 }
 
 // primeira interação: destrava áudio

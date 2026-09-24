@@ -323,7 +323,7 @@ function auditFrame(label, ops, opt = {}) {
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i], b = texts[j];
       if (a.text === b.text) continue;
-      if (a.style === "rgba(10,8,18,0.9)" || b.style === "rgba(10,8,18,0.9") continue;
+      if (a.style === "rgba(10,8,18,0.9)" || b.style === "rgba(10,8,18,0.9)") continue;
       const ov = rectsOverlap(a.box, b.box);
       if (ov > Math.min(area(a.box), area(b.box)) * 0.35) {
         note(label, "colisao", a.text + " x " + b.text,
