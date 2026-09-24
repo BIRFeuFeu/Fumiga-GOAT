@@ -224,11 +224,16 @@ expect(busy >= 1, "formigas em movimento dentro do formigueiro (" + busy + " ocu
   // Ela nasce colada na porta e mergulha na hora — atravessar o campo de
   // batalha a pé seria pedir para morrer antes de descer (há ondas rolando).
   let recruta = null;
-  for (let tent = 0; tent < 3 && !recruta; tent++) {
+  for (let tent = 0; tent < 4 && !recruta; tent++) {
+    // A horda em volta da boca pode matar a recruta ANTES de a boca engoli-la
+    // (era assim que este passo ficava vermelho no CI, sem regressão nenhuma).
+    // Sem inimigos por perto o passo é determinístico — e nenhuma checagem
+    // daqui para baixo depende deles.
+    en.clearFoes();
     const cand = units.spawnAnt("worker", world.anthill.door.x, world.anthill.door.y);
     units.antEnterNest(cand, "teste");
     let guardIn = 0;
-    while (!cand.inside && !cand.dead && guardIn < 8000) { await wait(250); guardIn += 250; }
+    while (!cand.inside && !cand.dead && guardIn < 6000) { await wait(250); guardIn += 250; }
     if (cand.inside) recruta = cand;
   }
   expect(recruta !== null, "recruta desceu pela boca para o teste de saída");
