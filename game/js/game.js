@@ -11,7 +11,7 @@ import {
   G, mods, metaBonus, mutBonus, toggleMute, persistSave, loadSave, checkProphecies,
 } from "./state.js";
 import { IMG, rotFrame } from "./assets.js";
-import { drawText, textWidth, wrapText, FONT } from "./font.js";
+import { drawText, textWidth, wrapText, FONT, layoutRec } from "./font.js";
 import { keys, pressed, mouse, initInput, touchMode } from "./input.js";
 import { cam, camReset, updateCam, panCam, zoomCam, shake, screenToWorld, worldToScreen, visibleWorldRect } from "./camera.js";
 import {
@@ -1217,11 +1217,13 @@ function renderOptions() {
   ctx.beginPath();
   ctx.rect(V.x, V.y, V.w, V.h);
   ctx.clip();
+  layoutRec.clip = { x: V.x, y: V.y, w: V.w, h: V.h };
   if (optionsTab === 0) optionsContentH = optContentAudio(TX, RR, oy, V, FS);
   else if (optionsTab === 1) optionsContentH = optContentVideo(TX, RR, oy, V, FS);
   else if (optionsTab === 2) optionsContentH = optContentControls(TX, RR, oy, V, FS);
   else if (optionsTab === 3) optionsContentH = optContentAccess(TX, RR, oy, V, FS);
   else optionsContentH = optContentLang(TX, RR, oy, V, FS);
+  layoutRec.clip = null;
   ctx.restore();
 
   // barra de rolagem (só quando o conteúdo passa da janela)
@@ -1556,7 +1558,10 @@ function renderRun() {
   // No formigueiro a cena de dentro cobre a tela inteira: desenhar o mundo por
   // baixo seria trabalho jogado fora (e são duas telas vivas no mesmo quadro).
   // O mundo continua visível e simulado pela janela "OLHO LÁ FORA" (drawNest).
+  // auditoria de layout: o mundo pode se sobrepor à vontade; a interface não
+  layoutRec.layer = "world";
   if (!run.baseOpen) drawRun(ctx, dtClampForAnim());
+  layoutRec.layer = "ui";
 
   const modal = paused || !!run.draft || !!run.transition || !!run.baseOpen || run.status !== "running";
 

@@ -24,7 +24,7 @@
 // ============================================================================
 import { G, persistSave } from "./state.js";
 import { MAPS } from "./config.js";
-import { missingGlyphs } from "./font.js";
+import { missingGlyphs, layoutRec } from "./font.js";
 import { __debug } from "./game.js";
 import { getCutsceneDefs } from "./cutscenes.js";
 import { allies } from "./units.js";
@@ -95,6 +95,113 @@ function snapshot() {
   };
 }
 
+// ------------------------------------------------------ AUDITORIA DE LAYOUT --
+// Grava UM frame (font.js/ui.js) e acusa, só na camada de interface:
+//   fora      texto fora do canvas 960x540
+//   colisão   dois textos se sobrepondo
+//   vazando   texto que começa numa caixa/botão e passa da borda dela
+//   botões    botões desenhados um por cima do outro
+//   sob-botão texto invadindo um botão que não é o dele
+//   toque     (mobile) botão DOM da camada de toque cobrindo texto/botão do canvas
+const ov = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) *
+  Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+const inter = (a, b) => {
+  const x = Math.max(a.x, b.x), y = Math.max(a.y, b.y);
+  const w = Math.min(a.x + a.w, b.x + b.w) - x, h = Math.min(a.y + a.h, b.y + b.h) - y;
+  return w > 0 && h > 0 ? { x, y, w, h } : null;
+};
+const inside = (a, b, tol = 1.5) => a.x >= b.x - tol && a.y >= b.y - tol && a.x + a.w <= b.x + b.w + tol && a.y + a.h <= b.y + b.h + tol;
+const area = (r) => Math.max(1, r.w * r.h);
+const R = (r) => "(" + Math.round(r.x) + "," + Math.round(r.y) + " " + Math.round(r.w) + "x" + Math.round(r.h) + ")";
+
+function domRects() {
+  // botões da camada de toque (game/mobile/touch.js), em coordenadas do canvas
+  const cv = document.getElementById("game");
+  if (!cv) return [];
+  const c = cv.getBoundingClientRect(), sx = 960 / c.width, sy = 540 / c.height;
+  const out = [];
+  for (const el of document.querySelectorAll("#touch-hud button, #touch-hud .btn, #touch-mode-btn, #rotate-hint")) {
+    const st = getComputedStyle(el);
+    if (el.hidden || st.display === "none" || st.visibility === "hidden" || +st.opacity < 0.05) continue;
+    if (el.closest("[hidden]")) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) continue;
+    out.push({ id: (el.textContent || el.id || "toque").trim().replace(/\s+/g, " ").slice(0, 24),
+      x: (r.left - c.left) * sx, y: (r.top - c.top) * sy, w: r.width * sx, h: r.height * sy });
+  }
+  return out;
+}
+
+function analyzeLayout(texts0, boxes0) {
+  const issues = [];
+  const add = (k, msg) => { if (!issues.some((i) => i.msg === msg)) issues.push({ tipo: k, msg }); };
+  // só interface, visível (alpha) e recortada pela lista rolável
+  const texts = [];
+  for (const t of texts0) {
+    if (t.layer !== "ui" || t.alpha < 0.35) continue;
+    const v = t.clip ? inter(t, t.clip) : t;
+    if (!v || v.h < t.h * 0.5) continue;
+    texts.push(Object.assign({}, t, v));
+  }
+  const boxes = [];
+  for (const b of boxes0) {
+    if (b.layer !== "ui" || b.w < 6 || b.h < 6) continue;
+    const v = b.clip ? inter(b, b.clip) : b;
+    if (v) boxes.push(Object.assign({}, b, v));
+  }
+  const buttons = boxes.filter((b) => b.kind === "botao");
+
+  for (const t of texts) {
+    if (t.x < -1 || t.y < -1 || t.x + t.w > 961 || t.y + t.h > 541) add("fora", "texto \"" + t.text + "\" fora da tela " + R(t));
+  }
+  for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+    const a = texts[i], b = texts[j];
+    if (a.text === b.text && Math.abs(a.x - b.x) < 8 && Math.abs(a.y - b.y) < 8) continue; // camadas do mesmo texto
+    const o = ov(a, b);
+    if (o > Math.max(6, Math.min(area(a), area(b)) * 0.06)) add("colisão", "\"" + a.text + "\" " + R(a) + " x \"" + b.text + "\" " + R(b));
+  }
+  for (const t of texts) {
+    // dono = menor caixa que contém boa parte do texto
+    let owner = null;
+    for (const b of boxes) {
+      if (ov(t, b) < area(t) * 0.4) continue;
+      if (!owner || area(b) < area(owner)) owner = b;
+    }
+    if (owner && !inside(t, owner)) add("vazando", "\"" + t.text + "\" " + R(t) + " passa da borda de " + owner.kind + " " + owner.id + " " + R(owner));
+    for (const b of buttons) {
+      if (b === owner || inside(t, b) || inside(b, t)) continue;
+      if (owner && inside(b, owner) === false && inside(owner, b)) continue;
+      if (ov(t, b) > area(t) * 0.12) add("sob-botão", "\"" + t.text + "\" " + R(t) + " invade o botão " + b.id + " " + R(b));
+    }
+  }
+  for (let i = 0; i < buttons.length; i++) for (let j = i + 1; j < buttons.length; j++) {
+    const a = buttons[i], b = buttons[j];
+    const r = inter(a, b);
+    if (r && r.w > 2 && r.h > 2 && !inside(a, b, 0) && !inside(b, a, 0)) add("botões", "botão " + a.id + " " + R(a) + " x botão " + b.id + " " + R(b));
+  }
+  for (const d of domRects()) {
+    for (const b of buttons) { const r = inter(d, b); if (r && r.w > 2 && r.h > 2) add("toque", "botão de toque \"" + d.id + "\" " + R(d) + " cobre o botão " + b.id + " " + R(b)); }
+    for (const t of texts) if (ov(d, t) > area(t) * 0.15) add("toque", "botão de toque \"" + d.id + "\" " + R(d) + " cobre o texto \"" + t.text + "\"");
+  }
+  return issues;
+}
+
+/** Audita o próximo frame. Resolve com { tela, issues, textos, caixas, toque }. */
+function auditarLayout() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      layoutRec.texts = []; layoutRec.boxes = []; layoutRec.layer = "ui"; layoutRec.clip = null;
+      layoutRec.on = true;
+      requestAnimationFrame(() => {
+        layoutRec.on = false;
+        const texts = layoutRec.texts, boxes = layoutRec.boxes;
+        layoutRec.texts = []; layoutRec.boxes = [];
+        resolve({ tela: G.screen, issues: analyzeLayout(texts, boxes), textos: texts.length, caixas: boxes.length, toque: domRects() });
+      });
+    });
+  });
+}
+
 function ajuda() {
   const txt = [
     "FUMIGA — modo debug",
@@ -103,6 +210,7 @@ function ajuda() {
     "  FUMIGA.essencia(5000)                   define a essência do save de debug",
     "  FUMIGA.invencivel(true)                 rainha e colônia não morrem",
     "  FUMIGA.estado()                         FPS, entidades, glifos faltando, erros",
+    "  await FUMIGA.auditarLayout()            sobreposições/vazamentos do frame atual",
     "  FUMIGA.G / FUMIGA.mapas                 estado global e definições dos mapas",
     "  F3                                      liga/desliga o overlay",
   ].join("\n");
@@ -130,7 +238,7 @@ export function installDebug() {
   addEventListener("keydown", (e) => { if (e.code === "F3") { showHud = !showHud; e.preventDefault(); } });
 
   window.FUMIGA = {
-    G, mapas: MAPS, go, ajuda, estado: snapshot,
+    G, mapas: MAPS, go, ajuda, estado: snapshot, auditarLayout,
     essencia(v) { G.save.essence = Math.max(0, v | 0); persistSave(); return G.save.essence; },
     invencivel(on = true) { G.save.accessibility.invincible = !!on; persistSave(); return !!on; },
     hud(on = !showHud) { showHud = !!on; return showHud; },

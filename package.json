@@ -12,6 +12,7 @@
     "test:quick": "node game/test/run-all.mjs --quick",
     "inspect": "node game/test/inspect.mjs",
     "inspect:hud": "node game/test/lorehud-browser.mjs",
+    "inspect:layout": "node game/test/layout-browser.mjs",
     "serve": "node game/test/lib/server.mjs 8000",
     "setup": "bash tools/setup-dev.sh"
   },

@@ -26,6 +26,29 @@ export const FONT_CHARS = CHARS;
  */
 export const missingGlyphs = new Map();
 
+// ---------------------------------------------------------- GRAVADOR DE LAYOUT
+// Ferramenta de auditoria (modo debug / test/layout-browser.mjs): quando ligado
+// por UM frame, grava a caixa de tinta de cada texto e cada painel/botão, já na
+// coordenada do canvas. Desligado (sempre, no jogo normal) custa um `if`.
+//   layer: "world" (mundo da expedição, que pode se sobrepor à vontade) | "ui"
+//   clip:  retângulo de recorte ativo (lista rolável), para ignorar o escondido
+export const layoutRec = { on: false, layer: "ui", clip: null, texts: [], boxes: [] };
+const INK = { big: [5, 20], small: [4, 14] };   // [recuo do topo, altura da tinta] na célula
+
+function txBox(ctx, x, y, w, h) {
+  const m = ctx.getTransform ? ctx.getTransform() : null;
+  if (!m || typeof m.a !== "number") return { x, y, w, h };
+  const x0 = m.a * x + m.c * y + m.e, y0 = m.b * x + m.d * y + m.f;
+  const x1 = m.a * (x + w) + m.c * (y + h) + m.e, y1 = m.b * (x + w) + m.d * (y + h) + m.f;
+  return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+}
+
+/** Grava um contêiner (painel, botão, caixa) para a auditoria de layout. */
+export function layoutBox(ctx, kind, x, y, w, h, id) {
+  if (!layoutRec.on) return;
+  layoutRec.boxes.push(Object.assign({ kind, id: id || kind, layer: layoutRec.layer, clip: layoutRec.clip }, txBox(ctx, x, y, w, h)));
+}
+
 export const FONT = {
   big:   { src: "assets/font/font_big.png",   cw: 22, ch: 30, adv: 13, lh: 36 },
   small: { src: "assets/font/font_small.png", cw: 20, ch: 18, adv: 11, lh: 22 },
@@ -117,6 +140,14 @@ export function drawText(ctx, text, x, y, {
   let dx = x;
   if (align === "center") dx = x - cv.width / 2;
   else if (align === "right") dx = x - cv.width;
+  if (layoutRec.on && text.trim()) {
+    // caixa da TINTA (sem a folga da célula): é o que o jogador vê
+    const [iy, ih] = INK[font] || INK.small, F = FONT[font] || FONT.small;
+    const lead = text.length - text.trimStart().length, core = text.trim().length;
+    layoutRec.texts.push(Object.assign({ text: text.trim(), layer: layoutRec.layer, clip: layoutRec.clip,
+      alpha: ctx.globalAlpha * alpha },
+      txBox(ctx, Math.round(dx) + lead * F.adv * scale, Math.round(y) + iy * scale, (core - 1) * F.adv * scale + F.cw * scale * 0.8, ih * scale)));
+  }
   const prevA = ctx.globalAlpha;
   ctx.globalAlpha = alpha;
   if (shadow) {

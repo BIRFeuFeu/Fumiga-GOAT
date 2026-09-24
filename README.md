@@ -83,6 +83,8 @@ FORCE=3 node game/test/sim.mjs   # simulação indo direto ao chefe do mapa 3
 bash tools/setup-dev.sh   # instala Playwright + Chromium (uma vez por máquina/sessão)
 npm run inspect           # PC + mobile: todas as telas e os 6 mapas — erros de JS, 404,
                           # glifos que viram "?", FPS e capturas em /tmp/fumiga-inspect
+npm run inspect:layout    # auditoria de layout: todas as telas, com e sem FONTE GRANDE —
+                          # texto fora da tela, colidindo, vazando da caixa, botões sobrepostos
 ```
 
 O **CI** (GitHub Actions) está pronto em [`tools/ci/testes.yml`](tools/ci/testes.yml): copiado para

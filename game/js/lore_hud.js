@@ -1,5 +1,5 @@
 import { G } from "./state.js";
-import { drawText } from "./font.js";
+import { drawText, layoutBox } from "./font.js";
 import { MAPS } from "./config.js";
 import { assetUrl, loadImage, LOAD_CFG } from "./assets.js";
 
@@ -295,6 +295,7 @@ export function drawWoodBanner(ctx, x, y, w, h, biome) {
   const id = BIOME_HUD[biome] ? biome : "colonia";
   noteBiome(id);
   w = Math.max(32, Math.round(w)); h = Math.max(24, Math.round(h));
+  layoutBox(ctx, "caixa", x, y, w, h, "banner");
   blitMolt(ctx, "banner", id, x, y, w, h, L_BANNER);
   // placa gravada p/ legibilidade do texto (a tábua continua visível nas bordas)
   ctx.save();

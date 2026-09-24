@@ -1,3 +1,43 @@
+# PROGRESSO — AUDITORIA DE LAYOUT, FASE 1: FERRAMENTAS DE MEDIÇÃO (2026-09-24)
+
+**Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar as telas de todo o jogo e ajustar
+botões e textos para eliminar sobreposição, vazamento de caixa e o que dificulta a leitura
+(PC e mobile). Entrega desta fase: **as ferramentas**; as correções de UI vêm a seguir.
+
+| Peça | O que faz | Onde |
+|---|---|---|
+| Gravador de layout | por 1 frame grava a caixa de tinta de cada texto e cada painel/botão/caixa, em coordenada de canvas; separa camada mundo × interface e respeita o recorte das listas roláveis. No jogo normal custa um `if` por texto | `font.js` (`layoutRec`/`layoutBox`), ganchos em `ui.js`, `lore_hud.js`, `game.js` |
+| Analisador | acusa: texto fora da tela, dois textos colidindo, texto vazando da caixa dona, texto invadindo botão alheio, botões sobrepostos e, no mobile, botão de toque (DOM) cobrindo o canvas | `debug.js` (`FUMIGA.auditarLayout()`) |
+| Auditoria no navegador | 43 estados por perfil (todas as telas, 5 abas de OPÇÕES no fim do scroll, estados de expedição, e tudo de novo com FONTE GRANDE), PC 1280×720 e mobile 844×390 toque; PNG + `layout.json` por estado | `game/test/layout-browser.mjs` (`npm run inspect:layout`) |
+
+**Primeira passada completa: 86 estados, 750 achados** — 434 colisões, 162 vazando, 105 fora
+da tela, 4 sob botão, 45 de camada de toque. PC 355 · mobile 395. Com FONTE GRANDE quase dobra
+(60 estados fonte normal = 268; 26 com fonte grande = 482). Piores telas: MEMÓRIAS (30, e 51
+com fonte grande), PROFECIAS (43 com fonte grande), MODO (39), ÁRVORE (29) e ÁRVORE-DICA (32).
+Confirmado e real, por exemplo: descrições das MEMÓRIAS (350–466 px) transbordam as colunas de
+300 px e colidem com os botões VER e com a coluna seguinte; subtítulo das PROFECIAS (544 px)
+vaza do cabeçalho de 440 px; no fim da expedição os rótulos colidem com os valores e o total
+invade o botão da Árvore; rodapés saem da tela (PROFECIAS, MEMÓRIAS, AJUDA); no mobile os
+botões de toque ONDA/RALI/NINHO/PAUSA cobrem o ENTRAR (B), o último card da loja de irmãs e as
+dicas de rodapé — e as dicas de teclado do PC (ESQ/DIR/Q/B/H/ESC) aparecem sem teclado.
+Telas limpas: OPÇÕES inteira (as 5 abas nos 2 perfis, até com FONTE GRANDE), expedição padrão
+no PC e NINHO/CUTSCENE com fonte normal.
+
+**Falsos positivos conhecidos** (afinar na fase de correção antes de confiar no número exato):
+cópias de sombra do mesmo texto no TÍTULO e rótulos de custo dos nós da ÁRVORE desenhados fora
+da vista — os números acima já os incluem.
+
+**Bugs de ferramenta corrigidos nesta entrega:** os estados RUN-EXPANDIDO e RUN-FORMIGAS
+procuravam os botões por regex aproximada, não achavam nada e auditavam a tela sem clicar
+(agora id exato `hudMore`/`shopToggle`, com `console.error` quando o botão não é achado — o
+RUN-FORMIGAS sozinho passou de 21 para 41 textos auditados); typo no filtro de sombras do
+`test/layout.mjs` (`"rgba(10,8,18,0.9"` sem parêntese de fechar) fazia o ramo nunca casar.
+
+**Próximos passos:** afinar o analisador, pesquisa de referências (Regra 2), perguntas de
+decisão (Regra 1) e as correções de UI tela a tela, guiadas por `npm run inspect:layout`.
+
+---
+
 # PROGRESSO — FERRAMENTAS DE DESENVOLVIMENTO (2026-09-23)
 
 **Branch:** arena/01a0d13b-fumiga-goat · Pedido: analisar e implementar o que acelera o desenvolvimento.
